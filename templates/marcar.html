@@ -1,0 +1,27 @@
+<form method="POST" action="/sucesso_agendamento">
+    <label>Data:</label>
+    <input type="date" name="data" required>
+
+    <label>Hora:</label>
+    <select name="hora" required>
+        {% for hora in horarios %}
+        <option value="{{ hora }}">{{ hora }}</option>
+        {% endfor %}
+    </select>
+
+    <label>Nome do Cliente:</label>
+    <input type="text" name="nome" required>
+
+    <label>Whatsapp:</label>
+    <input type="text" name="whatsapp" required>
+
+    <label>Serviço:</label>
+    <select name="servico" required>
+        <option value="Corte">Corte</option>
+        <option value="Corte e Barba">Corte e Barba</option>
+        <option value="Corte + Sobrancelha">Corte + Sobrancelha</option>
+        <option value="Outro">Outro</option>
+    </select>
+
+    <button type="submit">Marcar Horário</button>
+</form>

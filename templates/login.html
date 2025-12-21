@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Barber Agenda</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #000000, #444444);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: #fff;
+            width: 350px;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px #00000070;
+            animation: fadeIn 0.6s;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #000;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid #bbb;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            background: black;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 17px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #333;
+        }
+
+        .link {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .link a {
+            text-decoration: none;
+            color: black;
+            font-weight: bold;
+        }
+
+        .btn-cadastro {
+            display: inline-block;
+            width: 100%;
+            padding: 12px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 17px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-cadastro:hover {
+            background: #000;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Login do Barbeiro</h2>
+
+        <form method="POST">
+
+            <label>Email:</label>
+            <input type="email" name="email" required placeholder="Digite seu email">
+
+            <label>Senha:</label>
+            <input type="password" name="password" required placeholder="Digite sua senha">
+
+            <button type="submit">Entrar</button>
+
+        </form>
+
+        <div class="link">
+            <a href="#" onclick="alert('Recuperação ainda não conectada ao email.');">Esqueci minha senha</a>
+        </div>
+
+        <div class="link" style="margin-top: 20px;">
+            <a href="/cadastro" class="btn-cadastro">Cadastrar Novo Barbeiro</a>
+        </div>
+    </div>
+
+</body>
+</html>

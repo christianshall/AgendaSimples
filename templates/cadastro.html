@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Barber Agenda</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #000000, #444444);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: #fff;
+            width: 350px;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px #00000070;
+            animation: fadeIn 0.6s;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #000;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid #bbb;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            background: black;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 17px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #333;
+        }
+
+        .link {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .link a {
+            text-decoration: none;
+            color: black;
+            font-weight: bold;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Cadastro de Barbeiro</h2>
+
+        <form method="POST">
+
+            <label>Nome:</label>
+            <input type="text" name="nome" required placeholder="Digite seu nome completo">
+
+            <label>Email:</label>
+            <input type="email" name="email" required placeholder="Digite seu email">
+
+            <label>Senha:</label>
+            <input type="password" name="password" required placeholder="Digite sua senha">
+
+            <label>Confirmar Senha:</label>
+            <input type="password" name="confirmar_senha" required placeholder="Confirme sua senha">
+
+            <button type="submit">Cadastrar</button>
+
+        </form>
+
+        <div class="link">
+            <a href="/login">Já tem uma conta? Fazer Login</a>
+        </div>
+    </div>
+
+</body>
+</html>
+

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marcar Horário - Christian Shall Barber Shop</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+    <div class="form-section">
+        <h2>📅 Marcar Horário</h2>
+        
+        <!-- 🔥 ROTA CORRIGIDA -->
+        <form method="POST" action="{{ url_for('agendar') }}">
+            
+            <label for="nome">Nome Completo:</label>
+            <input type="text" id="nome" name="nome" required placeholder="Digite seu nome completo">
+
+            <label for="whatsapp">WhatsApp:</label>
+            <input type="text" id="whatsapp" name="whatsapp" required placeholder="+55 19 99999-9999">
+
+            <label for="barbeiro_id">Barbeiro:</label>
+            <select id="barbeiro_id" name="barbeiro_id" required>
+                <option value="">Selecione um barbeiro</option>
+                {% for barbeiro in barbeiros %}
+                    <option value="{{ barbeiro[0] }}">{{ barbeiro[1] }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="data">Data Desejada:</label>
+            <input type="date" id="data" name="data" required>
+
+            <label for="hora">Horário:</label>
+            <select id="hora" name="hora" required>
+                <option value="">Selecione um horário</option>
+                {% for hora in horarios %}
+                    <option value="{{ hora }}">{{ hora }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="servico">Serviço:</label>
+            <select id="servico" name="servico" required>
+                <option value="">Selecione o serviço</option>
+                <option value="Corte">Corte</option>
+                <option value="Corte e Barba">Corte e Barba</option>
+                <option value="Corte + Sobrancelha">Corte + Sobrancelha</option>
+                <option value="Barba">Barba</option>
+                <option value="Outro">Outro</option>
+            </select>
+
+            <button type="submit">✅ Confirmar Agendamento</button>
+        </form>
+
+        <a href="/" style="display: block; text-align: center; margin-top: 20px; color: #ff4b5c; text-decoration: none;">
+            ← Voltar para a página inicial
+        </a>
+    </div>
+
+    <div class="branding-section">
+        <span class="name-animate">💈 Christian Shall<br>Barber Shop</span>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Agendamento</title>
+</head>
+<body>
+<h2>Editar Agendamento - {{ data }} {{ hora }}</h2>
+<form method="POST">
+    {% if barbeiro_id %}
+    <input type="hidden" name="barbeiro_id" value="{{ barbeiro_id }}">
+    {% endif %}
+    <label>Nome:</label>
+    <input type="text" name="nome" value="{{ cliente.Nome }}" required>
+    <label>Serviço:</label>
+    <input type="text" name="servico" value="{{ cliente.Servico }}" required>
+    <label>WhatsApp:</label>
+    <input type="text" name="whatsapp" value="{{ cliente.Whatsapp }}">
+    <button type="submit">Salvar</button>
+</form>
+{% if role == 'admin' %}
+<a href="{{ url_for('admin_agenda') }}">Voltar</a>
+{% else %}
+<a href="{{ url_for('agenda') }}">Voltar</a>
+{% endif %}
+</body>
+</html>

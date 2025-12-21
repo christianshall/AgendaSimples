@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Agendamento Confirmado - Christian Shall Barber Shop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0f0f0f, #1c1c1c);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+        }
+
+        .card {
+            background: #151515;
+            border-radius: 16px;
+            padding: 35px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.35);
+            animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #d4af37;
+            margin-bottom: 5px;
+        }
+
+        p {
+            color: #ccc;
+            margin-bottom: 25px;
+        }
+
+        .info {
+            background: #1f1f1f;
+            border-radius: 12px;
+            padding: 18px;
+            text-align: left;
+            margin-bottom: 25px;
+        }
+
+        .info div {
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .info strong {
+            color: #d4af37;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #d4af37;
+            color: #000;
+            font-weight: bold;
+            border-radius: 25px;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #b8962e;
+            transform: scale(1.05);
+        }
+
+        .brand {
+            margin-top: 18px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="icon">✅</div>
+
+    <h1>Agendamento Confirmado!</h1>
+    <p>Seu horário foi marcado com sucesso 💈</p>
+
+    <div class="info">
+        <div><strong>Cliente:</strong> {{ nome }}</div>
+        <div><strong>Barbeiro:</strong> {{ barbeiro }}</div>
+        <div><strong>Data:</strong> {{ data }}</div>
+        <div><strong>Horário:</strong> {{ hora }}</div>
+        <div><strong>Serviço:</strong> {{ servico }}</div>
+    </div>
+
+    <a href="/" class="btn">⬅ Voltar ao início</a>
+
+    <div class="brand">
+        Christian Shall Barber Shop
+    </div>
+</div>
+
+</body>
+</html>
