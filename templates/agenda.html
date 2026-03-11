@@ -3,423 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minha Agenda - {{ barbeiro_nome }} - Christian Shall Barber Shop</title> 
+    <title>Minha Agenda - {{ session.user_name }} - Christian Shall Barber Shop</title> 
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
             --primary-color: #1a1a1a;
-            --accent-color: #c7a17a; /* Cor dourada de barbearia */
+            --accent-color: #c7a17a;
             --bg-color: #f4f6f9;
-            --card-bg: #ffffff;
         }
 
         body {
             background-color: var(--bg-color);
             font-family: 'Poppins', sans-serif;
-            color: #333;
         }
 
-        /* Navbar */
         .navbar-custom {
             background-color: var(--primary-color);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             padding: 15px 0;
         }
+
         .navbar-brand {
-            font-weight: 700;
             color: var(--accent-color) !important;
-            letter-spacing: 1px;
-            font-size: 1.5rem;
+            font-weight: 700;
+            font-size: 1.4rem;
         }
 
-        /* Date Navigation (Scroll Horizontal) */
         .date-scroller {
             display: flex;
             overflow-x: auto;
-            padding: 20px 0;
+            padding: 20px;
             gap: 10px;
             background: white;
-            border-bottom: 1px solid #ddd;
             position: sticky;
             top: 0;
             z-index: 100;
-            scrollbar-width: thin;
+            border-bottom: 1px solid #ddd;
         }
-        
+
         .date-card {
             min-width: 100px;
             text-align: center;
             padding: 10px;
             border-radius: 12px;
-            border: 1px solid #eee;
+            border: 1px solid #ddd;
             cursor: pointer;
-            transition: all 0.3s ease;
-            background: #fff;
-        }
-
-        .date-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--accent-color);
         }
 
         .date-card.active {
-            background-color: var(--primary-color);
+            background: var(--primary-color);
             color: var(--accent-color);
-            border-color: var(--primary-color);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
-        
-        .date-card .day-name { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-        .date-card .day-number { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
 
-        /* Timeline & Cards */
         .time-row {
             display: flex;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid #eee;
             padding: 15px 0;
-            align-items: flex-start;
         }
 
         .time-label {
             width: 80px;
-            font-weight: 700;
-            color: #666;
-            padding-top: 10px;
-            font-size: 1.1rem;
-        }
-
-        .appointments-container {
-            flex: 1;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
+            font-weight: bold;
         }
 
         .appointment-card {
             background: white;
             border-left: 4px solid var(--accent-color);
-            border-radius: 8px;
             padding: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            width: 100%;
-            max-width: 350px; /* Cartões lado a lado em telas grandes */
-            transition: 0.2s;
+            border-radius: 8px;
+            margin-bottom: 10px;
             position: relative;
         }
 
-        .appointment-card:hover {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .barber-badge {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-        /* No agenda.html (Barbeiro), este badge pode ser ocultado ou usado para status se necessário */
-        .barber-badge-hidden {
-             display: none;
-        }
-
-
         .btn-action {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
             margin-right: 5px;
-            transition: 0.2s;
-            border: none;
+            font-size: 0.85rem;
         }
-        
-        .btn-whatsapp { background-color: #e3fcef; color: #00a884; }
-        .btn-whatsapp:hover { background-color: #00a884; color: white; }
-        
-        .btn-edit { background-color: #eef2ff; color: #4f46e5; }
-        .btn-edit:hover { background-color: #4f46e5; color: white; }
-        
-        .btn-delete { background-color: #fef2f2; color: #ef4444; }
-        .btn-delete:hover { background-color: #ef4444; color: white; }
 
-        /* Vazio */
         .empty-slot {
-            color: #aaa;
-            font-style: italic;
-            padding: 10px;
-            border: 1px dashed #ddd;
-            border-radius: 8px;
-            width: 100%;
-            cursor: pointer;
-            pointer-events: none; /* Barbeiro não pode agendar clicando aqui */
-        }
-        .empty-slot.agendar-slot {
-            pointer-events: auto; /* Permite clique se for para abrir o modal */
             border: 1px dashed var(--accent-color);
-            color: var(--accent-color);
-        }
-        .empty-slot:hover {
-            background-color: #fff;
-            border-color: var(--accent-color);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
             color: var(--accent-color);
         }
 
-        /* Floating Button Mobile */
-        .fab {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background-color: var(--accent-color);
-            color: white;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            font-size: 24px;
-            box-shadow: 0 4px 15px rgba(199, 161, 122, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            z-index: 1000;
-        }
-        .fab:hover { transform: scale(1.1); color: white; }
-
-        /* Esconder abas inativas */
-        .tab-content-day { display: none; animation: fadeIn 0.4s; }
+        .tab-content-day { display: none; }
         .tab-content-day.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
     </style>
 </head>
+
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-custom navbar-dark">
-        <div class="container">
-            <a class="navbar-brand" href="#"><i class="fas fa-cut me-2"></i>CHRISTIAN SHALL BARBER SHOP</a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-                <ul class="navbar-nav align-items-center">
-                    <li class="nav-item me-3">
-                        <span class="nav-link text-white-50"><i class="fas fa-user-circle me-1"></i> Logado como: **{{ barbeiro_nome }}**</span>
-                    </li>
-                    <li class="nav-item me-3">
-                        <a href="{{ url_for('pdf_hoje') }}" class="btn btn-outline-light btn-sm rounded-pill px-3">
-                            <i class="fas fa-file-pdf me-1"></i> PDF do Dia
-                        </a>
-                    </li>
-                    <li class="nav-item me-3">
-                        <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-light btn-sm rounded-pill px-3">
-                            <i class="fas fa-file-excel me-1"></i> Exportar
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ url_for('logout') }}" class="text-white-50 text-decoration-none">
-                            <i class="fas fa-sign-out-alt"></i> Sair
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container-fluid px-0">
-        <div class="date-scroller px-4" id="dateNav">
-            {% for data_iso, horarios_dict in agenda.items() %}
-                {% set data_obj = datetime.strptime(data_iso, '%Y-%m-%d') %}
-                {% set dia_semana_ing = data_obj.strftime('%A') %}
-                
-                <div class="date-card {% if loop.first %}active{% endif %}" 
-                     onclick="showDay('{{ data_iso }}', this)">
-                    <div class="day-name">{{ dias_pt[dia_semana_ing][:3] }}</div>
-                    <div class="day-number">{{ data_obj.day }}/{{ data_obj.month }}</div>
-                </div>
-            {% endfor %}
+<nav class="navbar navbar-custom navbar-expand-lg">
+    <div class="container-fluid px-4">
+        <span class="navbar-brand">💈 Christian Shall Barber Shop - {{ session.user_name }}</span>
+        <div class="ms-auto d-flex gap-2">
+            <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-file-excel"></i>
+            </a>
+            <a href="{{ url_for('pdf_hoje') }}" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-file-pdf"></i>
+            </a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
         </div>
     </div>
+</nav>
 
-    <div class="container mt-4 mb-5">
-        
-        {% for data_iso, horarios_dict in agenda.items() %}
-        <div id="content-{{ data_iso }}" class="tab-content-day {% if loop.first %}active{% endif %}">
-            
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold mb-0">Minha Agenda: {{ data_iso|replace('-', '/') }}</h4>
-                <button class="btn btn-dark rounded-pill" onclick="openModal('{{ data_iso }}')">
-                    <i class="fas fa-plus me-2"></i>Novo Agendamento
-                </button>
-            </div>
+<div class="date-scroller">
+    {% for data_iso, horarios_dict in agenda.items() %}
+        {% set data_obj = datetime.strptime(data_iso, '%Y-%m-%d') %}
+        {% set dia_semana_ing = data_obj.strftime('%A') %}
+        <div class="date-card {% if loop.first %}active{% endif %}"
+             onclick="showDay('{{ data_iso }}', this)">
+            <div>{{ dias_pt[dia_semana_ing][:3] }}</div>
+            <strong>{{ data_obj.day }}/{{ data_obj.month }}</strong>
+        </div>
+    {% endfor %}
+</div>
 
-            <div class="card border-0 shadow-sm p-4 bg-white rounded-4">
-                {% for hora in horarios %}
-                <div class="time-row">
-                    <div class="time-label">{{ hora }}</div>
-                    <div class="appointments-container">
-                        
-                        {% if horarios_dict[hora] %}
-                            <div class="appointment-card">
-                                <span class="barber-badge barber-badge-hidden"><i class="fas fa-user-tie me-1"></i>{{ barbeiro_nome }}</span>
-                                
-                                <h5 class="fw-bold mb-1">{{ horarios_dict[hora].nome }}</h5>
-                                <p class="text-muted small mb-2"><i class="fas fa-cut me-1"></i> {{ horarios_dict[hora].servico }}</p>
-                                
-                                <div class="d-flex mt-3">
-                                    <a href="{{ url_for('enviar_whatsapp', data=data_iso, hora=hora) }}" 
-                                        class="btn-action btn-whatsapp" title="Enviar WhatsApp" target="_blank">
-                                        <i class="fab fa-whatsapp"></i>
-                                    </a>
-                                    
-                                    <a href="{{ url_for('editar', data=data_iso, hora=hora) }}" 
-                                        class="btn-action btn-edit" title="Editar">
-                                        <i class="fas fa-pen"></i>
-                                    </a>
-                                    
-                                    <a href="#" onclick="confirmarExclusao('{{ url_for('excluir', data=data_iso, hora=hora) }}')" 
-                                        class="btn-action btn-delete" title="Excluir">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        {% else %}
-                            <div class="empty-slot agendar-slot" onclick="openModal('{{ data_iso }}', '{{ hora }}')">
-                                <i class="fas fa-plus-circle me-1"></i> Disponível - Agendar
-                            </div>
-                        {% endif %}
+<div class="container mt-4 mb-5">
+    {% for data_iso, horarios_dict in agenda.items() %}
+    <div id="content-{{ data_iso }}" class="tab-content-day {% if loop.first %}active{% endif %}">
+        {% for hora in horarios %}
+        <div class="time-row">
+            <div class="time-label">{{ hora }}</div>
+            <div class="flex-grow-1">
+                {% if horarios_dict[hora] %}
+                    <div class="appointment-card">
+                        <strong>{{ horarios_dict[hora].nome }}</strong><br>
+                        {{ horarios_dict[hora].servico }}<br>
+                        {{ horarios_dict[hora].whatsapp }}<br>
 
+                        <div class="mt-2">
+                            <a href="{{ url_for('editar', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}" class="btn btn-primary btn-sm btn-action">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('excluir', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}" 
+                               class="btn btn-danger btn-sm btn-action"
+                               onclick="return confirm('Deseja excluir este agendamento?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            <a href="{{ url_for('enviar_whatsapp', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}" 
+                               class="btn btn-success btn-sm btn-action">
+                                <i class="fas fa-whatsapp"></i>
+                            </a>
+                        </div>
                     </div>
-                </div>
-                {% endfor %}
+                {% else %}
+                    <div class="empty-slot" onclick="openModal('{{ data_iso }}', '{{ hora }}')">
+                        <i class="fas fa-plus-circle me-1"></i> Disponível - Agendar
+                    </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
+    {% endfor %}
+</div>
 
-    <button class="fab d-lg-none" onclick="openModal()">
-        <i class="fas fa-plus"></i>
-    </button>
-
-    <div class="modal fade" id="agendarModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0">
+<!-- MODAL -->
+<div class="modal fade" id="agendarModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ url_for('agendar') }}" method="POST">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title"><i class="fas fa-calendar-plus me-2" style="color: var(--accent-color);"></i>Novo Agendamento</h5>
+                    <h5 class="modal-title">Novo Agendamento</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <form action="{{ url_for('agendar') }}" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Cliente</label>
-                            <input type="text" name="nome" class="form-control" required placeholder="Nome do cliente">
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Data</label>
-                                <input type="date" name="data" id="modalData" class="form-control" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Horário</label>
-                                <select name="hora" id="modalHora" class="form-select" required>
-                                    <option value="" disabled selected>Escolha...</option>
-                                    {% for h in horarios %}
-                                        <option value="{{ h }}">{{ h }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Serviço</label>
-                            <input type="text" name="servico" class="form-control" required placeholder="Ex: Cabelo e Barba">
-                        </div>
+                <div class="modal-body">
+                    <input type="hidden" name="data" id="modalData">
+                    <input type="hidden" name="hora" id="modalHora">
+                    <input type="hidden" name="barbeiro_id" value="{{ session.user_id }}">
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">WhatsApp (Opcional)</label>
-                            <input type="text" name="whatsapp" class="form-control" placeholder="(11) 99999-9999">
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cliente</label>
+                        <input type="text" name="nome" class="form-control" required>
+                    </div>
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-dark btn-lg">Confirmar Agendamento</button>
-                        </div>
-                    </form>
+                    <div class="mb-3">
+                        <label class="form-label">Serviço</label>
+                        <input type="text" name="servico" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">WhatsApp</label>
+                        <input type="text" name="whatsapp" class="form-control">
+                    </div>
                 </div>
-            </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-dark w-100" type="submit">Confirmar</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function showDay(dateIso, el){
+    document.querySelectorAll('.date-card').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.tab-content-day').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('content-'+dateIso).classList.add('active');
+}
 
-    <script>
-        // Função para alternar abas de data
-        function showDay(dateIso, element) {
-            // Remove active class de todos os botões e conteúdos
-            document.querySelectorAll('.date-card').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-content-day').forEach(el => el.classList.remove('active'));
+function openModal(data, hora){
+    document.getElementById('modalData').value = data;
+    document.getElementById('modalHora').value = hora;
+    new bootstrap.Modal(document.getElementById('agendarModal')).show();
+}
+</script>
 
-            // Adiciona active no selecionado
-            if(element) element.classList.add('active');
-            
-            // Mostra o conteúdo correspondente
-            const content = document.getElementById('content-' + dateIso);
-            if(content) content.classList.add('active');
-        }
-
-        // Abrir Modal já preenchendo data/hora se clicado no slot vazio
-        function openModal(dataPre = '', horaPre = '') {
-            const modalEl = document.getElementById('agendarModal');
-            const modal = new bootstrap.Modal(modalEl);
-            
-            if(dataPre) document.getElementById('modalData').value = dataPre;
-            if(horaPre) document.getElementById('modalHora').value = horaPre;
-            
-            modal.show();
-        }
-
-        // SweetAlert para confirmação de exclusão
-        function confirmarExclusao(url) {
-            Swal.fire({
-                title: 'Tem certeza?',
-                text: "Você não poderá reverter isso!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Sim, excluir!',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Aqui a URL não precisa do barbeiro_id, pois a rota /excluir do barbeiro usa o ID da sessão.
-                    window.location.href = url; 
-                }
-            })
-        }
-        
-        // Ativa o primeiro dia ao carregar
-        document.addEventListener('DOMContentLoaded', () => {
-            const firstDateCard = document.querySelector('.date-card');
-            if(firstDateCard) {
-                // A função showDay já faz o trabalho de ativar o card e o conteúdo
-                showDay(document.querySelector('.tab-content-day').id.replace('content-', ''), firstDateCard);
-            }
-        });
-    </script>
 </body>
 </html>

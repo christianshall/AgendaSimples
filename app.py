@@ -36,7 +36,7 @@ def get_connection():
         "Trusted_Connection=yes;"
     )
 
-# -------------------------- LOGIN / LOGOUT / CADASTRO --------------------------
+# -------------------------- LOGIN / LOGOUT --------------------------
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -62,22 +62,6 @@ def login():
                 return redirect(url_for("agenda"))
         return "Usuário ou senha incorretos!"
     return render_template("login.html")
-
-@app.route("/cadastro", methods=["GET", "POST"])
-def cadastro():
-    if request.method == "POST":
-        nome = request.form.get("nome")
-        email = request.form.get("email")
-        senha = request.form.get("password")
-        conf = request.form.get("confirmar_senha")
-        if senha != conf: return "⚠️ As senhas não coincidem!"
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?)", (nome, email, senha, "barbeiro"))
-        conn.commit()
-        conn.close()
-        return "<h3>✅ Cadastro realizado! <a href='/login'>Fazer Login</a></h3>"
-    return render_template("cadastro.html")
 
 @app.route("/logout")
 def logout():
@@ -152,49 +136,6 @@ def admin_agenda():
 
     return render_template("admin_agenda.html", agenda=agenda_data, horarios=HORARIOS, datetime=datetime, dias_pt=DIAS_PT, barbeiros=barbeiros)
 
-# -------------------------- AÇÕES (WHATSAPP, EDITAR, EXCLUIR) --------------------------
-@app.route("/whatsapp/<string:data>/<string:hora>")
-def enviar_whatsapp(data, hora):
-    barbeiro_id = request.args.get("barbeiro_id")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT Nome, Whatsapp FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
-    cliente = cursor.fetchone()
-    conn.close()
-    if not cliente or not cliente[1]: return "⚠️ WhatsApp não cadastrado!"
-    numero = "+55" + cliente[1].strip() if not cliente[1].startswith("+") else cliente[1].strip()
-    try:
-        pywhatkit.sendwhatmsg_instantly(numero, f"Lembrete: {cliente[0]}, seu horário é {data} às {hora}.", wait_time=15)
-        return "✅ Enviado!"
-    except:
-        return "❌ Erro ao enviar."
-
-@app.route("/editar/<string:data>/<string:hora>", methods=["GET", "POST"])
-def editar(data, hora):
-    barbeiro_id = request.args.get("barbeiro_id")
-    conn = get_connection()
-    cursor = conn.cursor()
-    if request.method == "POST":
-        cursor.execute("UPDATE dbo.Clientes SET Nome=?, Servico=?, Whatsapp=? WHERE Dia=? AND Hora=? AND barbeiro_id=?", 
-                       (request.form["nome"], request.form["servico"], request.form.get("whatsapp", ""), data, hora, barbeiro_id))
-        conn.commit()
-        conn.close()
-        return redirect(url_for("admin_agenda" if session["role"] == "admin" else "agenda"))
-    cursor.execute("SELECT Nome, Servico, Whatsapp FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
-    cliente = cursor.fetchone()
-    conn.close()
-    return render_template("editar.html", cliente=cliente, data=data, hora=hora, barbeiro_id=barbeiro_id)
-
-@app.route("/excluir/<string:data>/<string:hora>")
-def excluir(data, hora):
-    barbeiro_id = request.args.get("barbeiro_id")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
-    conn.commit()
-    conn.close()
-    return redirect(url_for("admin_agenda" if session["role"] == "admin" else "agenda"))
-
 # -------------------------- AGENDAR --------------------------
 @app.route("/agendar", methods=["POST"])
 def agendar():
@@ -208,69 +149,102 @@ def agendar():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 🔒 evita horário duplicado
+    # Evita duplicidade
     cursor.execute("SELECT COUNT(*) FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
     if cursor.fetchone()[0] > 0:
         conn.close()
         return "⚠️ Esse horário já está ocupado."
 
-    # salva agendamento
+    # Salva agendamento
     cursor.execute("INSERT INTO dbo.Clientes (Nome, Dia, Hora, Servico, Whatsapp, barbeiro_id) VALUES (?, ?, ?, ?, ?, ?)", (nome, data, hora, servico, zap, barbeiro_id))
     conn.commit()
 
-    # 🔎 busca nome do barbeiro
     cursor.execute("SELECT nome FROM usuarios WHERE id=?", (barbeiro_id,))
     barbeiro_nome = cursor.fetchone()[0]
-
     conn.close()
 
-    # ✅ ENVIA OS DADOS PARA O HTML
-    return render_template("sucesso_agendamento.html", nome=nome, barbeiro=barbeiro_nome, data=data, hora=hora, servico=servico)
+    # Se o admin está logado, retorna pra admin_agenda
+    if session.get("role") == "admin":
+        return redirect(url_for("admin_agenda"))
+    else:
+        return redirect(url_for("agenda"))
 
-# -------------------------- FINANCEIRO --------------------------
-@app.route("/admin_financeiro")
-def admin_financeiro():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
-
+# -------------------------- WHATSAPP / EDITAR / EXCLUIR --------------------------
+@app.route("/editar/<string:data>/<string:hora>", methods=["GET", "POST"])
+def editar(data, hora):
+    barbeiro_id = request.args.get("barbeiro_id")
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT t.descricao, t.valor, t.tipo_transacao, u.nome, t.data_transacao
-        FROM Transacoes t
-        JOIN usuarios u ON t.barbeiro_id = u.id
-        ORDER BY t.data_transacao DESC
-    """)
-    transacoes = cursor.fetchall()
-    total_receita = sum(float(t[1]) for t in transacoes if t[2] == 'Receita')
-    total_despesa = sum(float(t[1]) for t in transacoes if t[2] == 'Despesa')
-    saldo = total_receita - total_despesa
+    if request.method == "POST":
+        cursor.execute("UPDATE dbo.Clientes SET Nome=?, Servico=?, Whatsapp=? WHERE Dia=? AND Hora=? AND barbeiro_id=?", 
+                       (request.form["nome"], request.form["servico"], request.form.get("whatsapp",""), data, hora, barbeiro_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("admin_agenda" if session["role"]=="admin" else "agenda"))
+    cursor.execute("SELECT Nome, Servico, Whatsapp FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cliente = cursor.fetchone()
     conn.close()
+    return render_template("editar.html", cliente=cliente, data=data, hora=hora, barbeiro_id=barbeiro_id)
 
-    return render_template("admin_financeiro.html", transacoes=transacoes, saldo=saldo)
-
-@app.route("/lancar_transacao", methods=["POST"])
-def lancar_transacao():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
-
-    descricao = request.form.get("descricao")
-    valor = request.form.get("valor", "0").replace(",", ".")
-    tipo = request.form.get("tipo_transacao")
-
-    try:
-        valor = float(valor)
-    except:
-        valor = 0.0
-
+@app.route("/excluir/<string:data>/<string:hora>")
+def excluir(data, hora):
+    barbeiro_id = request.args.get("barbeiro_id")
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO Transacoes (descricao, valor, tipo_transacao, barbeiro_id, data_transacao) VALUES (?, ?, ?, ?, GETDATE())", (descricao, valor, tipo, session["user_id"]))
+    cursor.execute("DELETE FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
     conn.commit()
     conn.close()
-    return redirect(url_for("admin_financeiro"))
+    return redirect(url_for("admin_agenda" if session["role"]=="admin" else "agenda"))
 
-# -------------------------- RELATÓRIOS --------------------------
+@app.route("/whatsapp/<string:data>/<string:hora>")
+def enviar_whatsapp(data, hora):
+    barbeiro_id = request.args.get("barbeiro_id")
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT Nome, Whatsapp FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cliente = cursor.fetchone()
+    conn.close()
+    if not cliente or not cliente[1]:
+        return "⚠️ WhatsApp não cadastrado!"
+    numero = "+55" + cliente[1].strip() if not cliente[1].startswith("+") else cliente[1].strip()
+    try:
+        pywhatkit.sendwhatmsg_instantly(numero, f"Lembrete: {cliente[0]}, seu horário é {data} às {hora}.", wait_time=15)
+        return "✅ Enviado!"
+    except:
+        return "❌ Erro ao enviar."
+
+# -------------------------- MARCAR AGENDAMENTO CLIENTE --------------------------
+@app.route("/marcar")
+def marcar():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, nome FROM usuarios WHERE role = 'barbeiro' ORDER BY nome")
+    barbeiros = cursor.fetchall()
+    conn.close()
+    return render_template("marcar_agendamento.html", barbeiros=barbeiros, horarios=HORARIOS)
+
+# -------------------------- EXPORTAR PDF / EXCEL --------------------------
+@app.route("/exportar_excel")
+def exportar_excel():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT Nome, Dia, Hora, Servico FROM dbo.Clientes")
+    dados = cursor.fetchall()
+    conn.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Nome", "Data", "Hora", "Serviço"])
+    for d in dados:
+        ws.append([d[0], str(d[1]), d[2], d[3]])
+    path = "agenda.xlsx"
+    wb.save(path)
+    return send_file(path, as_attachment=True)
+
+@app.route("/pdf_hoje")
+def pdf_hoje():
+    return redirect(url_for("pdf_diario", data=datetime.today().strftime("%Y-%m-%d")))
+
 @app.route("/pdf_diario/<string:data>")
 def pdf_diario(data):
     conn = get_connection()
@@ -289,39 +263,8 @@ def pdf_diario(data):
     c.save()
     return send_file(path, as_attachment=True)
 
-@app.route("/pdf_hoje")
-def pdf_hoje():
-    return redirect(url_for("pdf_diario", data=datetime.today().strftime("%Y-%m-%d")))
-
-@app.route("/exportar_excel")
-def exportar_excel():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT Nome, Dia, Hora, Servico FROM dbo.Clientes")
-    dados = cursor.fetchall()
-    conn.close()
-
-    wb = Workbook()
-    ws = wb.active
-    ws.append(["Nome", "Data", "Hora", "Serviço"])
-    for d in dados:
-        ws.append([d[0], str(d[1]), d[2], d[3]])
-    path = "agenda.xlsx"
-    wb.save(path)
-    return send_file(path, as_attachment=True)
-
-# -------------------------- MARCAR --------------------------
-@app.route("/marcar")
-def marcar():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, nome FROM usuarios WHERE role = 'barbeiro' ORDER BY nome")
-    barbeiros = cursor.fetchall()
-    conn.close()
-    return render_template("marcar_agendamento.html", barbeiros=barbeiros, horarios=HORARIOS)
-
 # -------------------------- RODAR --------------------------
 if __name__ == "__main__":
     local_ip = socket.gethostbyname(socket.gethostname())
     print(f"Acesse em: http://{local_ip}:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

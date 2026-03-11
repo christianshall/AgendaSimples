@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Administrativo - Christian Shall Barber Shop</title>
-
+    <title>Agenda Admin - Christian Shall Barber Shop</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -78,29 +78,17 @@
             position: relative;
         }
 
-        .barber-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--primary-color);
-            color: white;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-        }
-
         .btn-action {
-            margin-top: 5px;
             margin-right: 5px;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
         }
 
         .empty-slot {
-            border: 1px dashed #ccc;
+            border: 1px dashed var(--accent-color);
             padding: 10px;
             border-radius: 8px;
             cursor: pointer;
-            color: #999;
+            color: var(--accent-color);
         }
 
         .tab-content-day { display: none; }
@@ -112,41 +100,45 @@
 
 <nav class="navbar navbar-custom navbar-expand-lg">
     <div class="container-fluid px-4">
-        <span class="navbar-brand">💈 Christian Shall Barber Shop</span>
+        <span class="navbar-brand">💈 Christian Shall Barber Shop - Admin</span>
 
         <div class="ms-auto d-flex gap-2">
-            <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-light btn-sm rounded-pill">
-                <i class="fas fa-file-excel me-1"></i> Excel
+            <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-file-excel"></i>
             </a>
-
-            <a href="{{ url_for('pdf_hoje') }}" class="btn btn-outline-light btn-sm rounded-pill">
-                <i class="fas fa-file-pdf me-1"></i> PDF Hoje
+            <a href="{{ url_for('pdf_hoje') }}" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-file-pdf"></i>
             </a>
-
-            <a href="{{ url_for('admin_financeiro') }}" class="btn btn-outline-warning btn-sm rounded-pill">
-                <i class="fas fa-dollar-sign me-1"></i> Financeiro
-            </a>
-
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm rounded-pill">
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">
                 <i class="fas fa-sign-out-alt"></i>
             </a>
         </div>
     </div>
 </nav>
 
-<div class="date-scroller">
-    {% for data_iso, horarios_dict in agenda.items() %}
-        {% set data_obj = datetime.strptime(data_iso, '%Y-%m-%d') %}
-        {% set dia_semana_ing = data_obj.strftime('%A') %}
-        <div class="date-card {% if loop.first %}active{% endif %}"
-             onclick="showDay('{{ data_iso }}', this)">
-            <div>{{ dias_pt[dia_semana_ing][:3] }}</div>
-            <strong>{{ data_obj.day }}/{{ data_obj.month }}</strong>
-        </div>
-    {% endfor %}
-</div>
-
 <div class="container mt-4 mb-5">
+    <div class="mb-3">
+        <label class="form-label">Filtrar por Barbeiro:</label>
+        <select class="form-select" id="selectBarbeiro" onchange="filtrarBarbeiro()">
+            <option value="todos">Todos</option>
+            {% for b in barbeiros %}
+                <option value="{{ b.id }}">{{ b.nome }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="date-scroller">
+        {% for data_iso, horarios_dict in agenda.items() %}
+            {% set data_obj = datetime.strptime(data_iso, '%Y-%m-%d') %}
+            {% set dia_semana_ing = data_obj.strftime('%A') %}
+            <div class="date-card {% if loop.first %}active{% endif %}"
+                 onclick="showDay('{{ data_iso }}', this)">
+                <div>{{ dias_pt[dia_semana_ing][:3] }}</div>
+                <strong>{{ data_obj.day }}/{{ data_obj.month }}</strong>
+            </div>
+        {% endfor %}
+    </div>
+
     {% for data_iso, horarios_dict in agenda.items() %}
     <div id="content-{{ data_iso }}" class="tab-content-day {% if loop.first %}active{% endif %}">
         {% for hora in horarios %}
@@ -155,33 +147,75 @@
             <div class="flex-grow-1">
                 {% if horarios_dict[hora] %}
                     {% for ag in horarios_dict[hora] %}
-                    <div class="appointment-card">
-                        <span class="barber-badge">{{ ag.barbeiro_nome }}</span>
-                        <strong>{{ ag.nome }}</strong><br>
-                        {{ ag.servico }}<br>
-                        {% if ag.whatsapp %}
-                            <small>{{ ag.whatsapp }}</small><br>
-                        {% endif %}
-                        <!-- BOTÕES AÇÕES -->
-                        <a href="{{ url_for('enviar_whatsapp', data=data_iso, hora=hora) }}?barbeiro_id={{ ag.barbeiro_id }}" class="btn btn-success btn-sm btn-action">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </a>
-                        <a href="{{ url_for('editar', data=data_iso, hora=hora) }}?barbeiro_id={{ ag.barbeiro_id }}" class="btn btn-primary btn-sm btn-action">
-                            <i class="fas fa-edit"></i> Editar
-                        </a>
-                        <a href="{{ url_for('excluir', data=data_iso, hora=hora) }}?barbeiro_id={{ ag.barbeiro_id }}" class="btn btn-danger btn-sm btn-action" onclick="return confirm('Deseja excluir este agendamento?')">
-                            <i class="fas fa-trash"></i> Excluir
-                        </a>
-                    </div>
+                        <div class="appointment-card" data-barbeiro="{{ ag.barbeiro_id }}">
+                            <strong>{{ ag.nome }}</strong><br>
+                            {{ ag.servico }}<br>
+                            {{ ag.whatsapp }}<br>
+                            <em>Barbeiro: {{ ag.barbeiro_nome }}</em>
+
+                            <div class="mt-2">
+                                <a href="{{ url_for('editar', data=data_iso, hora=hora, barbeiro_id=ag.barbeiro_id) }}" class="btn btn-primary btn-sm btn-action">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('excluir', data=data_iso, hora=hora, barbeiro_id=ag.barbeiro_id) }}"
+                                   class="btn btn-danger btn-sm btn-action"
+                                   onclick="return confirm('Deseja excluir este agendamento?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
                     {% endfor %}
                 {% else %}
-                    <div class="empty-slot">Disponível</div>
+                    {% for b in barbeiros %}
+                        <div class="empty-slot" data-barbeiro="{{ b.id }}" onclick="openModal('{{ data_iso }}', '{{ hora }}', {{ b.id }})">
+                            <i class="fas fa-plus-circle me-1"></i> Disponível - Agendar ({{ b.nome }})
+                        </div>
+                    {% endfor %}
                 {% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
     {% endfor %}
+</div>
+
+<!-- MODAL AGENDAR -->
+<div class="modal fade" id="agendarModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ url_for('agendar') }}" method="POST">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Novo Agendamento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" name="data" id="modalData">
+                    <input type="hidden" name="hora" id="modalHora">
+                    <input type="hidden" name="barbeiro_id" id="modalBarbeiro">
+
+                    <div class="mb-3">
+                        <label class="form-label">Cliente</label>
+                        <input type="text" name="nome" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Serviço</label>
+                        <input type="text" name="servico" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">WhatsApp</label>
+                        <input type="text" name="whatsapp" class="form-control">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-dark w-100" type="submit">Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -191,6 +225,24 @@ function showDay(dateIso, el){
     document.querySelectorAll('.tab-content-day').forEach(e=>e.classList.remove('active'));
     el.classList.add('active');
     document.getElementById('content-'+dateIso).classList.add('active');
+}
+
+function openModal(data, hora, barbeiro_id){
+    document.getElementById('modalData').value = data;
+    document.getElementById('modalHora').value = hora;
+    document.getElementById('modalBarbeiro').value = barbeiro_id;
+    new bootstrap.Modal(document.getElementById('agendarModal')).show();
+}
+
+function filtrarBarbeiro(){
+    var selected = document.getElementById('selectBarbeiro').value;
+    document.querySelectorAll('.appointment-card, .empty-slot').forEach(function(el){
+        if(selected === "todos" || el.dataset.barbeiro == selected){
+            el.style.display = "block";
+        } else {
+            el.style.display = "none";
+        }
+    });
 }
 </script>
 
