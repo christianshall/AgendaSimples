@@ -137,38 +137,54 @@ def admin_agenda():
     return render_template("admin_agenda.html", agenda=agenda_data, horarios=HORARIOS, datetime=datetime, dias_pt=DIAS_PT, barbeiros=barbeiros)
 
 # -------------------------- AGENDAR --------------------------
+# ---------------- AGENDAR ----------------
+
 @app.route("/agendar", methods=["POST"])
 def agendar():
+
     nome = request.form["nome"]
     data = request.form["data"]
     hora = request.form["hora"]
     servico = request.form["servico"]
-    zap = request.form.get("whatsapp", "")
-    barbeiro_id = request.form.get("barbeiro_id")
+    whatsapp = request.form.get("whatsapp","")
+    barbeiro_id = request.form["barbeiro_id"]
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Evita duplicidade
-    cursor.execute("SELECT COUNT(*) FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cursor.execute("""
+    SELECT COUNT(*) FROM Clientes
+    WHERE Dia=? AND Hora=? AND barbeiro_id=?
+    """,(data,hora,barbeiro_id))
+
     if cursor.fetchone()[0] > 0:
         conn.close()
-        return "⚠️ Esse horário já está ocupado."
+        return "Horário ocupado"
 
-    # Salva agendamento
-    cursor.execute("INSERT INTO dbo.Clientes (Nome, Dia, Hora, Servico, Whatsapp, barbeiro_id) VALUES (?, ?, ?, ?, ?, ?)", (nome, data, hora, servico, zap, barbeiro_id))
+    cursor.execute("""
+    INSERT INTO Clientes (Nome,Dia,Hora,Servico,Whatsapp,barbeiro_id)
+    VALUES (?,?,?,?,?,?)
+    """,(nome,data,hora,servico,whatsapp,barbeiro_id))
+
     conn.commit()
 
-    cursor.execute("SELECT nome FROM usuarios WHERE id=?", (barbeiro_id,))
-    barbeiro_nome = cursor.fetchone()[0]
+    cursor.execute(
+        "SELECT nome FROM usuarios WHERE id=?",
+        (barbeiro_id,)
+    )
+
+    barbeiro = cursor.fetchone()[0]
+
     conn.close()
 
-    # Se o admin está logado, retorna pra admin_agenda
-    if session.get("role") == "admin":
-        return redirect(url_for("admin_agenda"))
-    else:
-        return redirect(url_for("agenda"))
-
+    return render_template(
+        "sucesso_agendamento.html",
+        nome=nome,
+        barbeiro=barbeiro,
+        data=data,
+        hora=hora,
+        servico=servico
+    )
 # -------------------------- WHATSAPP / EDITAR / EXCLUIR --------------------------
 @app.route("/editar/<string:data>/<string:hora>", methods=["GET", "POST"])
 def editar(data, hora):
