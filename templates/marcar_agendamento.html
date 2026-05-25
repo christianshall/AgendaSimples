@@ -3,58 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marcar Horário - Christian Shall Barber Shop</title>
+    <title>{{ _('Marcar Horário - Christian Shall Barber Shop') }}</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Estilo rápido para alinhar as bandeiras no topo do formulário */
+        .lang-picker-marcar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .lang-picker-marcar a {
+            text-decoration: none;
+            font-size: 1.4rem;
+            transition: transform 0.2s;
+        }
+        .lang-picker-marcar a:hover {
+            transform: scale(1.2);
+        }
+    </style>
 </head>
 <body>
 
 <div class="container">
     <div class="form-section">
-        <h2>📅 Marcar Horário</h2>
         
-        <!-- 🔥 ROTA CORRIGIDA -->
+        <div class="lang-picker-marcar">
+            <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
+            <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
+            <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+        </div>
+
+        <h2>📅 {{ _('Marcar Horário') }}</h2>
+        
         <form method="POST" action="{{ url_for('agendar') }}">
             
-            <label for="nome">Nome Completo:</label>
-            <input type="text" id="nome" name="nome" required placeholder="Digite seu nome completo">
+            <label for="nome">{{ _('Nome Completo:') }}</label>
+            <input type="text" id="nome" name="nome" required placeholder="{{ _('Digite seu nome completo') }}">
 
-            <label for="whatsapp">WhatsApp:</label>
+            <label for="whatsapp">{{ _('WhatsApp:') }}</label>
             <input type="text" id="whatsapp" name="whatsapp" required placeholder="+55 19 99999-9999">
 
-            <label for="barbeiro_id">Barbeiro:</label>
+            <label for="barbeiro_id">{{ _('Barbeiro:') }}</label>
             <select id="barbeiro_id" name="barbeiro_id" required>
-                <option value="">Selecione um barbeiro</option>
+                <option value="">{{ _('Selecione um barbeiro') }}</option>
                 {% for barbeiro in barbeiros %}
                     <option value="{{ barbeiro[0] }}">{{ barbeiro[1] }}</option>
                 {% endfor %}
             </select>
 
-            <label for="data">Data Desejada:</label>
+            <label for="data">{{ _('Data Desejada:') }}</label>
             <input type="date" id="data" name="data" required>
 
-            <label for="hora">Horário:</label>
+            <label for="hora">{{ _('Horário:') }}</label>
             <select id="hora" name="hora" required>
-                <option value="">Selecione um horário</option>
+                <option value="">{{ _('Selecione um horário') }}</option>
                 {% for hora in horarios %}
                     <option value="{{ hora }}">{{ hora }}</option>
                 {% endfor %}
             </select>
 
-            <label for="servico">Serviço:</label>
+            <label for="servico">{{ _('Serviço:') }}</label>
             <select id="servico" name="servico" required>
-                <option value="">Selecione o serviço</option>
-                <option value="Corte">Corte</option>
-                <option value="Corte e Barba">Corte e Barba</option>
-                <option value="Corte + Sobrancelha">Corte + Sobrancelha</option>
-                <option value="Barba">Barba</option>
-                <option value="Outro">Outro</option>
+                <option value="">{{ _('Selecione o serviço') }}</option>
+                <option value="Corte">{{ _('Corte') }}</option>
+                <option value="Corte e Barba">{{ _('Corte e Barba') }}</option>
+                <option value="Corte + Sobrancelha">{{ _('Corte + Sobrancelha') }}</option>
+                <option value="Barba">{{ _('Barba') }}</option>
+                <option value="Outro">{{ _('Outro') }}</option>
             </select>
 
-            <button type="submit">✅ Confirmar Agendamento</button>
+            <button type="submit">{{ _('✅ Confirmar Agendamento') }}</button>
         </form>
 
         <a href="/" style="display: block; text-align: center; margin-top: 20px; color: #ff4b5c; text-decoration: none;">
-            ← Voltar para a página inicial
+            {{ _('← Voltar para a página inicial') }}
         </a>
     </div>
 

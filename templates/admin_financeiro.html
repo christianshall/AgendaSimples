@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Financeiro - Christian Shall</title>
+    <title>{{ _('Financeiro - Christian Shall') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -10,32 +10,62 @@
         .card-stat { background: #1a1a1a; border-radius: 15px; border-left: 5px solid #d4af37; padding: 20px; }
         .text-gold { color: #d4af37; }
         .table { color: #fff; }
+        
+        /* CORREÇÃO DO BOTÃO GOLD */
+        .btn-gold {
+            background-color: #d4af37;
+            color: #0f0f0f;
+            font-weight: bold;
+        }
+        .btn-gold:hover {
+            background-color: #b8952e;
+            color: #0f0f0f;
+        }
+
+        /* Estilo para as bandeiras de idioma */
+        .lang-picker-financeiro a {
+            text-decoration: none;
+            font-size: 1.3rem;
+            margin-right: 10px;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .lang-picker-financeiro a:hover {
+            transform: scale(1.2);
+        }
     </style>
 </head>
 <body class="p-5">
     <div class="container">
-        <div class="d-flex justify-content-between mb-5">
-            <h2 class="text-gold">RESUMO FINANCEIRO</h2>
-            <a href="{{ url_for('admin_agenda') }}" class="btn btn-gold">Voltar Agenda</a>
+        <div class="d-flex justify-content-between mb-5 align-items-center">
+            <div>
+                <h2 class="text-gold mb-1">{{ _('RESUMO FINANCEIRO') }}</h2>
+                <div class="lang-picker-financeiro">
+                    <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
+                    <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
+                    <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+                </div>
+            </div>
+            <a href="{{ url_for('admin_agenda') }}" class="btn btn-gold">{{ _('Voltar Agenda') }}</a>
         </div>
 
         <div class="row mb-4">
             <div class="col-md-4">
                 <div class="card-stat">
-                    <h6>SALDO EM CAIXA</h6>
+                    <h6>{{ _('SALDO EM CAIXA') }}</h6>
                     <h2 class="text-gold">R$ {{ "%.2f"|format(saldo) }}</h2>
                 </div>
             </div>
             <div class="col-md-8">
                 <div class="card-stat h-100">
-                    <h6>NOVO LANÇAMENTO</h6>
+                    <h6>{{ _('NOVO LANÇAMENTO') }}</h6>
                     <form action="{{ url_for('lancar_transacao') }}" method="POST" class="row g-2">
-                        <div class="col-md-4"><input type="text" name="descricao" class="form-control" placeholder="Descrição" required></div>
-                        <div class="col-md-3"><input type="text" name="valor" class="form-control" placeholder="Valor" required></div>
+                        <div class="col-md-4"><input type="text" name="descricao" class="form-control" placeholder="{{ _('Descrição') }}" required></div>
+                        <div class="col-md-3"><input type="text" name="valor" class="form-control" placeholder="{{ _('Valor') }}" required></div>
                         <div class="col-md-3">
                             <select name="tipo_transacao" class="form-select">
-                                <option value="Receita">Receita</option>
-                                <option value="Despesa">Despesa</option>
+                                <option value="Receita">{{ _('Receita') }}</option>
+                                <option value="Despesa">{{ _('Despesa') }}</option>
                             </select>
                         </div>
                         <div class="col-md-2"><button class="btn btn-gold w-100">OK</button></div>
@@ -46,14 +76,28 @@
 
         <div class="card-stat">
             <table class="table">
-                <thead><tr><th>Data</th><th>Descrição</th><th>Barbeiro</th><th>Tipo</th><th>Valor</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>{{ _('Data') }}</th>
+                        <th>{{ _('Descrição') }}</th>
+                        <th>{{ _('Barbeiro') }}</th>
+                        <th>{{ _('Tipo') }}</th>
+                        <th>{{ _('Valor') }}</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for t in transacoes %}
                     <tr>
-                        <td>{{ t[4].strftime('%d/%m') }}</td>
+                        <td>
+                            {% if t[4].strftime %}
+                                {{ t[4].strftime('%d/%m') }}
+                            {% else %}
+                                {{ t[4][:5] }}
+                            {% endif %}
+                        </td>
                         <td>{{ t[0] }}</td>
                         <td>{{ t[3] }}</td>
-                        <td>{{ t[2] }}</td>
+                        <td>{{ _(t[2]) }}</td>
                         <td class="{{ 'text-success' if t[2] == 'Receita' else 'text-danger' }}">R$ {{ t[1] }}</td>
                     </tr>
                     {% endfor %}

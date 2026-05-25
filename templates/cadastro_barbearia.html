@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crie sua Conta - Barber SaaS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .card-cadastro {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 15px;
+        }
+        .btn-primary {
+            background-color: #ffc107;
+            border: none;
+            color: #000;
+            font-weight: bold;
+        }
+        .btn-primary:hover {
+            background-color: #e0a800;
+            color: #000;
+        }
+        /* CORREÇÃO DAS CORES DOS LABELS */
+        .form-label {
+            color: #ffffff !important;
+            font-weight: 500;
+        }
+        /* CORREÇÃO DAS CORES DOS INPUTS */
+        .form-control {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: #ffffff !important;
+        }
+        .form-control:focus {
+            background-color: #2a2a2a;
+            border-color: #ffc107;
+            color: #ffffff !important;
+            box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+        }
+        /* CORREÇÃO DO TEXTO INFERIOR DE AJUDA */
+        .form-text {
+            color: #b3b3b3 !important;
+        }
+        /* CORREÇÃO DOS PLACEHOLDERS (TEXTO INTERNO INICIAL) */
+        .form-control::placeholder {
+            color: #777777 !important;
+            opacity: 1;
+        }
+        /* CORREÇÃO DOS TEXTOS MUTED */
+        .text-muted {
+            color: #b3b3b3 !important;
+        }
+    </style>
+</head>
+<body class="d-flex align-items-center min-vh-100">
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card card-cadastro p-4 shadow-lg">
+                    <div class="text-center mb-4">
+                        <h2 class="fw-bold text-warning">BarberPlat</h2>
+                        <p class="text-muted">Crie seu sistema de agendamento em segundos</p>
+                    </div>
+                    
+                    <form action="/cadastro_barbearia" method="POST">
+                        <div class="mb-3">
+                            <label for="nome_barbearia" class="form-label">Nome da Barbearia</label>
+                            <input type="text" class="form-control" id="nome_barbearia" name="nome_barbearia" placeholder="Ex: Barbearia do Silva" required>
+                            <div class="form-text">Isso vai gerar seu link automático (ex: /b/barbearia-do-silva).</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">E-mail Administrativo</label>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="seu@email.com" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Senha de Acesso</label>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Crie uma senha forte" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mt-3 py-2">Criar Minha Barbearia 🚀</button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <p class="mb-0 text-muted">Já tem uma conta? <a href="/login" class="text-warning text-decoration-none">Faça Login</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

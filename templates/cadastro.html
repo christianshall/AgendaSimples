@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro - Barber Agenda</title>
+    <title>{{ _('Cadastro - Barber Agenda') }}</title>
 
     <style>
         body {
@@ -25,10 +25,27 @@
             animation: fadeIn 0.6s;
         }
 
+        /* Seletor de idiomas discreto no topo do card */
+        .lang-picker-cadastro {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .lang-picker-cadastro a {
+            text-decoration: none;
+            font-size: 1.3rem;
+            transition: transform 0.2s;
+        }
+        .lang-picker-cadastro a:hover {
+            transform: scale(1.2);
+        }
+
         h2 {
             text-align: center;
             margin-bottom: 20px;
             color: #000;
+            margin-top: 5px;
         }
 
         label {
@@ -83,31 +100,36 @@
 <body>
 
     <div class="container">
-        <h2>Cadastro de Barbeiro</h2>
+        <div class="lang-picker-cadastro">
+            <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
+            <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
+            <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+        </div>
+
+        <h2>{{ _('Cadastro de Barbeiro') }}</h2>
 
         <form method="POST">
 
-            <label>Nome:</label>
-            <input type="text" name="nome" required placeholder="Digite seu nome completo">
+            <label>{{ _('Nome:') }}</label>
+            <input type="text" name="nome" required placeholder="{{ _('Digite seu nome completo') }}">
 
-            <label>Email:</label>
-            <input type="email" name="email" required placeholder="Digite seu email">
+            <label>{{ _('Email:') }}</label>
+            <input type="email" name="email" required placeholder="{{ _('Digite seu email') }}">
 
-            <label>Senha:</label>
-            <input type="password" name="password" required placeholder="Digite sua senha">
+            <label>{{ _('Senha:') }}</label>
+            <input type="password" name="password" required placeholder="{{ _('Digite sua senha') }}">
 
-            <label>Confirmar Senha:</label>
-            <input type="password" name="confirmar_senha" required placeholder="Confirme sua senha">
+            <label>{{ _('Confirmar Senha:') }}</label>
+            <input type="password" name="confirmar_senha" required placeholder="{{ _('Confirme sua senha') }}">
 
-            <button type="submit">Cadastrar</button>
+            <button type="submit">{{ _('Cadastrar') }}</button>
 
         </form>
 
         <div class="link">
-            <a href="/login">Já tem uma conta? Fazer Login</a>
+            <a href="{{ url_for('login') }}">{{ _('Já tem uma conta? Fazer Login') }}</a>
         </div>
     </div>
 
 </body>
 </html>
-

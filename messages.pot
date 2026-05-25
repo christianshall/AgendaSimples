@@ -1,0 +1,461 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-05-24 17:41-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: templates/admin_agenda.html:131 templates/admin_configuracoes.html:70
+msgid "Configurações"
+msgstr ""
+
+#: templates/admin_agenda.html:135
+msgid "Gerenciar Galeria"
+msgstr ""
+
+#: templates/admin_agenda.html:139 templates/agenda.html:123
+msgid "Exportar Excel"
+msgstr ""
+
+#: templates/admin_agenda.html:143
+msgid "PDF Hoje"
+msgstr ""
+
+#: templates/admin_agenda.html:147
+msgid "Financeiro"
+msgstr ""
+
+#: templates/admin_agenda.html:151 templates/agenda.html:129
+msgid "Sair"
+msgstr ""
+
+#: templates/admin_agenda.html:162
+msgid "Filtrar por Barbeiro:"
+msgstr ""
+
+#: templates/admin_agenda.html:164
+msgid "Todos"
+msgstr ""
+
+#: templates/admin_agenda.html:202 templates/marcar_agendamento.html:47
+msgid "Barbeiro:"
+msgstr ""
+
+#: templates/admin_agenda.html:208 templates/agenda.html:177
+msgid "Deseja excluir este agendamento?"
+msgstr ""
+
+#: templates/admin_agenda.html:218 templates/agenda.html:188
+msgid "Disponível - Agendar"
+msgstr ""
+
+#: templates/admin_agenda.html:235 templates/agenda.html:203
+msgid "Novo Agendamento"
+msgstr ""
+
+#: templates/admin_agenda.html:245 templates/agenda.html:213
+msgid "Cliente"
+msgstr ""
+
+#: templates/admin_agenda.html:250 templates/agenda.html:218
+msgid "Serviço"
+msgstr ""
+
+#: templates/admin_agenda.html:261 templates/agenda.html:229
+msgid "Confirmar"
+msgstr ""
+
+#: templates/admin_configuracoes.html:6
+msgid "Configurações - Barber Shop"
+msgstr ""
+
+#: templates/admin_configuracoes.html:74
+msgid "Nome da Barbearia:"
+msgstr ""
+
+#: templates/admin_configuracoes.html:75
+msgid "Ex: Barber Shop Premium"
+msgstr ""
+
+#: templates/admin_configuracoes.html:76
+msgid "Este nome será atualizado no cabeçalho de todas as agendas."
+msgstr ""
+
+#: templates/admin_configuracoes.html:81
+msgid "Salvar Alterações"
+msgstr ""
+
+#: templates/admin_configuracoes.html:84
+msgid "Voltar para Agenda"
+msgstr ""
+
+#: templates/admin_financeiro.html:5
+msgid "Financeiro - Christian Shall"
+msgstr ""
+
+#: templates/admin_financeiro.html:42
+msgid "RESUMO FINANCEIRO"
+msgstr ""
+
+#: templates/admin_financeiro.html:49
+msgid "Voltar Agenda"
+msgstr ""
+
+#: templates/admin_financeiro.html:55
+msgid "SALDO EM CAIXA"
+msgstr ""
+
+#: templates/admin_financeiro.html:61
+msgid "NOVO LANÇAMENTO"
+msgstr ""
+
+#: templates/admin_financeiro.html:63 templates/admin_financeiro.html:82
+msgid "Descrição"
+msgstr ""
+
+#: templates/admin_financeiro.html:64 templates/admin_financeiro.html:85
+msgid "Valor"
+msgstr ""
+
+#: templates/admin_financeiro.html:67
+msgid "Receita"
+msgstr ""
+
+#: templates/admin_financeiro.html:68
+msgid "Despesa"
+msgstr ""
+
+#: templates/admin_financeiro.html:81
+msgid "Data"
+msgstr ""
+
+#: templates/admin_financeiro.html:83
+msgid "Barbeiro"
+msgstr ""
+
+#: templates/admin_financeiro.html:84
+msgid "Tipo"
+msgstr ""
+
+#: templates/agenda.html:6
+msgid "Minha Agenda"
+msgstr ""
+
+#: templates/agenda.html:126
+msgid "Exportar PDF Hoje"
+msgstr ""
+
+#: templates/agenda.html:171
+msgid "Editar"
+msgstr ""
+
+#: templates/agenda.html:176
+msgid "Excluir"
+msgstr ""
+
+#: templates/agenda.html:181
+msgid "Enviar WhatsApp"
+msgstr ""
+
+#: templates/agenda.html:223
+msgid "WhatsApp"
+msgstr ""
+
+#: templates/cadastro.html:6
+msgid "Cadastro - Barber Agenda"
+msgstr ""
+
+#: templates/cadastro.html:109
+msgid "Cadastro de Barbeiro"
+msgstr ""
+
+#: templates/cadastro.html:113
+msgid "Nome:"
+msgstr ""
+
+#: templates/cadastro.html:114 templates/marcar_agendamento.html:42
+msgid "Digite seu nome completo"
+msgstr ""
+
+#: templates/cadastro.html:116 templates/esqueci_senha.html:121
+#: templates/login.html:134
+msgid "Email:"
+msgstr ""
+
+#: templates/cadastro.html:117 templates/esqueci_senha.html:122
+#: templates/login.html:135
+msgid "Digite seu email"
+msgstr ""
+
+#: templates/cadastro.html:119 templates/login.html:137
+msgid "Senha:"
+msgstr ""
+
+#: templates/cadastro.html:120 templates/login.html:138
+msgid "Digite sua senha"
+msgstr ""
+
+#: templates/cadastro.html:122
+msgid "Confirmar Senha:"
+msgstr ""
+
+#: templates/cadastro.html:123
+msgid "Confirme sua senha"
+msgstr ""
+
+#: templates/cadastro.html:125
+msgid "Cadastrar"
+msgstr ""
+
+#: templates/cadastro.html:130
+msgid "Já tem uma conta? Fazer Login"
+msgstr ""
+
+#: templates/esqueci_senha.html:6
+msgid "Recuperar Senha - Barber Agenda"
+msgstr ""
+
+#: templates/esqueci_senha.html:116
+msgid "Recuperar Senha"
+msgstr ""
+
+#: templates/esqueci_senha.html:117
+msgid ""
+"Insira o seu e-mail cadastrado. Enviaremos uma nova senha temporária para"
+" a sua caixa de entrada."
+msgstr ""
+
+#: templates/esqueci_senha.html:124
+msgid "Enviar Senha"
+msgstr ""
+
+#: templates/esqueci_senha.html:129
+msgid "Voltar para o Login"
+msgstr ""
+
+#: templates/home.html:6
+msgid "Christian Shall Barber Shop - Agende seu Horário"
+msgstr ""
+
+#: templates/home.html:126
+msgid "Bem-vindo à Christian Shall Barber Shop"
+msgstr ""
+
+#: templates/home.html:127
+msgid ""
+"Estilo, qualidade e tradição em cada corte. Agende seu horário e "
+"transforme seu visual!"
+msgstr ""
+
+#: templates/home.html:141
+msgid "Agendar Horário"
+msgstr ""
+
+#: templates/home.html:142
+msgid "Reserve seu horário de forma rápida e fácil"
+msgstr ""
+
+#: templates/home.html:145
+msgid "Marcar Agendamento"
+msgstr ""
+
+#: templates/home.html:153
+msgid "Área do Barbeiro"
+msgstr ""
+
+#: templates/home.html:154
+msgid "Acesso exclusivo para profissionais"
+msgstr ""
+
+#: templates/home.html:157
+msgid "Fazer Login"
+msgstr ""
+
+#: templates/home.html:165
+msgid "Nossos Serviços"
+msgstr ""
+
+#: templates/home.html:166
+msgid "Clique em um serviço para ver nosso portfólio de fotos!"
+msgstr ""
+
+#: templates/home.html:174 templates/home.html:179
+#: templates/marcar_agendamento.html:69
+msgid "Corte"
+msgstr ""
+
+#: templates/home.html:180
+msgid "Estilo personalizado"
+msgstr ""
+
+#: templates/home.html:187 templates/home.html:192
+#: templates/marcar_agendamento.html:70
+msgid "Corte e Barba"
+msgstr ""
+
+#: templates/home.html:193
+msgid "Combo completo"
+msgstr ""
+
+#: templates/home.html:200 templates/home.html:205
+#: templates/marcar_agendamento.html:71
+msgid "Corte + Sobrancelha"
+msgstr ""
+
+#: templates/home.html:206
+msgid "Visual impecável"
+msgstr ""
+
+#: templates/home.html:213 templates/home.html:218
+msgid "Outros Serviços"
+msgstr ""
+
+#: templates/home.html:219
+msgid "Consulte disponibilidade"
+msgstr ""
+
+#: templates/home.html:230
+msgid "Portfólio - Corte de Cabelo"
+msgstr ""
+
+#: templates/home.html:251 templates/home.html:283 templates/home.html:315
+#: templates/home.html:347
+msgid "Nenhuma foto adicionada para este serviço ainda."
+msgstr ""
+
+#: templates/home.html:262
+msgid "Portfólio - Corte e Barba"
+msgstr ""
+
+#: templates/home.html:294
+msgid "Portfólio - Corte + Sobrancelha"
+msgstr ""
+
+#: templates/home.html:326
+msgid "Portfólio - Outros Serviços"
+msgstr ""
+
+#: templates/home.html:356
+msgid "Siga-nos das Redes Sociais"
+msgstr ""
+
+#: templates/home.html:357
+msgid "Fique por dentro das novidades e promoções"
+msgstr ""
+
+#: templates/home.html:383
+msgid "Transformando estilos desde sempre"
+msgstr ""
+
+#: templates/home.html:386
+msgid "Contato"
+msgstr ""
+
+#: templates/home.html:391
+msgid "Horário de Funcionamento"
+msgstr ""
+
+#: templates/home.html:392
+msgid "Terça a Sábado: 08:00 - 20:00"
+msgstr ""
+
+#: templates/home.html:393
+msgid "Domingo: Fechado"
+msgstr ""
+
+#: templates/home.html:397
+msgid "Todos os direitos reservados."
+msgstr ""
+
+#: templates/login.html:6
+msgid "Login - Barber Agenda"
+msgstr ""
+
+#: templates/login.html:130
+msgid "Login do Barbeiro"
+msgstr ""
+
+#: templates/login.html:140
+msgid "Entrar"
+msgstr ""
+
+#: templates/login.html:145
+msgid "Recuperação ainda não conectada ao email."
+msgstr ""
+
+#: templates/login.html:145
+msgid "Esqueci minha senha"
+msgstr ""
+
+#: templates/login.html:149
+msgid "Cadastrar Novo Barbeiro"
+msgstr ""
+
+#: templates/marcar_agendamento.html:6
+msgid "Marcar Horário - Christian Shall Barber Shop"
+msgstr ""
+
+#: templates/marcar_agendamento.html:37
+msgid "Marcar Horário"
+msgstr ""
+
+#: templates/marcar_agendamento.html:41
+msgid "Nome Completo:"
+msgstr ""
+
+#: templates/marcar_agendamento.html:44
+msgid "WhatsApp:"
+msgstr ""
+
+#: templates/marcar_agendamento.html:49
+msgid "Selecione um barbeiro"
+msgstr ""
+
+#: templates/marcar_agendamento.html:55
+msgid "Data Desejada:"
+msgstr ""
+
+#: templates/marcar_agendamento.html:58
+msgid "Horário:"
+msgstr ""
+
+#: templates/marcar_agendamento.html:60
+msgid "Selecione um horário"
+msgstr ""
+
+#: templates/marcar_agendamento.html:66
+msgid "Serviço:"
+msgstr ""
+
+#: templates/marcar_agendamento.html:68
+msgid "Selecione o serviço"
+msgstr ""
+
+#: templates/marcar_agendamento.html:72
+msgid "Barba"
+msgstr ""
+
+#: templates/marcar_agendamento.html:73
+msgid "Outro"
+msgstr ""
+
+#: templates/marcar_agendamento.html:76
+msgid "✅ Confirmar Agendamento"
+msgstr ""
+
+#: templates/marcar_agendamento.html:80
+msgid "← Voltar para a página inicial"
+msgstr ""
+

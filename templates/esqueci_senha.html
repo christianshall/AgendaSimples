@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('Login - Barber Agenda') }}</title>
+    <title>{{ _('Recuperar Senha - Barber Agenda') }}</title>
 
     <style>
         body {
@@ -25,27 +25,34 @@
             animation: fadeIn 0.6s;
         }
 
-        /* Seletor de idiomas dentro do container */
-        .lang-picker-login {
+        .lang-picker-esqueci {
             display: flex;
             justify-content: center;
             gap: 15px;
             margin-bottom: 15px;
         }
-        .lang-picker-login a {
+        .lang-picker-esqueci a {
             text-decoration: none;
             font-size: 1.3rem;
             transition: transform 0.2s;
         }
-        .lang-picker-login a:hover {
+        .lang-picker-esqueci a:hover {
             transform: scale(1.2);
         }
 
         h2 {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             color: #000;
             margin-top: 5px;
+        }
+
+        p {
+            text-align: center;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 20px;
+            line-height: 1.4;
         }
 
         label {
@@ -57,7 +64,7 @@
             width: 100%;
             padding: 12px;
             margin-top: 5px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             border-radius: 6px;
             border: 1px solid #bbb;
             font-size: 16px;
@@ -82,34 +89,13 @@
 
         .link {
             text-align: center;
-            margin-top: 15px;
+            margin-top: 20px;
         }
 
         .link a {
             text-decoration: none;
             color: black;
             font-weight: bold;
-        }
-
-        .btn-cadastro {
-            display: inline-block;
-            width: 100%;
-            padding: 12px;
-            background: #333;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 17px;
-            text-align: center;
-            cursor: pointer;
-            transition: background 0.3s;
-            box-sizing: border-box;
-        }
-
-        .btn-cadastro:hover {
-            background: #000;
         }
 
         @keyframes fadeIn {
@@ -121,32 +107,26 @@
 <body>
 
     <div class="container">
-        <div class="lang-picker-login">
+        <div class="lang-picker-esqueci">
             <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
             <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
             <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
         </div>
 
-        <h2>{{ _('Login do Barbeiro') }}</h2>
+        <h2>{{ _('Recuperar Senha') }}</h2>
+        <p>{{ _('Insira o seu e-mail cadastrado. Enviaremos uma nova senha temporária para a sua caixa de entrada.') }}</p>
 
         <form method="POST">
 
             <label>{{ _('Email:') }}</label>
             <input type="email" name="email" required placeholder="{{ _('Digite seu email') }}">
 
-            <label>{{ _('Senha:') }}</label>
-            <input type="password" name="password" required placeholder="{{ _('Digite sua senha') }}">
-
-            <button type="submit">{{ _('Entrar') }}</button>
+            <button type="submit">{{ _('Enviar Senha') }}</button>
 
         </form>
 
         <div class="link">
-            <a href="#" onclick="alert('{{ _("Recuperação ainda não conectada ao email.") }}');">{{ _('Esqueci minha senha') }}</a>
-        </div>
-
-        <div class="link" style="margin-top: 20px;">
-            <a href="/cadastro" class="btn-cadastro">{{ _('Cadastrar Novo Barbeiro') }}</a>
+            <a href="{{ url_for('login') }}">{{ _('Voltar para o Login') }}</a>
         </div>
     </div>
 
