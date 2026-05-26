@@ -5,19 +5,18 @@ from flask import Flask, render_template, request, redirect, url_for, send_file,
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from urllib.parse import quote
-import pyodbc
 from datetime import datetime, timedelta
+
+from database import DbError, get_connection, init_database
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from subscriptions import criar_assinatura_trial, requer_assinatura_ativa
 from stripe_payments import register_stripe_routes
 import config_saas as cfg
-from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
-import pywhatkit
 import socket
 import io
 import re
@@ -72,16 +71,6 @@ DIAS_PT = {
     "Sunday": "Domingo"
 }
 
-# -------------------------- CONEXÃO SQL SERVER --------------------------
-def get_connection():
-    return pyodbc.connect(
-        "Driver={ODBC Driver 17 for SQL Server};"
-        "Server=DESKTOP-V1OSISF;"
-        "Database=AgendaSimples;"
-        "Trusted_Connection=yes;"
-    )
-
-
 # -------------------------- RECUPERAÇÃO DE SENHA --------------------------
 _RESET_TOKEN_MAX_AGE = 30 * 60  # 30 minutos
 _reset_serializer = None
@@ -117,9 +106,8 @@ _EXTENSOES_FOTO_PERFIL = frozenset({"jpg", "jpeg", "png", "webp", "gif"})
 
 
 def _coluna_usuarios_existe(cursor, coluna):
-    cursor.execute("SELECT COL_LENGTH('dbo.usuarios', ?)", (coluna,))
-    row = cursor.fetchone()
-    return row and row[0] is not None
+    cursor.execute("PRAGMA table_info(usuarios)")
+    return any(row[1] == coluna for row in cursor.fetchall())
 
 
 def _extensao_imagem_segura(filename):
@@ -147,12 +135,12 @@ def _salvar_upload_foto_perfil(arquivo):
 def _email_ja_cadastrado(cursor, email, ignorar_id=None):
     if ignorar_id:
         cursor.execute(
-            "SELECT id FROM usuarios WHERE LOWER(LTRIM(RTRIM(email))) = LOWER(?) AND id <> ?",
+            "SELECT id FROM usuarios WHERE LOWER(TRIM(email)) = LOWER(?) AND id <> ?",
             (email, ignorar_id),
         )
     else:
         cursor.execute(
-            "SELECT id FROM usuarios WHERE LOWER(LTRIM(RTRIM(email))) = LOWER(?)",
+            "SELECT id FROM usuarios WHERE LOWER(TRIM(email)) = LOWER(?)",
             (email,),
         )
     return cursor.fetchone() is not None
@@ -204,9 +192,7 @@ def _senha_confere(senha_armazenada, senha_digitada):
 
 
 def _usuarios_tem_coluna_telefone(cursor):
-    cursor.execute("SELECT COL_LENGTH('dbo.usuarios', 'telefone')")
-    row = cursor.fetchone()
-    return row and row[0] is not None
+    return _coluna_usuarios_existe(cursor, "telefone")
 
 
 def _buscar_usuario_por_identificador(cursor, identificador):
@@ -219,7 +205,7 @@ def _buscar_usuario_por_identificador(cursor, identificador):
             """
             SELECT id, nome, email
             FROM usuarios
-            WHERE LOWER(LTRIM(RTRIM(email))) = LOWER(?)
+            WHERE LOWER(TRIM(email)) = LOWER(?)
             """,
             (identificador,),
         )
@@ -233,7 +219,7 @@ def _buscar_usuario_por_identificador(cursor, identificador):
             SELECT id, nome, email, telefone
             FROM usuarios
             WHERE telefone IS NOT NULL
-              AND LTRIM(RTRIM(telefone)) <> ''
+              AND TRIM(telefone) <> ''
               AND (
                 REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
                     telefone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', '')
@@ -261,9 +247,10 @@ def _buscar_usuario_por_identificador(cursor, identificador):
 def _whatsapp_suporte_url(cursor):
     cursor.execute(
         """
-        SELECT TOP 1 link_whatsapp FROM barbearias
-        WHERE link_whatsapp IS NOT NULL AND LTRIM(RTRIM(link_whatsapp)) <> ''
+        SELECT link_whatsapp FROM barbearias
+        WHERE link_whatsapp IS NOT NULL AND TRIM(link_whatsapp) <> ''
         ORDER BY id
+        LIMIT 1
         """
     )
     row = cursor.fetchone()
@@ -338,6 +325,8 @@ Equipe Agenda Simples
         return False
 
 
+init_database()
+
 requer_plano = requer_assinatura_ativa(get_connection)
 register_stripe_routes(app, get_connection)
 
@@ -365,7 +354,7 @@ DEFAULT_TITULOS_CATALOGO = (
 
 
 def _barbearia_id_publico(cursor):
-    cursor.execute("SELECT TOP 1 id FROM barbearias ORDER BY id")
+    cursor.execute("SELECT id FROM barbearias ORDER BY id LIMIT 1")
     row = cursor.fetchone()
     return row[0] if row else 1
 
@@ -402,7 +391,7 @@ def _carregar_configs_home(cursor, barbearia_id):
             (barbearia_id,),
         )
         row = cursor.fetchone()
-    except pyodbc.Error:
+    except DbError:
         cursor.execute("SELECT nome FROM barbearias WHERE id = ?", (barbearia_id,))
         row = cursor.fetchone()
         if row:
@@ -479,7 +468,7 @@ def _processar_upload_capas_catalogo(request, cursor, barbearia_id):
                 f"UPDATE barbearias SET {coluna} = ? WHERE id = ?",
                 (filename, barbearia_id),
             )
-        except pyodbc.Error:
+        except DbError:
             pass
 
 
@@ -573,8 +562,7 @@ def cadastro_barbearia():
             INSERT INTO barbearias (nome, slug, email, senha, plano_ativo)
             VALUES (?, ?, ?, ?, 1)
         """, (nome, slug, email, senha))
-        cursor.execute("SELECT SCOPE_IDENTITY()")
-        novo_id = int(cursor.fetchone()[0])
+        novo_id = cursor.lastrowid
 
         # Trial gratuito local (cfg.TRIAL_DAYS dias, padrão 7)
         criar_assinatura_trial(cursor, novo_id, cfg.TRIAL_DAYS)
@@ -654,7 +642,7 @@ def login():
             b_row = cursor.fetchone()
             if not b_row:
                 cursor.execute(
-                    "SELECT TOP 1 id, nome FROM barbearias WHERE email = ?",
+                    "SELECT id, nome FROM barbearias WHERE email = ? LIMIT 1",
                     (email,),
                 )
                 b_row = cursor.fetchone()
@@ -662,7 +650,7 @@ def login():
                 session["barbearia_id"] = b_row[0]
                 session["nome_barbearia"] = b_row[1]
             else:
-                cursor.execute("SELECT TOP 1 id, nome FROM barbearias")
+                cursor.execute("SELECT id, nome FROM barbearias LIMIT 1")
                 primeira = cursor.fetchone()
                 session["barbearia_id"] = primeira[0] if primeira else user.id
                 session["nome_barbearia"] = (
@@ -819,7 +807,7 @@ def agenda():
 
     cursor.execute("""
         SELECT Nome, Dia, Hora, Servico, Whatsapp
-        FROM dbo.Clientes
+        FROM Clientes
         WHERE barbeiro_id = ?
         ORDER BY Dia, Hora
     """, (session["user_id"],))
@@ -857,10 +845,10 @@ def admin_agenda():
 
     cursor.execute("""
         SELECT c.Nome, c.Dia, c.Hora, c.Servico, c.Whatsapp, u.nome AS barbeiro_nome,
-               c.barbeiro_id, ISNULL(c.status, 'Agendado') AS status
-        FROM dbo.Clientes c
+               c.barbeiro_id, IFNULL(c.status, 'Agendado') AS status
+        FROM Clientes c
         INNER JOIN usuarios u ON c.barbeiro_id = u.id
-        WHERE ISNULL(c.status, 'Agendado') <> 'Concluído'
+        WHERE IFNULL(c.status, 'Agendado') <> 'Concluído'
         ORDER BY c.Dia, c.Hora
     """)
     registros = cursor.fetchall()
@@ -1027,8 +1015,8 @@ def admin_agenda_concluir():
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT Nome, Servico, ISNULL(status, 'Agendado')
-        FROM dbo.Clientes
+        SELECT Nome, Servico, IFNULL(status, 'Agendado')
+        FROM Clientes
         WHERE Dia = ? AND Hora = ? AND barbeiro_id = ?
         """,
         (data, hora, barbeiro_id),
@@ -1046,7 +1034,7 @@ def admin_agenda_concluir():
     try:
         cursor.execute(
             """
-            UPDATE dbo.Clientes
+            UPDATE Clientes
             SET status = 'Concluído'
             WHERE Dia = ? AND Hora = ? AND barbeiro_id = ?
             """,
@@ -1069,7 +1057,7 @@ def admin_agenda_concluir():
                 "success",
             )
         conn.commit()
-    except pyodbc.Error as e:
+    except DbError as e:
         conn.rollback()
         flash(f"Erro ao concluir atendimento: {e}", "danger")
     finally:
@@ -1093,65 +1081,17 @@ def _normalizar_id_inserido(valor):
 
 
 def _inserir_agendamento_retornar_id(cursor, nome, data, hora, servico, whatsapp, barbeiro_id):
-    """
-    Insere agendamento e devolve o id gerado.
-    OUTPUT INSERTED.id → SCOPE_IDENTITY → SELECT pelo slot.
-    """
-    params = (nome, data, hora, servico, whatsapp, barbeiro_id)
-
-    def _ler_id_do_cursor():
-        row = cursor.fetchone()
-        return _normalizar_id_inserido(row[0] if row else None)
-
-    def _scope_identity():
-        cursor.execute("SELECT CAST(SCOPE_IDENTITY() AS INT) AS novo_id")
-        return _ler_id_do_cursor()
-
-    inseriu = False
-    try:
-        cursor.execute(
-            """
-            INSERT INTO dbo.Clientes (
-                Nome, Dia, Hora, Servico, Whatsapp, barbeiro_id, status
-            )
-            OUTPUT INSERTED.id
-            VALUES (?, ?, ?, ?, ?, ?, 'Agendado')
-            """,
-            params,
-        )
-        inseriu = True
-        novo_id = _ler_id_do_cursor()
-        if novo_id is not None:
-            return novo_id
-        novo_id = _scope_identity()
-        if novo_id is not None:
-            return novo_id
-    except pyodbc.Error:
-        pass
-
-    if not inseriu:
-        cursor.execute(
-            """
-            INSERT INTO dbo.Clientes (
-                Nome, Dia, Hora, Servico, Whatsapp, barbeiro_id, status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, 'Agendado')
-            """,
-            params,
-        )
-        novo_id = _scope_identity()
-        if novo_id is not None:
-            return novo_id
-
+    """Insere agendamento e devolve o id gerado (SQLite: last_insert_rowid)."""
     cursor.execute(
         """
-        SELECT TOP 1 id FROM dbo.Clientes
-        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND Nome = ?
-        ORDER BY id DESC
+        INSERT INTO Clientes (
+            Nome, Dia, Hora, Servico, Whatsapp, barbeiro_id, status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 'Agendado')
         """,
-        (data, hora, barbeiro_id, nome),
+        (nome, data, hora, servico, whatsapp, barbeiro_id),
     )
-    return _ler_id_do_cursor()
+    return _normalizar_id_inserido(cursor.lastrowid)
 
 
 def _buscar_agendamento_por_id(cursor, agendamento_id):
@@ -1160,7 +1100,7 @@ def _buscar_agendamento_por_id(cursor, agendamento_id):
         """
         SELECT c.id, c.Nome, c.Dia, c.Hora, c.Servico, c.Whatsapp,
                c.barbeiro_id, u.nome AS profissional_nome
-        FROM dbo.Clientes c
+        FROM Clientes c
         LEFT JOIN usuarios u ON c.barbeiro_id = u.id
         WHERE c.id = ?
         """,
@@ -1209,7 +1149,7 @@ def agendar():
         """
         SELECT COUNT(*) FROM Clientes
         WHERE Dia = ? AND Hora = ? AND barbeiro_id = ?
-          AND ISNULL(status, 'Agendado') <> 'Concluído'
+          AND IFNULL(status, 'Agendado') <> 'Concluído'
         """,
         (data, hora, barbeiro_id),
     )
@@ -1259,7 +1199,7 @@ def sucesso_agendamento(agendamento_id):
     cursor = conn.cursor()
     try:
         ag = _buscar_agendamento_por_id(cursor, agendamento_id)
-    except pyodbc.Error:
+    except DbError:
         ag = None
     finally:
         conn.close()
@@ -1285,12 +1225,12 @@ def editar(data, hora):
     conn = get_connection()
     cursor = conn.cursor()
     if request.method == "POST":
-        cursor.execute("UPDATE dbo.Clientes SET Nome=?, Servico=?, Whatsapp=? WHERE Dia=? AND Hora=? AND barbeiro_id=?",
+        cursor.execute("UPDATE Clientes SET Nome=?, Servico=?, Whatsapp=? WHERE Dia=? AND Hora=? AND barbeiro_id=?",
                        (request.form["nome"], request.form["servico"], request.form.get("whatsapp",""), data, hora, barbeiro_id))
         conn.commit()
         conn.close()
         return redirect(url_for("admin_agenda" if session["role"]=="admin" else "agenda"))
-    cursor.execute("SELECT Nome, Servico, Whatsapp FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cursor.execute("SELECT Nome, Servico, Whatsapp FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
     cliente = cursor.fetchone()
     conn.close()
     return render_template("editar.html", cliente=cliente, data=data, hora=hora, barbeiro_id=barbeiro_id)
@@ -1300,7 +1240,7 @@ def excluir(data, hora):
     barbeiro_id = request.args.get("barbeiro_id")
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cursor.execute("DELETE FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
     conn.commit()
     conn.close()
     return redirect(url_for("admin_agenda" if session["role"]=="admin" else "agenda"))
@@ -1310,16 +1250,22 @@ def enviar_whatsapp(data, hora):
     barbeiro_id = request.args.get("barbeiro_id")
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT Nome, Whatsapp FROM dbo.Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cursor.execute("SELECT Nome, Whatsapp FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
     cliente = cursor.fetchone()
     conn.close()
     if not cliente or not cliente[1]:
         return "⚠️ WhatsApp não cadastrado!"
     numero = "+55" + cliente[1].strip() if not cliente[1].startswith("+") else cliente[1].strip()
     try:
-        pywhatkit.sendwhatmsg_instantly(numero, f"Lembrete: {cliente[0]}, seu horário é {data} às {hora}.", wait_time=15)
+        import pywhatkit
+
+        pywhatkit.sendwhatmsg_instantly(
+            numero,
+            f"Lembrete: {cliente[0]}, seu horário é {data} às {hora}.",
+            wait_time=15,
+        )
         return "✅ Enviado!"
-    except:
+    except Exception:
         return "❌ Erro ao enviar."
 
 # -------------------------- MARCAR AGENDAMENTO CLIENTE --------------------------
@@ -1356,16 +1302,18 @@ def marcar():
 def exportar_excel():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT Nome, Dia, Hora, Servico FROM dbo.Clientes")
+    cursor.execute("SELECT Nome, Dia, Hora, Servico FROM Clientes")
     dados = cursor.fetchall()
     conn.close()
+
+    from openpyxl import Workbook
 
     wb = Workbook()
     ws = wb.active
     ws.append(["Nome", "Data", "Hora", "Serviço"])
     for d in dados:
         ws.append([d[0], str(d[1]), d[2], d[3]])
-    
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
@@ -1379,7 +1327,7 @@ def pdf_hoje():
 def pdf_diario(data):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT c.Nome, c.Hora, c.Servico, u.nome FROM dbo.Clientes c JOIN usuarios u ON c.barbeiro_id = u.id WHERE c.Dia=?", (data,))
+    cursor.execute("SELECT c.Nome, c.Hora, c.Servico, u.nome FROM Clientes c JOIN usuarios u ON c.barbeiro_id = u.id WHERE c.Dia=?", (data,))
     clientes = cursor.fetchall()
     conn.close()
 
@@ -1422,8 +1370,8 @@ def _buscar_faturamento_profissionais(cursor):
     """Total de receitas agrupado por profissional (para comissões / folha)."""
     cursor.execute("""
         SELECT u.nome, SUM(f.valor) AS total_faturado
-        FROM dbo.financeiro f
-        INNER JOIN dbo.usuarios u ON f.profissional_id = u.id
+        FROM financeiro f
+        INNER JOIN usuarios u ON f.profissional_id = u.id
         WHERE f.tipo_transacao = 'Receita'
         GROUP BY u.id, u.nome
         ORDER BY total_faturado DESC
@@ -1439,7 +1387,7 @@ def _inserir_receita_financeiro(cursor, descricao, valor, profissional_id):
         INSERT INTO financeiro (
             descricao, valor, tipo_transacao, barbeiro, profissional_id, data
         )
-        VALUES (?, ?, 'Receita', ?, ?, GETDATE())
+        VALUES (?, ?, 'Receita', ?, ?, CURRENT_TIMESTAMP)
         """,
         (descricao, valor, nome_prof, pid),
     )
@@ -1484,6 +1432,8 @@ def _formatar_data_transacao(data):
 
 
 def _gerar_excel_financeiro(transacoes, saldo, faturamento_profissionais):
+    from openpyxl import Workbook
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Financeiro"
@@ -1633,7 +1583,7 @@ def lancar_transacao():
         INSERT INTO financeiro (
             descricao, valor, tipo_transacao, barbeiro, profissional_id, data
         )
-        VALUES (?, ?, ?, ?, ?, GETDATE())
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     """, (descricao, valor, tipo, nome_profissional, profissional_id))
     conn.commit()
     conn.close()
@@ -1810,7 +1760,7 @@ def admin_configuracoes():
                     barbearia_id_alvo,
                 ),
             )
-        except pyodbc.Error:
+        except DbError:
             pass
 
         _processar_upload_capas_catalogo(request, cursor, barbearia_id_alvo)
@@ -1833,13 +1783,13 @@ def admin_configuracoes():
                     barbearia_id_alvo,
                 ),
             )
-        except pyodbc.Error:
+        except DbError:
             try:
                 cursor.execute(
                     "UPDATE barbearias SET texto_marcar_direito = ? WHERE id = ?",
                     (texto_marcar or novo_nome or "AgendaSimples", barbearia_id_alvo),
                 )
-            except pyodbc.Error:
+            except DbError:
                 pass
 
         if file_fundo_marcar and file_fundo_marcar.filename:
@@ -1859,7 +1809,7 @@ def admin_configuracoes():
                     """,
                     (banner_filename, barbearia_id_alvo),
                 )
-            except pyodbc.Error:
+            except DbError:
                 pass
 
         # 2. Upload do logotipo (Home)
@@ -1878,7 +1828,7 @@ def admin_configuracoes():
                     "UPDATE barbearias SET logotipo_url = ? WHERE id = ?",
                     (logo_filename, barbearia_id_alvo),
                 )
-            except pyodbc.Error:
+            except DbError:
                 pass
 
         # 3. Processa o upload da Foto de Capa se o usuário escolheu um arquivo

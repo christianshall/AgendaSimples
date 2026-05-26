@@ -24,16 +24,19 @@ def _parse_dt(val):
 
 def criar_assinatura_trial(cursor, barbearia_id, dias_trial):
     """Insere registro de assinatura com trial local (sem Stripe ainda)."""
-    fim_trial = datetime.utcnow() + timedelta(days=dias_trial)
+    agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    fim_trial = (datetime.utcnow() + timedelta(days=dias_trial)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
     cursor.execute(
         """
         INSERT INTO assinaturas (
             barbearia_id, stripe_customer_id, stripe_subscription_id,
             plano_status, data_fim_trial, data_fim_plano, criado_em, atualizado_em
         )
-        VALUES (?, NULL, NULL, 'trialing', ?, NULL, GETDATE(), GETDATE())
+        VALUES (?, NULL, NULL, 'trialing', ?, NULL, ?, ?)
         """,
-        (barbearia_id, fim_trial),
+        (barbearia_id, fim_trial, agora, agora),
     )
 
 
@@ -100,7 +103,7 @@ def atualizar_assinatura_por_stripe(cursor, barbearia_id, **kwargs):
             valores.append(valor)
     if not campos:
         return
-    campos.append("atualizado_em = GETDATE()")
+    campos.append("atualizado_em = CURRENT_TIMESTAMP")
     valores.append(barbearia_id)
     sql = f"UPDATE assinaturas SET {', '.join(campos)} WHERE barbearia_id = ?"
     cursor.execute(sql, valores)

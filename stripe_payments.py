@@ -1,5 +1,5 @@
 """Rotas Flask: Stripe Checkout, callbacks e webhooks."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import stripe
 from flask import flash, redirect, render_template, request, session, url_for
@@ -85,15 +85,19 @@ def register_stripe_routes(app, get_connection):
                     cursor, barbearia_id, stripe_customer_id=customer_id
                 )
             else:
+                agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                fim_trial = (
+                    datetime.utcnow() + timedelta(days=cfg.TRIAL_DAYS)
+                ).strftime("%Y-%m-%d %H:%M:%S")
                 cursor.execute(
                     """
                     INSERT INTO assinaturas (
                         barbearia_id, stripe_customer_id, plano_status,
                         data_fim_trial, criado_em, atualizado_em
                     )
-                    VALUES (?, ?, 'trialing', DATEADD(day, ?, GETDATE()), GETDATE(), GETDATE())
+                    VALUES (?, ?, 'trialing', ?, ?, ?)
                     """,
-                    (barbearia_id, customer_id, cfg.TRIAL_DAYS),
+                    (barbearia_id, customer_id, fim_trial, agora, agora),
                 )
             conn.commit()
 
