@@ -3,33 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ session.get('nome_barbearia', 'Christian Shall Barber Shop') }} - Admin</title>
+    <title>{{ session.get('nome_barbearia', 'Christian Shall Barber Shop') }} — {{ _('Painel Admin') }}</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --primary-color: #1a1a1a;
-            --accent-color: #c7a17a;
-            --bg-color: #f4f6f9;
+            --admin-blue-light: #cee5f2;
+            --admin-blue-soft: #bbe1fa;
+            --admin-blue-dark: #1b365d;
+            --admin-text: #2d3748;
+            --admin-accent: #2563eb;
+            --bg-color: #f8fafc;
         }
 
         body {
             background-color: var(--bg-color);
             font-family: 'Poppins', sans-serif;
+            color: var(--admin-text);
         }
 
         .navbar-custom {
-            background-color: var(--primary-color);
+            background-color: var(--admin-blue-light);
             padding: 15px 0;
+            border-bottom: 1px solid #a8d4eb;
+            box-shadow: 0 2px 12px rgba(27, 54, 93, 0.06);
         }
 
         .navbar-brand {
-            color: var(--accent-color) !important;
+            color: var(--admin-blue-dark) !important;
             font-weight: 700;
-            font-size: 1.4rem;
+            font-size: 1.35rem;
+        }
+
+        .navbar-custom .btn-nav-tool {
+            border: 1px solid rgba(27, 54, 93, 0.25);
+            color: var(--admin-blue-dark);
+            background: rgba(255, 255, 255, 0.55);
+        }
+        .navbar-custom .btn-nav-tool:hover {
+            background: #ffffff;
+            color: var(--admin-accent);
+            border-color: var(--admin-accent);
         }
 
         .date-scroller {
@@ -54,8 +72,9 @@
         }
 
         .date-card.active {
-            background: var(--primary-color);
-            color: var(--accent-color);
+            background: var(--admin-blue-dark);
+            color: #ffffff;
+            border-color: var(--admin-blue-dark);
         }
 
         .time-row {
@@ -71,76 +90,199 @@
 
         .appointment-card {
             background: white;
-            border-left: 4px solid var(--accent-color);
+            border-left: 4px solid var(--admin-accent);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 10px;
             position: relative;
         }
 
+        .appointment-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
         .btn-action {
-            margin-right: 5px;
+            margin-right: 0;
             font-size: 0.85rem;
         }
 
+        .btn-wa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 50%;
+            background-color: #25D366;
+            color: #fff !important;
+            text-decoration: none;
+            font-size: 1.15rem;
+            line-height: 1;
+            border: none;
+            flex-shrink: 0;
+            transition: transform 0.22s ease, background-color 0.22s ease, box-shadow 0.22s ease;
+        }
+
+        .btn-wa:hover {
+            background-color: #1ebe57;
+            color: #fff !important;
+            transform: scale(1.1);
+            box-shadow: 0 4px 16px rgba(37, 211, 102, 0.5);
+        }
+
+        .btn-wa:focus-visible {
+            outline: 2px solid #128C7E;
+            outline-offset: 2px;
+        }
+
+        .cliente-whatsapp {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.88rem;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        .cliente-whatsapp i {
+            color: #25D366;
+        }
+
         .empty-slot {
-            border: 1px dashed var(--accent-color);
+            border: 1px dashed #7eb8dc;
             padding: 10px;
             border-radius: 8px;
             cursor: pointer;
-            color: var(--accent-color);
+            color: var(--admin-blue-dark);
+            background: rgba(206, 229, 242, 0.35);
         }
 
         .tab-content-day { display: none; }
         .tab-content-day.active { display: block; }
 
         .lang-selector {
-            border-right: 1px solid #444;
+            border-right: 1px solid rgba(27, 54, 93, 0.2);
             padding-right: 10px;
             margin-right: 5px;
         }
-        .lang-link {
-            text-decoration: none;
-            font-size: 0.9rem;
-            padding: 2px 5px;
-            border-radius: 4px;
+        .navbar-custom .lang-switcher__btn {
+            color: var(--admin-text);
         }
-        .lang-link:hover {
-            background-color: #333;
+        .navbar-custom .lang-switcher__btn.is-active {
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--admin-blue-dark);
+        }
+        .navbar-custom .lang-switcher__sep {
+            color: rgba(27, 54, 93, 0.35);
+        }
+
+        .link-agendamento-card {
+            background: var(--admin-blue-soft);
+            border: 1px solid #9ecae6;
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(27, 54, 93, 0.08);
+        }
+        .link-agendamento-card h6 {
+            color: var(--admin-blue-dark);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .link-agendamento-card .hint {
+            color: var(--admin-text);
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            opacity: 0.9;
+        }
+        .link-agendamento-card .form-label {
+            color: var(--admin-blue-dark);
+        }
+        .link-agendamento-card .form-control,
+        .link-agendamento-card .form-select {
+            background: #ffffff;
+            border: 1px solid #9ecae6;
+            color: var(--admin-text);
+            font-size: 0.85rem;
+        }
+        .link-agendamento-card .form-control:focus,
+        .link-agendamento-card .form-select:focus {
+            border-color: var(--admin-accent);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        }
+        .btn-copy-link {
+            background: var(--admin-blue-dark);
+            color: #ffffff;
+            font-weight: 600;
+            border: none;
+            white-space: nowrap;
+            border-radius: 8px;
+        }
+        .btn-copy-link:hover {
+            background: var(--admin-accent);
+            color: #ffffff;
+        }
+        .copy-toast {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.75);
+            border: 1px solid #7eb8dc;
+            color: var(--admin-blue-dark);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .copy-toast.show {
+            display: block;
+            animation: fadeInToast 0.3s ease;
+        }
+        @keyframes fadeInToast {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 
-<body>
+<body lang="{{ current_locale }}">
 
 <nav class="navbar navbar-custom navbar-expand-lg">
     <div class="container-fluid px-4">
 
         <span class="navbar-brand">
-            💈 {{ session.get('nome_barbearia', 'Christian Shall Barber Shop') }} - Admin
+            {{ session.get('nome_barbearia', 'AgendaSimples') }} — {{ _('Admin') }}
         </span>
 
         <div class="ms-auto d-flex align-items-center gap-2">
 
-            <div class="lang-selector d-flex gap-1">
-                <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" class="lang-link" title="Português">🇧🇷</a>
-                <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" class="lang-link" title="English">🇺🇸</a>
-                <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" class="lang-link" title="Español">🇪🇸</a>
+            <div class="lang-selector lang-selector-admin">
+                {% include '_lang_selector.html' %}
             </div>
 
-            <a href="{{ url_for('admin_configuracoes') }}" class="btn btn-outline-light btn-sm" title="{{ _('Configurações') }}">
+            {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('admin_cadastrar_profissional') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Cadastrar profissional') }}">
+                <i class="fas fa-user-plus"></i>
+            </a>
+            {% endif %}
+
+            <a href="{{ url_for('admin_configuracoes') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Configurações') }}">
                 <i class="fas fa-cog"></i>
             </a>
 
-            <a href="{{ url_for('admin_galeria') }}" class="btn btn-outline-light btn-sm" title="{{ _('Gerenciar Galeria') }}">
+            <a href="{{ url_for('admin_galeria') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Gerenciar Galeria') }}">
                 <i class="fas fa-images"></i>
             </a>
 
-            <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-light btn-sm" title="{{ _('Exportar Excel') }}">
+            <a href="{{ url_for('exportar_excel') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Exportar Excel') }}">
                 <i class="fas fa-file-excel"></i>
             </a>
 
-            <a href="{{ url_for('pdf_hoje') }}" class="btn btn-outline-light btn-sm" title="{{ _('PDF Hoje') }}">
+            <a href="{{ url_for('pdf_hoje') }}" class="btn btn-nav-tool btn-sm" title="{{ _('PDF Hoje') }}">
                 <i class="fas fa-file-pdf"></i>
             </a>
 
@@ -158,8 +300,45 @@
 
 <div class="container mt-4 mb-5">
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
     <div class="mb-3">
-        <label class="form-label">{{ _('Filtrar por Barbeiro:') }}</label>
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="link-agendamento-card">
+        <h6><i class="fas fa-link me-2"></i>{{ _('Seu Link de Agendamento') }}</h6>
+        <p class="hint mb-2">{{ _('Compartilhe no WhatsApp ou Instagram — o cliente agenda sem baixar app.') }}</p>
+        {% if session.role == 'admin' and barbeiros %}
+        <label class="form-label small text-muted">{{ _('Profissional do link') }}</label>
+        <select class="form-select form-select-sm mb-2" id="selectLinkProf" onchange="atualizarLinkAgendamento()">
+            {% for b in barbeiros %}
+            <option value="{{ b.id }}">{{ b.nome }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <div class="input-group">
+            <input type="text"
+                   id="linkAgendamento"
+                   readonly
+                   class="form-control"
+                   value="{{ url_for('marcar', profissional=session.user_id if session.role in ('barbeiro', 'profissional') else (barbeiros[0].id if barbeiros else session.user_id), _external=True) }}">
+            <button type="button" class="btn btn-copy-link" onclick="copiarLinkAgendamento()">
+                <i class="fas fa-copy me-1"></i>{{ _('Copiar Link') }}
+            </button>
+        </div>
+        <div id="copyToast" class="copy-toast"><i class="fas fa-check-circle me-1"></i>{{ _('Link copiado!') }}</div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">{{ _('Filtrar por Profissional:') }}</label>
         <select class="form-select" id="selectBarbeiro" onchange="filtrarBarbeiro()">
             <option value="todos">{{ _('Todos') }}</option>
             {% for b in barbeiros %}
@@ -198,16 +377,34 @@
                                 <div class="appointment-card" data-barbeiro="{{ ag.barbeiro_id }}">
                                     <strong>{{ ag.nome }}</strong><br>
                                     {{ _(ag.servico) }}<br>
-                                    {{ ag.whatsapp }}<br>
-                                    <em>{{ _('Barbeiro:') }} {{ ag.barbeiro_nome }}</em>
+                                    {% if ag.whatsapp %}
+                                    <span class="cliente-whatsapp">
+                                        <i class="fab fa-whatsapp"></i> {{ ag.whatsapp }}
+                                    </span><br>
+                                    {% endif %}
+                                    <em>{{ _('Profissional:') }} {{ ag.barbeiro_nome }}</em>
 
-                                    <div class="mt-2">
-                                        <a href="{{ url_for('editar', data=data_iso, hora=hora, barbeiro_id=ag.barbeiro_id) }}" class="btn btn-primary btn-sm btn-action">
+                                    <div class="appointment-actions">
+                                        <button type="button" class="btn btn-success btn-sm btn-action"
+                                            onclick="openConcluirModal('{{ data_iso }}','{{ hora }}',{{ ag.barbeiro_id }}, {{ ag.nome|tojson }}, {{ ag.servico|tojson }})"
+                                            title="{{ _('Concluir atendimento') }}">
+                                            <i class="fas fa-check-circle"></i> {{ _('Concluir') }}
+                                        </button>
+                                        <a href="{{ url_for('editar', data=data_iso, hora=hora, barbeiro_id=ag.barbeiro_id) }}" class="btn btn-primary btn-sm btn-action" title="{{ _('Editar') }}">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{{ url_for('excluir', data=data_iso, hora=hora, barbeiro_id=ag.barbeiro_id) }}" class="btn btn-danger btn-sm btn-action" onclick="return confirm('{{ _("Deseja excluir este agendamento?") }}')">
+                                        <a href="{{ url_for('excluir', data=data_iso, hora=hora, barbeiro_id=ag.barbeiro_id) }}" class="btn btn-danger btn-sm btn-action" title="{{ _('Excluir') }}" onclick="return confirm('{{ _("Deseja excluir este agendamento?") }}')">
                                             <i class="fas fa-trash"></i>
                                         </a>
+                                        {% if ag.whatsapp %}
+                                        <a href="{{ url_for('enviar_whatsapp', data=data_iso, hora=hora, barbeiro_id=ag.barbeiro_id) }}"
+                                           class="btn-wa"
+                                           title="{{ _('Enviar lembrete') }}"
+                                           data-bs-toggle="tooltip"
+                                           data-bs-placement="top">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </a>
+                                        {% endif %}
                                     </div>
                                 </div>
                             {% endfor %}
@@ -252,13 +449,67 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">WhatsApp</label>
+                        <label class="form-label">{{ _('WhatsApp') }}</label>
                         <input type="text" name="whatsapp" class="form-control">
                     </div>
                 </div>
 
                 <div class="modal-footer">
                     <button class="btn btn-dark w-100" type="submit">{{ _('Confirmar') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="concluirModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ url_for('admin_agenda_concluir') }}" method="POST">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">{{ _('Concluir atendimento') }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="data" id="concluirData">
+                    <input type="hidden" name="hora" id="concluirHora">
+                    <input type="hidden" name="barbeiro_id" id="concluirBarbeiroId">
+                    <input type="hidden" name="servico_agendado" id="concluirServicoAgendado">
+                    <input type="hidden" name="nome_cliente" id="concluirNomeCliente">
+
+                    <p class="mb-3">
+                        <strong id="concluirResumoCliente"></strong><br>
+                        <span class="text-muted" id="concluirResumoServico"></span>
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ _('Valor recebido (R$)') }}</label>
+                        <input type="number" name="valor" id="concluirValor" class="form-control"
+                               min="0" step="0.01" placeholder="0,00" value="0" required>
+                        <div class="form-text">{{ _('Use 0 para retornos, cortesias ou pacotes já pagos.') }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ _('O que foi feito') }}</label>
+                        <select name="descricao_tipo" id="concluirTipo" class="form-select" onchange="atualizarPlaceholderDetalhe()">
+                            <option value="Serviço">{{ _('Serviço') }}</option>
+                            <option value="Venda de Produto">{{ _('Venda de Produto') }}</option>
+                            <option value="Outro">{{ _('Outro (descrever)') }}</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ _('Detalhe') }}</label>
+                        <input type="text" name="descricao_detalhe" id="concluirDetalhe" class="form-control"
+                               placeholder="{{ _('Ex: Corte de cabelo') }}">
+                        <div class="form-text">{{ _('Será registrado no financeiro junto com o tipo acima.') }}</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancelar') }}</button>
+                    <button type="submit" class="btn btn-success w-50">
+                        <i class="fas fa-check"></i> {{ _('Concluir e lançar receita') }}
+                    </button>
                 </div>
             </form>
         </div>
@@ -295,9 +546,71 @@
             }
         })
     }
+
+    function atualizarPlaceholderDetalhe(){
+        var tipo=document.getElementById('concluirTipo').value
+        var det=document.getElementById('concluirDetalhe')
+        if(tipo==='Serviço'){
+            det.placeholder='{{ _("Ex: Corte de cabelo") }}'
+        }else if(tipo==='Venda de Produto'){
+            det.placeholder='{{ _("Ex: Pomada, shampoo") }}'
+        }else{
+            det.placeholder='{{ _("Descreva o que foi feito") }}'
+        }
+    }
+
+    var baseMarcarUrl = "{{ url_for('marcar', _external=True) }}";
+
+    function atualizarLinkAgendamento() {
+        var sel = document.getElementById('selectLinkProf');
+        var input = document.getElementById('linkAgendamento');
+        if (!sel || !input) return;
+        var sep = baseMarcarUrl.indexOf('?') >= 0 ? '&' : '?';
+        input.value = baseMarcarUrl + sep + 'profissional=' + encodeURIComponent(sel.value);
+    }
+
+    function copiarLinkAgendamento() {
+        var input = document.getElementById('linkAgendamento');
+        var toast = document.getElementById('copyToast');
+        var url = input.value;
+        function mostrarOk() {
+            toast.classList.add('show');
+            setTimeout(function() { toast.classList.remove('show'); }, 2800);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(mostrarOk).catch(function() {
+                input.select();
+                document.execCommand('copy');
+                mostrarOk();
+            });
+        } else {
+            input.select();
+            document.execCommand('copy');
+            mostrarOk();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipList.map(function(el) { return new bootstrap.Tooltip(el); });
+    });
+
+    function openConcluirModal(data, hora, barbeiroId, nomeCliente, servicoAgendado){
+        document.getElementById('concluirData').value=data
+        document.getElementById('concluirHora').value=hora
+        document.getElementById('concluirBarbeiroId').value=barbeiroId
+        document.getElementById('concluirServicoAgendado').value=servicoAgendado||''
+        document.getElementById('concluirNomeCliente').value=nomeCliente||''
+        document.getElementById('concluirResumoCliente').textContent=nomeCliente||''
+        document.getElementById('concluirResumoServico').textContent=servicoAgendado||''
+        document.getElementById('concluirDetalhe').value=servicoAgendado||''
+        document.getElementById('concluirValor').value='0'
+        atualizarPlaceholderDetalhe()
+        new bootstrap.Modal(document.getElementById('concluirModal')).show()
+    }
 </script>
-</head>
-<body> {% if foto_capa %}
+
+{% if foto_capa %}
     <div class="container-fluid px-0 mb-4" style="max-width: 100%; width: 100%;">
         <div style="width: 100%; height: 250px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
             <img src="{{ url_for('static', filename='uploads/capa/' + foto_capa) }}" 
@@ -308,5 +621,4 @@
     {% endif %}
 
 </body>
-
 </html>

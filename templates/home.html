@@ -1,403 +1,366 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+
+<html lang="{{ current_locale }}">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('Christian Shall Barber Shop - Agende seu Horário') }}</title>
-    
+
+    <title>{{ configs.nome_negocio }} — {{ _('Agende seu horário') }}</title>
+
+
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="/static/home.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
+
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        /* Widget de Idioma Flutuante e Elegante no canto da tela */
-        .floating-lang-picker {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(26, 26, 26, 0.95);
-            border: 1px solid #d4af37;
-            padding: 10px 15px;
-            border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 9999;
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        .floating-lang-picker a {
-            text-decoration: none;
-            font-size: 1.4rem;
-            transition: transform 0.2s;
-        }
-        .floating-lang-picker a:hover {
-            transform: scale(1.2);
-        }
 
-        /* Estilização União Layout Antigo + Galeria Instagram */
-        .service-item {
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        
-        .service-img-container {
-            width: 100%;
-            height: 220px;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 15px;
-            background-color: #1a1a1a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            border: 1px solid #333;
-        }
-        .service-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.4s ease;
-        }
-        .service-item:hover .service-img {
-            transform: scale(1.08);
-        }
-        .service-fallback-icon {
-            font-size: 3rem;
-            color: #c7a17a;
-        }
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
 
-        /* Selo contador de fotos estilo Instagram */
-        .photo-counter {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            backdrop-filter: blur(3px);
-            z-index: 2;
-        }
-
-        /* Customização dos Modais de Slide */
-        .modal-content-gallery {
-            background-color: rgba(15, 15, 15, 0.98) !important;
-            border: 1px solid #c7a17a !important;
-            border-radius: 15px;
-        }
-        .carousel-img-fixed {
-            width: 100%;
-            max-height: 70vh;
-            object-fit: contain;
-            background: #000;
-        }
-    </style>
 </head>
-<body>
+
+<body class="landing-body" lang="{{ current_locale }}">
+
+
 
     <div class="floating-lang-picker">
-        <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
-        <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
-        <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+
+        {% include '_lang_selector.html' %}
+
     </div>
 
-    <header class="header">
-        <div class="header-content">
-            <div class="logo-section">
-                <img src="/static/banner.png" alt="Logo Christian Shall" class="logo-img">
-                <h1 class="logo-text">Christian Shall</h1>
-                <p class="logo-subtitle">Barber Shop</p>
-            </div>
+
+
+    <header class="landing-header">
+
+        <div class="landing-header-inner">
+
+            {% if configs.logotipo_url %}
+
+            <img src="{{ url_for('static', filename='uploads/logo/' + configs.logotipo_url) }}"
+
+                 alt="{{ _('Logotipo de %(nome)s', nome=configs.nome_negocio) }}" class="landing-logo">
+
+            {% else %}
+
+            <h1 class="landing-brand-text">{{ configs.nome_negocio }}</h1>
+
+            {% endif %}
+
+            <p class="landing-tagline">{{ _('Agendamento online profissional') }}</p>
+
         </div>
+
     </header>
 
-    <section class="hero">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <div class="hero-text">
-                <h2 class="hero-title">{{ _('Bem-vindo à Christian Shall Barber Shop') }}</h2>
-                <p class="hero-description">{{ _('Estilo, qualidade e tradição em cada corte. Agende seu horário e transforme seu visual!') }}</p>
+
+
+    <section class="landing-hero">
+
+        <div class="landing-hero-inner">
+
+            <div class="hero-copy">
+
+                <span class="hero-badge">{{ _('Bem-vindo') }}</span>
+
+                <h2 class="hero-headline">{{ _('Agende com') }} {{ configs.nome_negocio }}</h2>
+
+                <p class="hero-lead">{{ _('Qualidade, praticidade e o portfólio do seu profissional em um só lugar.') }}</p>
+
+                <a href="{{ url_for('marcar') }}" class="btn-landing-primary">
+
+                    <i class="fas fa-calendar-check me-2" aria-hidden="true"></i>{{ _('Marcar Horário') }}
+
+                </a>
+
             </div>
-            <div class="hero-image">
-                <img src="/static/banner.png" alt="Barber Shop" class="banner-img">
+
+            <div class="hero-visual">
+
+                {% if configs.logotipo_url %}
+
+                <img src="{{ url_for('static', filename='uploads/logo/' + configs.logotipo_url) }}"
+
+                     alt="{{ _('Logotipo de %(nome)s', nome=configs.nome_negocio) }}" class="hero-logo-watermark">
+
+                {% else %}
+
+                <div class="hero-placeholder" role="img" aria-label="{{ _('Ícone do estabelecimento') }}">
+
+                    <i class="fas fa-store" aria-hidden="true"></i>
+
+                </div>
+
+                {% endif %}
+
             </div>
+
         </div>
+
     </section>
 
-    <section class="actions-section">
-        <div class="container-actions">
-            <div class="action-card">
-                <div class="action-icon">
-                    <i class="fas fa-calendar-check"></i>
-                </div>
-                <h3>{{ _('Agendar Horário') }}</h3>
-                <p>{{ _('Reserve seu horário de forma rápida e fácil') }}</p>
-                <a href="/marcar" class="btn-primary">
-                    <i class="fas fa-arrow-right"></i>
-                    {{ _('Marcar Agendamento') }}
-                </a>
-            </div>
 
-            <div class="action-card">
-                <div class="action-icon">
-                    <i class="fas fa-user-tie"></i>
-                </div>
-                <h3>{{ _('Área do Barbeiro') }}</h3>
-                <p>{{ _('Acesso exclusivo para profissionais') }}</p>
-                <a href="/login" class="btn-secondary">
-                    <i class="fas fa-sign-out-alt"></i>
-                    {{ _('Fazer Login') }}
-                </a>
-            </div>
+
+    <section class="landing-actions" aria-labelledby="landing-actions-title">
+
+        <h2 id="landing-actions-title" class="visually-hidden">{{ _('Como deseja continuar?') }}</h2>
+
+        <div class="landing-actions-grid">
+
+            <article class="action-card-landing">
+
+                <div class="action-icon-wrap" aria-hidden="true"><i class="fas fa-calendar-alt"></i></div>
+
+                <h3>{{ _('Cliente') }}</h3>
+
+                <p>{{ _('Reserve seu horário em poucos cliques') }}</p>
+                <a href="{{ url_for('marcar') }}" class="btn-landing-outline">{{ _('Agendar') }}</a>
+
+            </article>
+
+            <article class="action-card-landing">
+
+                <div class="action-icon-wrap" aria-hidden="true"><i class="fas fa-user-tie"></i></div>
+
+                <h3>{{ _('Profissional') }}</h3>
+
+                <p>{{ _('Acesso ao painel da equipe') }}</p>
+
+                <a href="{{ url_for('login') }}" class="btn-landing-outline">{{ _('Entrar') }}</a>
+
+            </article>
+
         </div>
+
     </section>
 
-    <section class="services-section">
-        <div class="container-services">
-            <h2 class="section-title">{{ _('Nossos Serviços') }}</h2>
-            <p class="text-center  mb-4" style="margin-top:-20px;">{{ _('Clique em um serviço para ver nosso portfólio de fotos!') }}</p>
-            
-            <div class="services-grid">
-                
-                <div class="service-item" data-bs-toggle="modal" data-bs-target="#modalCorte">
-                    <div class="service-img-container">
-                        {% if galeria['corte'] %}
-                            <span class="photo-counter"><i class="fas fa-camera me-1"></i>{{ galeria['corte']|length }}</span>
-                            <img src="{{ url_for('static', filename='uploads/galeria/' + galeria['corte'][0]['foto']) }}" alt="{{ _('Corte') }}" class="service-img">
-                        {% else %}
-                            <i class="fas fa-cut service-fallback-icon"></i>
-                        {% endif %}
-                    </div>
-                    <h4>{{ _('Corte') }}</h4>
-                    <p>{{ _('Estilo personalizado') }}</p>
-                </div>
 
-                <div class="service-item" data-bs-toggle="modal" data-bs-target="#modalCorteBarba">
-                    <div class="service-img-container">
-                        {% if galeria['corte_barba'] %}
-                            <span class="photo-counter"><i class="fas fa-camera me-1"></i>{{ galeria['corte_barba']|length }}</span>
-                            <img src="{{ url_for('static', filename='uploads/galeria/' + galeria['corte_barba'][0]['foto']) }}" alt="{{ _('Corte e Barba') }}" class="service-img">
-                        {% else %}
-                            <i class="fas fa-scissors service-fallback-icon"></i>
-                        {% endif %}
-                    </div>
-                    <h4>{{ _('Corte e Barba') }}</h4>
-                    <p>{{ _('Combo completo') }}</p>
-                </div>
 
-                <div class="service-item" data-bs-toggle="modal" data-bs-target="#modalSobrancelha">
-                    <div class="service-img-container">
-                        {% if galeria['sobrancelha'] %}
-                            <span class="photo-counter"><i class="fas fa-camera me-1"></i>{{ galeria['sobrancelha']|length }}</span>
-                            <img src="{{ url_for('static', filename='uploads/galeria/' + galeria['sobrancelha'][0]['foto']) }}" alt="{{ _('Corte + Sobrancelha') }}" class="service-img">
-                        {% else %}
-                            <i class="fas fa-eye service-fallback-icon"></i>
-                        {% endif %}
-                    </div>
-                    <h4>{{ _('Corte + Sobrancelha') }}</h4>
-                    <p>{{ _('Visual impecável') }}</p>
-                </div>
+    <section class="landing-catalog">
 
-                <div class="service-item" data-bs-toggle="modal" data-bs-target="#modalOutros">
-                    <div class="service-img-container">
-                        {% if galeria['outros'] %}
-                            <span class="photo-counter"><i class="fas fa-camera me-1"></i>{{ galeria['outros']|length }}</span>
-                            <img src="{{ url_for('static', filename='uploads/galeria/' + galeria['outros'][0]['foto']) }}" alt="{{ _('Outros Serviços') }}" class="service-img">
-                        {% else %}
-                            <i class="fas fa-star service-fallback-icon"></i>
-                        {% endif %}
-                    </div>
-                    <h4>{{ _('Outros Serviços') }}</h4>
-                    <p>{{ _('Consulte disponibilidade') }}</p>
-                </div>
+        <div class="catalog-header">
 
-            </div>
+            <h2 class="catalog-title">{{ _('Nossos catálogos') }}</h2>
+
+            <p class="catalog-subtitle">{{ _('Toque em um card para ver o portfólio de fotos') }}</p>
+
         </div>
+
+
+
+        <div class="catalog-grid">
+
+            {% for cat in catalogos %}
+
+            <article class="catalog-card" data-bs-toggle="modal" data-bs-target="#{{ cat.modal_id }}"
+
+                     role="button" tabindex="0"
+
+                     aria-label="{{ _('Abrir portfólio: %(titulo)s', titulo=cat.titulo) }}">
+
+                <div class="catalog-card-inner">
+
+                    <div class="catalog-card-bg"
+
+                         {% if cat.capa_path %}
+
+                         style="background-image: url('{{ url_for('static', filename=cat.capa_path) }}');"
+
+                         {% endif %}></div>
+
+                    <div class="catalog-card-overlay"></div>
+
+                    {% if cat.fotos %}
+
+                    <span class="photo-counter">
+
+                        {{ ngettext('%(num)d foto', '%(num)d fotos', cat.fotos|length, num=cat.fotos|length) }}
+
+                    </span>
+
+                    {% endif %}
+
+                    <div class="catalog-card-content">
+
+                        <h4>{{ cat.titulo }}</h4>
+
+                        <span class="catalog-link">{{ _('Ver portfólio') }}</span>
+
+                    </div>
+
+                </div>
+
+            </article>
+
+            {% endfor %}
+
+        </div>
+
     </section>
 
-    <div class="modal fade" id="modalCorte" tabindex="-1" aria-hidden="true">
+
+
+    {% for cat in catalogos %}
+
+    <div class="modal fade" id="{{ cat.modal_id }}" tabindex="-1" aria-hidden="true"
+
+         aria-labelledby="modal-title-{{ cat.modal_id }}">
+
         <div class="modal-dialog modal-dialog-centered modal-lg">
+
             <div class="modal-content modal-content-gallery">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title text-white fw-bold">📸 {{ _('Portfólio - Corte de Cabelo') }}</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                <div class="modal-header border-0 border-bottom">
+
+                    <h5 class="modal-title fw-bold" id="modal-title-{{ cat.modal_id }}">
+
+                        {{ _('Galeria de fotos') }} — {{ cat.titulo }}
+
+                    </h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+
+                            aria-label="{{ _('Fechar') }}"></button>
+
                 </div>
+
                 <div class="modal-body p-0">
-                    {% if galeria['corte'] %}
-                    <div id="carouselCorte" class="carousel slide" data-bs-ride="carousel">
+
+                    {% if cat.fotos %}
+
+                    <div id="{{ cat.carousel_id }}" class="carousel slide" data-bs-ride="carousel">
+
                         <div class="carousel-inner">
-                            {% for foto in galeria['corte'] %}
+
+                            {% for foto in cat.fotos %}
+
                             <div class="carousel-item {% if loop.first %}active{% endif %}">
-                                <img src="{{ url_for('static', filename='uploads/galeria/' + foto['foto']) }}" class="d-block carousel-img-fixed" alt="Corte">
+
+                                <img src="{{ url_for('static', filename='uploads/galeria/' + foto['foto']) }}"
+
+                                     class="d-block carousel-img-fixed"
+
+                                     alt="{{ _('Foto %(num)d de %(total)d — %(titulo)s', num=loop.index, total=cat.fotos|length, titulo=cat.titulo) }}">
+
                             </div>
+
                             {% endfor %}
+
                         </div>
-                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselCorte" data-bs-slide="prev">
+
+                        <button class="carousel-control-prev" type="button"
+
+                                data-bs-target="#{{ cat.carousel_id }}" data-bs-slide="prev"
+
+                                aria-label="{{ _('Foto anterior') }}">
+
                             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+
                         </button>
-                        <button class="carousel-control-next" type="button" data-bs-target="#carouselCorte" data-bs-slide="next">
+
+                        <button class="carousel-control-next" type="button"
+
+                                data-bs-target="#{{ cat.carousel_id }}" data-bs-slide="next"
+
+                                aria-label="{{ _('Próxima foto') }}">
+
                             <span class="carousel-control-next-icon" aria-hidden="true"></span>
+
                         </button>
+
                     </div>
+
                     {% else %}
-                        <p class="text-center text-muted my-5">{{ _('Nenhuma foto adicionada para este serviço ainda.') }}</p>
+
+                    <p class="text-center text-muted my-5 py-5">{{ _('Nenhuma foto neste catálogo ainda.') }}</p>
+
                     {% endif %}
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
 
-    <div class="modal fade" id="modalCorteBarba" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content modal-content-gallery">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title text-white fw-bold">📸 {{ _('Portfólio - Corte e Barba') }}</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-0">
-                    {% if galeria['corte_barba'] %}
-                    <div id="carouselCorteBarba" class="carousel slide" data-bs-ride="carousel">
-                        <div class="carousel-inner">
-                            {% for foto in galeria['corte_barba'] %}
-                            <div class="carousel-item {% if loop.first %}active{% endif %}">
-                                <img src="{{ url_for('static', filename='uploads/galeria/' + foto['foto']) }}" class="d-block carousel-img-fixed" alt="Corte e Barba">
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselCorteBarba" data-bs-slide="prev">
-                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                        </button>
-                        <button class="carousel-control-next" type="button" data-bs-target="#carouselCorteBarba" data-bs-slide="next">
-                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                        </button>
-                    </div>
-                    {% else %}
-                        <p class="text-center text-muted my-5">{{ _('Nenhuma foto adicionada para este serviço ainda.') }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+    {% endfor %}
 
-    <div class="modal fade" id="modalSobrancelha" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content modal-content-gallery">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title text-white fw-bold">📸 {{ _('Portfólio - Corte + Sobrancelha') }}</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-0">
-                    {% if galeria['sobrancelha'] %}
-                    <div id="carouselSobrancelha" class="carousel slide" data-bs-ride="carousel">
-                        <div class="carousel-inner">
-                            {% for foto in galeria['sobrancelha'] %}
-                            <div class="carousel-item {% if loop.first %}active{% endif %}">
-                                <img src="{{ url_for('static', filename='uploads/galeria/' + foto['foto']) }}" class="d-block carousel-img-fixed" alt="Sobrancelha">
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselSobrancelha" data-bs-slide="prev">
-                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                        </button>
-                        <button class="carousel-control-next" type="button" data-bs-target="#carouselSobrancelha" data-bs-slide="next">
-                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                        </button>
-                    </div>
-                    {% else %}
-                        <p class="text-center text-muted my-5">{{ _('Nenhuma foto adicionada para este serviço ainda.') }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="modal fade" id="modalOutros" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content modal-content-gallery">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title text-white fw-bold">📸 {{ _('Portfólio - Outros Serviços') }}</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-0">
-                    {% if galeria['outros'] %}
-                    <div id="carouselOutros" class="carousel slide" data-bs-ride="carousel">
-                        <div class="carousel-inner">
-                            {% for foto in galeria['outros'] %}
-                            <div class="carousel-item {% if loop.first %}active{% endif %}">
-                                <img src="{{ url_for('static', filename='uploads/galeria/' + foto['foto']) }}" class="d-block carousel-img-fixed" alt="Outros">
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselOutros" data-bs-slide="prev">
-                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                        </button>
-                        <button class="carousel-control-next" type="button" data-bs-target="#carouselOutros" data-bs-slide="next">
-                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                        </button>
-                    </div>
-                    {% else %}
-                        <p class="text-center text-muted my-5">{{ _('Nenhuma foto adicionada para este serviço ainda.') }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <section class="social-section">
-        <div class="container-social">
-            <h2 class="section-title">{{ _('Siga-nos das Redes Sociais') }}</h2>
-            <p class="social-subtitle">{{ _('Fique por dentro das novidades e promoções') }}</p>
-            <div class="social-links">
-                <a href="https://www.instagram.com" target="_blank" class="social-link instagram" rel="noopener noreferrer">
-                    <i class="fab fa-instagram"></i>
-                    <span>Instagram</span>
-                </a>
-                <a href="https://www.facebook.com" target="_blank" class="social-link facebook" rel="noopener noreferrer">
-                    <i class="fab fa-facebook"></i>
-                    <span>Facebook</span>
-                </a>
-                <a href="https://wa.me/5519996114485" target="_blank" class="social-link whatsapp" rel="noopener noreferrer">
-                    <i class="fab fa-whatsapp"></i>
-                    <span>WhatsApp</span>
-                </a>
-                <a href="https://www.tiktok.com" target="_blank" class="social-link tiktok" rel="noopener noreferrer">
-                    <i class="fab fa-tiktok"></i>
-                    <span>TikTok</span>
-                </a>
-            </div>
+    {% if configs.link_instagram or configs.link_facebook or configs.link_whatsapp %}
+
+    <section class="landing-social" aria-labelledby="social-title">
+
+        <h2 id="social-title" class="catalog-title text-center">{{ _('Redes sociais') }}</h2>
+        <p class="catalog-subtitle text-center">{{ _('Siga-nos e fique por dentro das novidades') }}</p>
+
+        <div class="social-links-row">
+
+            {% if configs.link_instagram %}
+
+            <a href="{{ configs.link_instagram }}" target="_blank" class="social-pill social-pill-instagram"
+
+               rel="noopener noreferrer" title="{{ _('Instagram') }}" aria-label="{{ _('Instagram') }}">
+
+                <i class="fab fa-instagram" aria-hidden="true"></i>
+
+            </a>
+
+            {% endif %}
+
+            {% if configs.link_facebook %}
+
+            <a href="{{ configs.link_facebook }}" target="_blank" class="social-pill social-pill-facebook"
+
+               rel="noopener noreferrer" title="{{ _('Facebook') }}" aria-label="{{ _('Facebook') }}">
+
+                <i class="fab fa-facebook-f" aria-hidden="true"></i>
+
+            </a>
+
+            {% endif %}
+
+            {% if configs.link_whatsapp %}
+
+            <a href="{{ configs.link_whatsapp }}" target="_blank" class="social-pill social-pill-whatsapp"
+
+               rel="noopener noreferrer" title="{{ _('WhatsApp') }}" aria-label="{{ _('WhatsApp') }}">
+
+                <i class="fab fa-whatsapp" aria-hidden="true"></i>
+
+            </a>
+
+            {% endif %}
+
         </div>
+
     </section>
 
-    <footer class="footer">
-        <div class="footer-content">
-            <div class="footer-section">
-                <h4>Christian Shall Barber Shop</h4>
-                <p>{{ _('Transformando estilos desde sempre') }}</p>
-            </div>
-            <div class="footer-section">
-                <h4>{{ _('Contato') }}</h4>
-                <p><i class="fas fa-phone"></i> (19) 99611-4485</p>
-                <p><i class="fab fa-whatsapp"></i> WhatsApp</p>
-            </div>
-            <div class="footer-section">
-                <h4>{{ _('Horário de Funcionamento') }}</h4>
-                <p>{{ _('Terça a Sábado: 08:00 - 20:00') }}</p>
-                <p>{{ _('Domingo: Fechado') }}</p>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2026 Christian Shall Barber Shop. {{ _('Todos os direitos reservados.') }}</p>
-        </div>
+    {% endif %}
+
+
+
+    <footer class="landing-footer">
+
+        <p>{{ _('© %(nome)s · %(marca)s', nome=configs.nome_negocio, marca=_('AgendaSimples')) }}</p>
+
     </footer>
 
+
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
+
 </html>
+

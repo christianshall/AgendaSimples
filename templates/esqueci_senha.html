@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('Recuperar Senha - Barber Agenda') }}</title>
-
+    <title>{{ _('Recuperar Senha - Agenda Simples') }}</title>
     <style>
         body {
             margin: 0;
             font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #000000, #444444);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
         }
-
         .container {
             background: #fff;
-            width: 350px;
+            width: 100%;
+            max-width: 400px;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 0 20px #00000070;
             animation: fadeIn 0.6s;
         }
-
         .lang-picker-esqueci {
             display: flex;
             justify-content: center;
@@ -36,30 +36,20 @@
             font-size: 1.3rem;
             transition: transform 0.2s;
         }
-        .lang-picker-esqueci a:hover {
-            transform: scale(1.2);
-        }
-
+        .lang-picker-esqueci a:hover { transform: scale(1.2); }
         h2 {
             text-align: center;
-            margin-bottom: 10px;
+            margin: 5px 0 10px;
             color: #000;
-            margin-top: 5px;
         }
-
-        p {
+        p.sub {
             text-align: center;
             font-size: 14px;
             color: #555;
             margin-bottom: 20px;
-            line-height: 1.4;
+            line-height: 1.5;
         }
-
-        label {
-            font-weight: bold;
-            font-size: 15px;
-        }
-
+        label { font-weight: bold; font-size: 15px; }
         input {
             width: 100%;
             padding: 12px;
@@ -70,65 +60,116 @@
             font-size: 16px;
             box-sizing: border-box;
         }
-
-        button {
+        button, .btn-wa {
             width: 100%;
-            background: black;
-            color: white;
             border: none;
             padding: 12px;
             font-size: 17px;
             cursor: pointer;
             border-radius: 6px;
             font-weight: bold;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            box-sizing: border-box;
         }
-
-        button:hover {
-            background: #333;
+        button {
+            background: black;
+            color: white;
         }
-
+        button:hover { background: #333; }
+        .btn-wa {
+            background: #25D366;
+            color: white;
+            margin-top: 12px;
+        }
+        .btn-wa:hover { background: #1da851; }
         .link {
             text-align: center;
             margin-top: 20px;
         }
-
         .link a {
             text-decoration: none;
             color: black;
             font-weight: bold;
         }
-
+        .flash {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .flash.success { background: #d4edda; color: #155724; }
+        .flash.error { background: #f8d7da; color: #721c24; }
+        .flash.warning { background: #fff3cd; color: #856404; }
+        .whatsapp-box {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 8px;
+        }
+        .whatsapp-box p { margin: 0 0 12px; font-size: 14px; color: #333; text-align: left; }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px);}
-            to { opacity: 1; transform: translateY(0);}
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
-
     <div class="container">
-        <div class="lang-picker-esqueci">
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+        <div class="lang-picker-esqueci lang-picker-login">
+            {% include '_lang_selector.html' %}
         </div>
 
         <h2>{{ _('Recuperar Senha') }}</h2>
-        <p>{{ _('Insira o seu e-mail cadastrado. Enviaremos uma nova senha temporária para a sua caixa de entrada.') }}</p>
 
-        <form method="POST">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
 
-            <label>{{ _('Email:') }}</label>
-            <input type="email" name="email" required placeholder="{{ _('Digite seu email') }}">
+        {% if modo_whatsapp %}
+            <div class="whatsapp-box">
+                <p>
+                    {{ _('Encontramos seu cadastro pelo telefone. Para redefinir a senha com segurança, fale com o suporte pelo WhatsApp.') }}
+                </p>
+                {% if whatsapp_url %}
+                    <a class="btn-wa" href="{{ whatsapp_url }}" target="_blank" rel="noopener">
+                        {{ _('Abrir WhatsApp do suporte') }}
+                    </a>
+                {% else %}
+                    <p style="font-size: 13px; color: #666;">
+                        {{ _('Peça ao administrador da barbearia para redefinir sua senha.') }}
+                    </p>
+                {% endif %}
+            </div>
+            <div class="link">
+                <a href="{{ url_for('esqueci_senha') }}">{{ _('Tentar outro e-mail ou telefone') }}</a>
+            </div>
+        {% else %}
+            <p class="sub">
+                {{ _('Digite o e-mail ou telefone cadastrado. Por e-mail enviamos um link; por telefone orientamos o contato com o suporte.') }}
+            </p>
 
-            <button type="submit">{{ _('Enviar Senha') }}</button>
-
-        </form>
+            <form method="POST">
+                <label for="identificador">{{ _('E-mail ou Telefone') }}</label>
+                <input
+                    type="text"
+                    id="identificador"
+                    name="identificador"
+                    required
+                    autocomplete="username"
+                    placeholder="{{ _('Digite seu e-mail ou telefone') }}"
+                >
+                <button type="submit">{{ _('Enviar link de recuperação') }}</button>
+            </form>
+        {% endif %}
 
         <div class="link">
             <a href="{{ url_for('login') }}">{{ _('Voltar para o Login') }}</a>
         </div>
     </div>
-
 </body>
 </html>

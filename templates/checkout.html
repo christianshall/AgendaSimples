@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assinar Plano - AgendaSimples</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { background: #121212; color: #fff; }
+        .card-box { background: #1e1e1e; border: 1px solid #333; border-radius: 12px; }
+    </style>
+</head>
+<body class="d-flex align-items-center min-vh-100">
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card card-box p-4 shadow">
+                <h2 class="text-warning fw-bold">Assine o AgendaSimples</h2>
+                <p class="text-muted">Plano mensal para sua barbearia. Cartão exigido no checkout Stripe.</p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% if configurado %}
+                <p>Você ainda pode usar até <strong>{{ trial_days }}</strong> dia(s) de trial no Stripe (se aplicável).</p>
+                <a href="{{ url_for('checkout') }}" class="btn btn-warning fw-bold w-100">Ir para pagamento seguro (Stripe)</a>
+                {% else %}
+                <p class="text-danger">Configure as variáveis de ambiente Stripe antes de cobrar assinaturas.</p>
+                {% endif %}
+
+                <a href="{{ url_for('admin_agenda') }}" class="btn btn-outline-light w-100 mt-3">Voltar ao painel</a>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

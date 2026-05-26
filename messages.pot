@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-24 17:41-0300\n"
+"POT-Creation-Date: 2026-05-26 06:11-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,445 +17,696 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: templates/admin_agenda.html:131 templates/admin_configuracoes.html:70
+#: app.py:548
+msgid "Idioma alterado com sucesso."
+msgstr ""
+
+#: app.py:550
+msgid "Idioma não suportado."
+msgstr ""
+
+#: templates/_lang_selector.html:4
+msgid "Idioma"
+msgstr ""
+
+#: templates/_lang_selector.html:7
+msgid "Português"
+msgstr ""
+
+#: templates/_lang_selector.html:11
+msgid "English"
+msgstr ""
+
+#: templates/_lang_selector.html:15
+msgid "Español"
+msgstr ""
+
+#: templates/admin_agenda.html:6
+msgid "Painel Admin"
+msgstr ""
+
+#: templates/admin_agenda.html:258
+msgid "Admin"
+msgstr ""
+
+#: templates/admin_agenda.html:268
+#: templates/admin_cadastrar_profissional.html:167
+msgid "Cadastrar profissional"
+msgstr ""
+
+#: templates/admin_agenda.html:273
 msgid "Configurações"
 msgstr ""
 
-#: templates/admin_agenda.html:135
+#: templates/admin_agenda.html:277
 msgid "Gerenciar Galeria"
 msgstr ""
 
-#: templates/admin_agenda.html:139 templates/agenda.html:123
+#: templates/admin_agenda.html:281 templates/admin_financeiro.html:151
+#: templates/agenda.html:205
 msgid "Exportar Excel"
 msgstr ""
 
-#: templates/admin_agenda.html:143
+#: templates/admin_agenda.html:285
 msgid "PDF Hoje"
 msgstr ""
 
-#: templates/admin_agenda.html:147
+#: templates/admin_agenda.html:289
 msgid "Financeiro"
 msgstr ""
 
-#: templates/admin_agenda.html:151 templates/agenda.html:129
+#: templates/admin_agenda.html:293 templates/agenda.html:211
 msgid "Sair"
 msgstr ""
 
-#: templates/admin_agenda.html:162
-msgid "Filtrar por Barbeiro:"
+#: templates/admin_agenda.html:317 templates/agenda.html:229
+msgid "Seu Link de Agendamento"
 msgstr ""
 
-#: templates/admin_agenda.html:164
+#: templates/admin_agenda.html:318
+msgid "Compartilhe no WhatsApp ou Instagram — o cliente agenda sem baixar app."
+msgstr ""
+
+#: templates/admin_agenda.html:320
+msgid "Profissional do link"
+msgstr ""
+
+#: templates/admin_agenda.html:334
+msgid "Copiar Link"
+msgstr ""
+
+#: templates/admin_agenda.html:337 templates/agenda.html:238
+msgid "Link copiado!"
+msgstr ""
+
+#: templates/admin_agenda.html:341
+msgid "Filtrar por Profissional:"
+msgstr ""
+
+#: templates/admin_agenda.html:343
 msgid "Todos"
 msgstr ""
 
-#: templates/admin_agenda.html:202 templates/marcar_agendamento.html:47
-msgid "Barbeiro:"
+#: templates/admin_agenda.html:385 templates/marcar_agendamento.html:77
+msgid "Profissional:"
 msgstr ""
 
-#: templates/admin_agenda.html:208 templates/agenda.html:177
+#: templates/admin_agenda.html:390 templates/admin_agenda.html:470
+msgid "Concluir atendimento"
+msgstr ""
+
+#: templates/admin_agenda.html:391
+msgid "Concluir"
+msgstr ""
+
+#: templates/admin_agenda.html:393 templates/agenda.html:280
+msgid "Editar"
+msgstr ""
+
+#: templates/admin_agenda.html:396 templates/agenda.html:285
+msgid "Excluir"
+msgstr ""
+
+#: templates/admin_agenda.html:396 templates/agenda.html:286
 msgid "Deseja excluir este agendamento?"
 msgstr ""
 
-#: templates/admin_agenda.html:218 templates/agenda.html:188
+#: templates/admin_agenda.html:402 templates/agenda.html:292
+msgid "Enviar lembrete"
+msgstr ""
+
+#: templates/admin_agenda.html:415 templates/agenda.html:302
 msgid "Disponível - Agendar"
 msgstr ""
 
-#: templates/admin_agenda.html:235 templates/agenda.html:203
+#: templates/admin_agenda.html:432 templates/agenda.html:317
 msgid "Novo Agendamento"
 msgstr ""
 
-#: templates/admin_agenda.html:245 templates/agenda.html:213
+#: templates/admin_agenda.html:442 templates/agenda.html:327
+#: templates/home.html:123
 msgid "Cliente"
 msgstr ""
 
-#: templates/admin_agenda.html:250 templates/agenda.html:218
+#: templates/admin_agenda.html:447 templates/admin_agenda.html:495
+#: templates/agenda.html:332
 msgid "Serviço"
 msgstr ""
 
-#: templates/admin_agenda.html:261 templates/agenda.html:229
+#: templates/admin_agenda.html:452 templates/agenda.html:337
+#: templates/home.html:337
+msgid "WhatsApp"
+msgstr ""
+
+#: templates/admin_agenda.html:458 templates/agenda.html:343
 msgid "Confirmar"
 msgstr ""
 
-#: templates/admin_configuracoes.html:6
-msgid "Configurações - Barber Shop"
+#: templates/admin_agenda.html:486
+msgid "Valor recebido (R$)"
 msgstr ""
 
-#: templates/admin_configuracoes.html:74
-msgid "Nome da Barbearia:"
+#: templates/admin_agenda.html:489
+msgid "Use 0 para retornos, cortesias ou pacotes já pagos."
 msgstr ""
 
-#: templates/admin_configuracoes.html:75
-msgid "Ex: Barber Shop Premium"
+#: templates/admin_agenda.html:493
+msgid "O que foi feito"
 msgstr ""
 
-#: templates/admin_configuracoes.html:76
-msgid "Este nome será atualizado no cabeçalho de todas as agendas."
+#: templates/admin_agenda.html:496
+msgid "Venda de Produto"
 msgstr ""
 
-#: templates/admin_configuracoes.html:81
-msgid "Salvar Alterações"
+#: templates/admin_agenda.html:497
+msgid "Outro (descrever)"
 msgstr ""
 
-#: templates/admin_configuracoes.html:84
-msgid "Voltar para Agenda"
+#: templates/admin_agenda.html:502
+msgid "Detalhe"
 msgstr ""
 
-#: templates/admin_financeiro.html:5
+#: templates/admin_agenda.html:504 templates/admin_agenda.html:554
+msgid "Ex: Corte de cabelo"
+msgstr ""
+
+#: templates/admin_agenda.html:505
+msgid "Será registrado no financeiro junto com o tipo acima."
+msgstr ""
+
+#: templates/admin_agenda.html:509
+msgid "Cancelar"
+msgstr ""
+
+#: templates/admin_agenda.html:511
+msgid "Concluir e lançar receita"
+msgstr ""
+
+#: templates/admin_agenda.html:556
+msgid "Ex: Pomada, shampoo"
+msgstr ""
+
+#: templates/admin_agenda.html:558
+msgid "Descreva o que foi feito"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:6
+msgid "Cadastrar Profissional"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:102
+msgid "Voltar à agenda"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:108
+msgid "Novo profissional"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:109
+msgid "Cadastre funcionários com acesso à agenda"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:126
+msgid "Nome completo"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:128
+msgid "Ex.: Maria Silva"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:132
+msgid "E-mail"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:139
+msgid "Celular"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:143
+msgid ""
+"Número com WhatsApp — usado na recuperação de senha e contato com o "
+"cliente."
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:147
+msgid "Especialidade / cargo"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:150
+msgid "Ex.: Barba e cabelo, Unhas em gel"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:154
+msgid "Senha inicial"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:156
+msgid "Mínimo 6 caracteres"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:160
+msgid "Foto de perfil"
+msgstr ""
+
+#: templates/admin_cadastrar_profissional.html:163
+msgid "JPG, PNG, WEBP ou GIF. Opcional."
+msgstr ""
+
+#: templates/admin_financeiro.html:9
 msgid "Financeiro - Christian Shall"
 msgstr ""
 
-#: templates/admin_financeiro.html:42
+#: templates/admin_financeiro.html:117
 msgid "RESUMO FINANCEIRO"
 msgstr ""
 
-#: templates/admin_financeiro.html:49
+#: templates/admin_financeiro.html:125
 msgid "Voltar Agenda"
 msgstr ""
 
-#: templates/admin_financeiro.html:55
+#: templates/admin_financeiro.html:137
 msgid "SALDO EM CAIXA"
 msgstr ""
 
-#: templates/admin_financeiro.html:61
+#: templates/admin_financeiro.html:145
+msgid "Exportar PDF"
+msgstr ""
+
+#: templates/admin_financeiro.html:165
 msgid "NOVO LANÇAMENTO"
 msgstr ""
 
-#: templates/admin_financeiro.html:63 templates/admin_financeiro.html:82
+#: templates/admin_financeiro.html:171 templates/admin_financeiro.html:173
+#: templates/admin_financeiro.html:347
 msgid "Descrição"
 msgstr ""
 
-#: templates/admin_financeiro.html:64 templates/admin_financeiro.html:85
+#: templates/admin_financeiro.html:179 templates/admin_financeiro.html:353
 msgid "Valor"
 msgstr ""
 
-#: templates/admin_financeiro.html:67
+#: templates/admin_financeiro.html:187 templates/admin_financeiro.html:253
+#: templates/admin_financeiro.html:349 templates/home.html:134
+msgid "Profissional"
+msgstr ""
+
+#: templates/admin_financeiro.html:191
+msgid "Geral / Estabelecimento"
+msgstr ""
+
+#: templates/admin_financeiro.html:205 templates/admin_financeiro.html:351
+msgid "Tipo"
+msgstr ""
+
+#: templates/admin_financeiro.html:209
 msgid "Receita"
 msgstr ""
 
-#: templates/admin_financeiro.html:68
+#: templates/admin_financeiro.html:211
 msgid "Despesa"
 msgstr ""
 
-#: templates/admin_financeiro.html:81
+#: templates/admin_financeiro.html:219
+msgid "OK"
+msgstr ""
+
+#: templates/admin_financeiro.html:241
+msgid "Faturamento por Profissional"
+msgstr ""
+
+#: templates/admin_financeiro.html:245
+msgid "Total de receitas vinculadas a cada profissional (base para comissões)."
+msgstr ""
+
+#: templates/admin_financeiro.html:255
+msgid "Total"
+msgstr ""
+
+#: templates/admin_financeiro.html:277
+msgid "Nenhuma receita por profissional ainda."
+msgstr ""
+
+#: templates/admin_financeiro.html:291
+msgid "Soma das receitas por profissional"
+msgstr ""
+
+#: templates/admin_financeiro.html:319
+msgid "Transações"
+msgstr ""
+
+#: templates/admin_financeiro.html:345
 msgid "Data"
 msgstr ""
 
-#: templates/admin_financeiro.html:83
-msgid "Barbeiro"
-msgstr ""
-
-#: templates/admin_financeiro.html:84
-msgid "Tipo"
+#: templates/admin_financeiro.html:393
+msgid "Nenhuma transação registrada."
 msgstr ""
 
 #: templates/agenda.html:6
 msgid "Minha Agenda"
 msgstr ""
 
-#: templates/agenda.html:126
+#: templates/agenda.html:208
 msgid "Exportar PDF Hoje"
 msgstr ""
 
-#: templates/agenda.html:171
-msgid "Editar"
+#: templates/agenda.html:230
+msgid "Envie aos clientes — abrem direto esta página para marcar com você."
 msgstr ""
 
-#: templates/agenda.html:176
-msgid "Excluir"
-msgstr ""
-
-#: templates/agenda.html:181
-msgid "Enviar WhatsApp"
-msgstr ""
-
-#: templates/agenda.html:223
-msgid "WhatsApp"
+#: templates/agenda.html:235
+msgid "Copiar"
 msgstr ""
 
 #: templates/cadastro.html:6
 msgid "Cadastro - Barber Agenda"
 msgstr ""
 
-#: templates/cadastro.html:109
-msgid "Cadastro de Barbeiro"
+#: templates/cadastro.html:107
+msgid "Cadastro de Profissional"
 msgstr ""
 
-#: templates/cadastro.html:113
+#: templates/cadastro.html:111
 msgid "Nome:"
 msgstr ""
 
-#: templates/cadastro.html:114 templates/marcar_agendamento.html:42
+#: templates/cadastro.html:112 templates/marcar_agendamento.html:72
 msgid "Digite seu nome completo"
 msgstr ""
 
-#: templates/cadastro.html:116 templates/esqueci_senha.html:121
-#: templates/login.html:134
+#: templates/cadastro.html:114 templates/login.html:142
 msgid "Email:"
 msgstr ""
 
-#: templates/cadastro.html:117 templates/esqueci_senha.html:122
-#: templates/login.html:135
+#: templates/cadastro.html:115 templates/login.html:143
 msgid "Digite seu email"
 msgstr ""
 
-#: templates/cadastro.html:119 templates/login.html:137
+#: templates/cadastro.html:117 templates/login.html:145
 msgid "Senha:"
 msgstr ""
 
-#: templates/cadastro.html:120 templates/login.html:138
+#: templates/cadastro.html:118 templates/login.html:146
 msgid "Digite sua senha"
 msgstr ""
 
-#: templates/cadastro.html:122
+#: templates/cadastro.html:120
 msgid "Confirmar Senha:"
 msgstr ""
 
-#: templates/cadastro.html:123
+#: templates/cadastro.html:121
 msgid "Confirme sua senha"
 msgstr ""
 
-#: templates/cadastro.html:125
+#: templates/cadastro.html:123
 msgid "Cadastrar"
 msgstr ""
 
-#: templates/cadastro.html:130
+#: templates/cadastro.html:128
 msgid "Já tem uma conta? Fazer Login"
 msgstr ""
 
 #: templates/esqueci_senha.html:6
-msgid "Recuperar Senha - Barber Agenda"
+msgid "Recuperar Senha - Agenda Simples"
 msgstr ""
 
-#: templates/esqueci_senha.html:116
+#: templates/esqueci_senha.html:125
 msgid "Recuperar Senha"
 msgstr ""
 
-#: templates/esqueci_senha.html:117
+#: templates/esqueci_senha.html:136
 msgid ""
-"Insira o seu e-mail cadastrado. Enviaremos uma nova senha temporária para"
-" a sua caixa de entrada."
+"Encontramos seu cadastro pelo telefone. Para redefinir a senha com "
+"segurança, fale com o suporte pelo WhatsApp."
 msgstr ""
 
-#: templates/esqueci_senha.html:124
-msgid "Enviar Senha"
+#: templates/esqueci_senha.html:140
+msgid "Abrir WhatsApp do suporte"
 msgstr ""
 
-#: templates/esqueci_senha.html:129
+#: templates/esqueci_senha.html:144
+msgid "Peça ao administrador da barbearia para redefinir sua senha."
+msgstr ""
+
+#: templates/esqueci_senha.html:149
+msgid "Tentar outro e-mail ou telefone"
+msgstr ""
+
+#: templates/esqueci_senha.html:153
+msgid ""
+"Digite o e-mail ou telefone cadastrado. Por e-mail enviamos um link; por "
+"telefone orientamos o contato com o suporte."
+msgstr ""
+
+#: templates/esqueci_senha.html:157
+msgid "E-mail ou Telefone"
+msgstr ""
+
+#: templates/esqueci_senha.html:164
+msgid "Digite seu e-mail ou telefone"
+msgstr ""
+
+#: templates/esqueci_senha.html:166
+msgid "Enviar link de recuperação"
+msgstr ""
+
+#: templates/esqueci_senha.html:171 templates/redefinir_senha.html:124
 msgid "Voltar para o Login"
 msgstr ""
 
-#: templates/home.html:6
-msgid "Christian Shall Barber Shop - Agende seu Horário"
+#: templates/home.html:11
+msgid "Agende seu horário"
+msgstr ""
+
+#: templates/home.html:51 templates/home.html:93
+#, python-format
+msgid "Logotipo de %(nome)s"
+msgstr ""
+
+#: templates/home.html:59
+msgid "Agendamento online profissional"
+msgstr ""
+
+#: templates/home.html:73
+msgid "Bem-vindo"
+msgstr ""
+
+#: templates/home.html:75
+msgid "Agende com"
+msgstr ""
+
+#: templates/home.html:77
+msgid "Qualidade, praticidade e o portfólio do seu profissional em um só lugar."
+msgstr ""
+
+#: templates/home.html:81 templates/marcar_agendamento.html:6
+#: templates/marcar_agendamento.html:57
+msgid "Marcar Horário"
+msgstr ""
+
+#: templates/home.html:97
+msgid "Ícone do estabelecimento"
+msgstr ""
+
+#: templates/home.html:115
+msgid "Como deseja continuar?"
+msgstr ""
+
+#: templates/home.html:125
+msgid "Reserve seu horário em poucos cliques"
 msgstr ""
 
 #: templates/home.html:126
-msgid "Bem-vindo à Christian Shall Barber Shop"
+msgid "Agendar"
 msgstr ""
 
-#: templates/home.html:127
-msgid ""
-"Estilo, qualidade e tradição em cada corte. Agende seu horário e "
-"transforme seu visual!"
+#: templates/home.html:136
+msgid "Acesso ao painel da equipe"
 msgstr ""
 
-#: templates/home.html:141
-msgid "Agendar Horário"
+#: templates/home.html:138 templates/login.html:148
+msgid "Entrar"
 msgstr ""
 
-#: templates/home.html:142
-msgid "Reserve seu horário de forma rápida e fácil"
-msgstr ""
-
-#: templates/home.html:145
-msgid "Marcar Agendamento"
-msgstr ""
-
-#: templates/home.html:153
-msgid "Área do Barbeiro"
+#: templates/home.html:152
+msgid "Nossos catálogos"
 msgstr ""
 
 #: templates/home.html:154
-msgid "Acesso exclusivo para profissionais"
+msgid "Toque em um card para ver o portfólio de fotos"
 msgstr ""
 
-#: templates/home.html:157
-msgid "Fazer Login"
+#: templates/home.html:168
+#, python-format
+msgid "Abrir portfólio: %(titulo)s"
 msgstr ""
 
-#: templates/home.html:165
-msgid "Nossos Serviços"
+#: templates/home.html:186
+#, python-format
+msgid "%(num)d foto"
+msgid_plural "%(num)d fotos"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/home.html:196
+msgid "Ver portfólio"
 msgstr ""
 
-#: templates/home.html:166
-msgid "Clique em um serviço para ver nosso portfólio de fotos!"
+#: templates/home.html:226
+msgid "Galeria de fotos"
 msgstr ""
 
-#: templates/home.html:174 templates/home.html:179
-#: templates/marcar_agendamento.html:69
-msgid "Corte"
+#: templates/home.html:232
+msgid "Fechar"
 msgstr ""
 
-#: templates/home.html:180
-msgid "Estilo personalizado"
+#: templates/home.html:252
+#, python-format
+msgid "Foto %(num)d de %(total)d — %(titulo)s"
 msgstr ""
 
-#: templates/home.html:187 templates/home.html:192
-#: templates/marcar_agendamento.html:70
-msgid "Corte e Barba"
+#: templates/home.html:264
+msgid "Foto anterior"
 msgstr ""
 
-#: templates/home.html:193
-msgid "Combo completo"
+#: templates/home.html:274
+msgid "Próxima foto"
 msgstr ""
 
-#: templates/home.html:200 templates/home.html:205
-#: templates/marcar_agendamento.html:71
-msgid "Corte + Sobrancelha"
+#: templates/home.html:284
+msgid "Nenhuma foto neste catálogo ainda."
 msgstr ""
 
-#: templates/home.html:206
-msgid "Visual impecável"
+#: templates/home.html:304
+msgid "Redes sociais"
 msgstr ""
 
-#: templates/home.html:213 templates/home.html:218
-msgid "Outros Serviços"
+#: templates/home.html:305
+msgid "Siga-nos e fique por dentro das novidades"
 msgstr ""
 
-#: templates/home.html:219
-msgid "Consulte disponibilidade"
+#: templates/home.html:313
+msgid "Instagram"
 msgstr ""
 
-#: templates/home.html:230
-msgid "Portfólio - Corte de Cabelo"
+#: templates/home.html:325
+msgid "Facebook"
 msgstr ""
 
-#: templates/home.html:251 templates/home.html:283 templates/home.html:315
-#: templates/home.html:347
-msgid "Nenhuma foto adicionada para este serviço ainda."
+#: templates/home.html:355
+#, python-format
+msgid "© %(nome)s · %(marca)s"
 msgstr ""
 
-#: templates/home.html:262
-msgid "Portfólio - Corte e Barba"
-msgstr ""
-
-#: templates/home.html:294
-msgid "Portfólio - Corte + Sobrancelha"
-msgstr ""
-
-#: templates/home.html:326
-msgid "Portfólio - Outros Serviços"
-msgstr ""
-
-#: templates/home.html:356
-msgid "Siga-nos das Redes Sociais"
-msgstr ""
-
-#: templates/home.html:357
-msgid "Fique por dentro das novidades e promoções"
-msgstr ""
-
-#: templates/home.html:383
-msgid "Transformando estilos desde sempre"
-msgstr ""
-
-#: templates/home.html:386
-msgid "Contato"
-msgstr ""
-
-#: templates/home.html:391
-msgid "Horário de Funcionamento"
-msgstr ""
-
-#: templates/home.html:392
-msgid "Terça a Sábado: 08:00 - 20:00"
-msgstr ""
-
-#: templates/home.html:393
-msgid "Domingo: Fechado"
-msgstr ""
-
-#: templates/home.html:397
-msgid "Todos os direitos reservados."
+#: templates/home.html:355
+msgid "AgendaSimples"
 msgstr ""
 
 #: templates/login.html:6
 msgid "Login - Barber Agenda"
 msgstr ""
 
-#: templates/login.html:130
-msgid "Login do Barbeiro"
+#: templates/login.html:129
+msgid "Login do Profissional"
 msgstr ""
 
-#: templates/login.html:140
-msgid "Entrar"
-msgstr ""
-
-#: templates/login.html:145
-msgid "Recuperação ainda não conectada ao email."
-msgstr ""
-
-#: templates/login.html:145
+#: templates/login.html:153
 msgid "Esqueci minha senha"
 msgstr ""
 
-#: templates/login.html:149
-msgid "Cadastrar Novo Barbeiro"
-msgstr ""
-
-#: templates/marcar_agendamento.html:6
-msgid "Marcar Horário - Christian Shall Barber Shop"
-msgstr ""
-
-#: templates/marcar_agendamento.html:37
-msgid "Marcar Horário"
-msgstr ""
-
-#: templates/marcar_agendamento.html:41
+#: templates/marcar_agendamento.html:71
 msgid "Nome Completo:"
 msgstr ""
 
-#: templates/marcar_agendamento.html:44
+#: templates/marcar_agendamento.html:74
 msgid "WhatsApp:"
 msgstr ""
 
-#: templates/marcar_agendamento.html:49
-msgid "Selecione um barbeiro"
+#: templates/marcar_agendamento.html:79
+msgid "Selecione o Profissional"
 msgstr ""
 
-#: templates/marcar_agendamento.html:55
+#: templates/marcar_agendamento.html:89
+msgid "Profissional sugerido pelo seu link de agendamento."
+msgstr ""
+
+#: templates/marcar_agendamento.html:93
 msgid "Data Desejada:"
 msgstr ""
 
-#: templates/marcar_agendamento.html:58
+#: templates/marcar_agendamento.html:96
 msgid "Horário:"
 msgstr ""
 
-#: templates/marcar_agendamento.html:60
+#: templates/marcar_agendamento.html:98
 msgid "Selecione um horário"
 msgstr ""
 
-#: templates/marcar_agendamento.html:66
+#: templates/marcar_agendamento.html:104
 msgid "Serviço:"
 msgstr ""
 
-#: templates/marcar_agendamento.html:68
+#: templates/marcar_agendamento.html:106
 msgid "Selecione o serviço"
 msgstr ""
 
-#: templates/marcar_agendamento.html:72
+#: templates/marcar_agendamento.html:107
+msgid "Corte"
+msgstr ""
+
+#: templates/marcar_agendamento.html:108
+msgid "Corte e Barba"
+msgstr ""
+
+#: templates/marcar_agendamento.html:109
+msgid "Corte + Sobrancelha"
+msgstr ""
+
+#: templates/marcar_agendamento.html:110
 msgid "Barba"
 msgstr ""
 
-#: templates/marcar_agendamento.html:73
+#: templates/marcar_agendamento.html:111
 msgid "Outro"
 msgstr ""
 
-#: templates/marcar_agendamento.html:76
+#: templates/marcar_agendamento.html:114
 msgid "✅ Confirmar Agendamento"
 msgstr ""
 
-#: templates/marcar_agendamento.html:80
+#: templates/marcar_agendamento.html:118
 msgid "← Voltar para a página inicial"
+msgstr ""
+
+#: templates/redefinir_senha.html:6
+msgid "Nova Senha - Agenda Simples"
+msgstr ""
+
+#: templates/redefinir_senha.html:88
+msgid "Definir nova senha"
+msgstr ""
+
+#: templates/redefinir_senha.html:89
+msgid "Escolha uma senha segura com pelo menos 6 caracteres."
+msgstr ""
+
+#: templates/redefinir_senha.html:98
+msgid "Nova Senha"
+msgstr ""
+
+#: templates/redefinir_senha.html:106
+msgid "Digite a nova senha"
+msgstr ""
+
+#: templates/redefinir_senha.html:109
+msgid "Confirme a Nova Senha"
+msgstr ""
+
+#: templates/redefinir_senha.html:117
+msgid "Repita a nova senha"
+msgstr ""
+
+#: templates/redefinir_senha.html:120
+msgid "Salvar nova senha"
 msgstr ""
 

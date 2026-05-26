@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Cadastrar Profissional') }} — AgendaSimples</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(160deg, #0f0f0f 0%, #1a1a1a 50%, #121212 100%);
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            padding: 32px 16px;
+            color: #eee;
+        }
+        .form-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-top: 3px solid #d4af37;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 560px;
+            margin: 0 auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+        }
+        .form-card h3 { color: #d4af37; font-weight: 700; }
+        .form-label { color: #d4af37; font-weight: 600; font-size: 0.9rem; }
+        .form-control {
+            background: #252525;
+            border: 1px solid #444;
+            color: #fff;
+        }
+        .form-control:focus {
+            background: #2a2a2a;
+            border-color: #d4af37;
+            color: #fff;
+            box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.2);
+        }
+        .form-control::placeholder { color: #777; }
+        .btn-gold {
+            background: linear-gradient(135deg, #d4af37, #b8952e);
+            color: #0f0f0f;
+            font-weight: 700;
+            border: none;
+        }
+        .btn-gold:hover { filter: brightness(1.08); color: #000; }
+        .btn-outline-gold {
+            border: 1px solid #d4af37;
+            color: #d4af37;
+        }
+        .btn-outline-gold:hover {
+            background: #d4af37;
+            color: #0f0f0f;
+        }
+        .preview-foto {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #d4af37;
+            display: none;
+            margin: 0 auto 16px;
+        }
+        .preview-placeholder {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: #252525;
+            border: 2px dashed #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: #666;
+            font-size: 2rem;
+        }
+        .flash {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+        .flash.error { background: #3d1f1f; color: #ffb4b4; border: 1px solid #722; }
+        .flash.success { background: #1f3d2a; color: #b4ffca; border: 1px solid #272; }
+        small.hint { color: #999; font-size: 0.8rem; }
+        .top-actions {
+            max-width: 560px;
+            margin: 0 auto 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body lang="{{ current_locale }}">
+
+<div class="top-actions">
+    <a href="{{ url_for('admin_agenda') }}" class="btn btn-outline-gold btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> {{ _('Voltar à agenda') }}
+    </a>
+    {% include '_lang_selector.html' %}
+</div>
+
+<div class="form-card">
+    <h3 class="mb-1 text-center"><i class="fas fa-user-plus me-2"></i>{{ _('Novo profissional') }}</h3>
+    <p class="text-center text-muted small mb-4">{{ _('Cadastre funcionários com acesso à agenda') }}</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="text-center mb-3">
+        <img id="previewImg" class="preview-foto" alt="Pré-visualização">
+        <div id="previewPlaceholder" class="preview-placeholder">
+            <i class="fas fa-user"></i>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" id="formProfissional">
+        <div class="mb-3">
+            <label class="form-label" for="nome">{{ _('Nome completo') }}</label>
+            <input type="text" class="form-control" id="nome" name="nome" required
+                   value="{{ form.get('nome', '') }}" placeholder="{{ _('Ex.: Maria Silva') }}">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="email">{{ _('E-mail') }}</label>
+            <input type="email" class="form-control" id="email" name="email" required
+                   value="{{ form.get('email', '') }}" placeholder="profissional@email.com"
+                   autocomplete="username">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="celular">{{ _('Celular') }}</label>
+            <input type="tel" class="form-control" id="celular" name="celular"
+                   value="{{ form.get('celular', '') }}" placeholder="(11) 99999-9999"
+                   maxlength="15" autocomplete="tel">
+            <small class="hint">{{ _('Número com WhatsApp — usado na recuperação de senha e contato com o cliente.') }}</small>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="especialidade">{{ _('Especialidade / cargo') }}</label>
+            <input type="text" class="form-control" id="especialidade" name="especialidade"
+                   value="{{ form.get('especialidade', '') }}"
+                   placeholder="{{ _('Ex.: Barba e cabelo, Unhas em gel') }}">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="senha">{{ _('Senha inicial') }}</label>
+            <input type="password" class="form-control" id="senha" name="senha" required
+                   minlength="6" placeholder="{{ _('Mínimo 6 caracteres') }}" autocomplete="new-password">
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="foto_perfil">{{ _('Foto de perfil') }}</label>
+            <input type="file" class="form-control" id="foto_perfil" name="foto_perfil"
+                   accept="image/jpeg,image/png,image/webp,image/gif">
+            <small class="hint">{{ _('JPG, PNG, WEBP ou GIF. Opcional.') }}</small>
+        </div>
+
+        <button type="submit" class="btn btn-gold w-100 py-2">
+            <i class="fas fa-check me-2"></i>{{ _('Cadastrar profissional') }}
+        </button>
+    </form>
+</div>
+
+<script>
+(function () {
+    const tel = document.getElementById('celular');
+    if (tel) {
+        tel.addEventListener('input', function () {
+            let v = this.value.replace(/\D/g, '').slice(0, 11);
+            if (v.length > 10) {
+                this.value = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+            } else if (v.length > 6) {
+                this.value = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+            } else if (v.length > 2) {
+                this.value = v.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
+            } else if (v.length > 0) {
+                this.value = v.replace(/^(\d*)/, '($1');
+            } else {
+                this.value = '';
+            }
+        });
+    }
+
+    const inputFoto = document.getElementById('foto_perfil');
+    const preview = document.getElementById('previewImg');
+    const placeholder = document.getElementById('previewPlaceholder');
+    if (inputFoto) {
+        inputFoto.addEventListener('change', function () {
+            const file = this.files && this.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+.lang-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.lang-switcher__btn {
+    color: inherit;
+    text-decoration: none;
+    opacity: 0.65;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: opacity 0.2s, background 0.2s;
+}
+
+.lang-switcher__btn:hover {
+    opacity: 1;
+    text-decoration: none;
+}
+
+.lang-switcher__btn.is-active {
+    opacity: 1;
+    font-weight: 700;
+}
+
+.lang-switcher__sep {
+    opacity: 0.35;
+    user-select: none;
+}
+
+/* Home — paleta admin (azul claro) */
+.floating-lang-picker .lang-switcher__btn {
+    color: #2d3748;
+}
+.floating-lang-picker .lang-switcher__btn:hover {
+    color: #1b365d;
+}
+.floating-lang-picker .lang-switcher__btn.is-active {
+    background: rgba(255, 255, 255, 0.85);
+    color: #1b365d;
+}
+.floating-lang-picker .lang-switcher__sep {
+    color: rgba(27, 54, 93, 0.35);
+}
+
+/* Admin (navbar escura) */
+.lang-selector-admin .lang-switcher__btn {
+    color: #eee;
+}
+.lang-selector-admin .lang-switcher__btn.is-active {
+    background: #333;
+    color: #c7a17a;
+}
+
+/* Login / cards claros */
+.lang-picker-login .lang-switcher,
+.top-actions .lang-switcher {
+    justify-content: flex-end;
+}
+.lang-picker-login .lang-switcher__btn,
+.top-actions .lang-switcher__btn {
+    color: #333;
+}
+.top-actions .lang-switcher__btn {
+    color: #d4af37;
+}
+.top-actions .lang-switcher__btn.is-active {
+    background: rgba(212, 175, 55, 0.2);
+}

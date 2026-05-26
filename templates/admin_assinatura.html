@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Minha Assinatura</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container py-4">
+    <h2>Assinatura SaaS</h2>
+    {% if assinatura %}
+    <ul class="list-group mb-3">
+        <li class="list-group-item">Status: <strong>{{ assinatura.plano_status }}</strong></li>
+        <li class="list-group-item">Fim do trial: {{ assinatura.data_fim_trial or '—' }}</li>
+        <li class="list-group-item">Fim do período pago: {{ assinatura.data_fim_plano or '—' }}</li>
+        <li class="list-group-item">Acesso ao painel: {{ 'Sim' if acesso_ok else 'Não' }}</li>
+    </ul>
+    {% else %}
+    <p>Nenhuma assinatura encontrada.</p>
+    {% endif %}
+    <a href="{{ url_for('checkout') }}" class="btn btn-warning">Gerenciar pagamento / Stripe Checkout</a>
+    <a href="{{ url_for('admin_agenda') }}" class="btn btn-secondary">Voltar</a>
+</div>
+</body>
+</html>

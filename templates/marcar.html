@@ -1,27 +1,84 @@
-<form method="POST" action="/marcar">
-    <label>Data:</label>
-    <input type="date" name="data" required>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marcar Horário — {{ configs.nome_negocio if configs else 'AgendaSimples' }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
 
-    <label>Hora:</label>
-    <select name="hora" required>
-        {% for hora in horarios %}
-        <option value="{{ hora }}">{{ hora }}</option>
-        {% endfor %}
-    </select>
+<div class="container">
+    <div class="form-section">
+        <h2>📅 Marcar Horário</h2>
 
-    <label>Nome do Cliente:</label>
-    <input type="text" name="nome" required>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'error' else 'danger' }} text-center" role="alert" style="margin-bottom: 20px;">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
 
-    <label>Whatsapp:</label>
-    <input type="text" name="whatsapp" required>
+        <form method="POST" action="{{ url_for('agendar') }}">
+            <label for="nome">Nome Completo:</label>
+            <input type="text" id="nome" name="nome" required>
 
-    <label>Serviço:</label>
-    <select name="servico" required>
-        <option value="Corte">Corte</option>
-        <option value="Corte e Barba">Corte e Barba</option>
-        <option value="Corte + Sobrancelha">Corte + Sobrancelha</option>
-        <option value="Outro">Outro</option>
-    </select>
+            <label for="whatsapp">WhatsApp:</label>
+            <input type="text" id="whatsapp" name="whatsapp" required>
 
-    <button type="submit">Marcar Horário</button>
-</form>
+            <label for="barbeiro_id">Profissional:</label>
+            <select id="barbeiro_id" name="barbeiro_id" required>
+                <option value="">Selecione um profissional</option>
+                {% for barbeiro in barbeiros %}
+                <option value="{{ barbeiro[0] }}"
+                    {% if profissional_sugerido and barbeiro[0] == profissional_sugerido %}selected{% endif %}>
+                    {{ barbeiro[1] }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label for="data">Data Desejada:</label>
+            <input type="date" id="data" name="data" required>
+
+            <label for="hora">Horário:</label>
+            <select id="hora" name="hora" required>
+                <option value="">Selecione um horário</option>
+                {% for hora in horarios %}
+                <option value="{{ hora }}">{{ hora }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="servico">Serviço:</label>
+            <select id="servico" name="servico" required>
+                <option value="Corte">Corte</option>
+                <option value="Corte e Barba">Corte e Barba</option>
+                <option value="Outro">Outro</option>
+            </select>
+
+            <button type="submit">✅ Confirmar Agendamento</button>
+        </form>
+
+        <a href="{{ url_for('home') }}" style="display: block; text-align: center; margin-top: 20px; color: #d4af37; text-decoration: none;">
+            ← Voltar para a página inicial
+        </a>
+    </div>
+
+    {% if configs %}
+    <div class="bloco-direito branding-section"
+         {% if configs.foto_fundo_direito_url %}
+         style="background-image: url('{{ url_for('static', filename='uploads/banners/' + configs.foto_fundo_direito_url) }}');"
+         {% endif %}>
+        <div class="bloco-direito-overlay"></div>
+        <span class="destaque-texto name-animate">
+            {{ configs.texto_marcar_direito|default(configs.nome_negocio) }}
+        </span>
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>

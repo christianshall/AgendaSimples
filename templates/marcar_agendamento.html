@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('Marcar Horário - Christian Shall Barber Shop') }}</title>
+    <title>{{ _('Marcar Horário') }} — {{ configs.nome_negocio }}</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@400;600&display=swap" rel="stylesheet">
     <style>
         /* Estilo rápido para alinhar as bandeiras no topo do formulário */
         .lang-picker-marcar {
@@ -21,6 +22,27 @@
         .lang-picker-marcar a:hover {
             transform: scale(1.2);
         }
+        .alert {
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            line-height: 1.45;
+        }
+        .alert-warning {
+            background: rgba(212, 175, 55, 0.15);
+            border: 1px solid #d4af37;
+            color: #f5e6b3;
+        }
+        .alert-danger {
+            background: rgba(220, 53, 69, 0.15);
+            border: 1px solid #dc3545;
+            color: #f8d7da;
+        }
+        .alert-success {
+            background: rgba(25, 135, 84, 0.15);
+            border: 1px solid #198754;
+            color: #d1e7dd;
+        }
     </style>
 </head>
 <body>
@@ -28,13 +50,21 @@
 <div class="container">
     <div class="form-section">
         
-        <div class="lang-picker-marcar">
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+        <div class="lang-picker-marcar lang-picker-login">
+            {% include '_lang_selector.html' %}
         </div>
 
         <h2>📅 {{ _('Marcar Horário') }}</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'error' else 'danger' }} text-center" role="alert" style="margin-bottom: 20px;">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
         
         <form method="POST" action="{{ url_for('agendar') }}">
             
@@ -44,13 +74,21 @@
             <label for="whatsapp">{{ _('WhatsApp:') }}</label>
             <input type="text" id="whatsapp" name="whatsapp" required placeholder="+55 19 99999-9999">
 
-            <label for="barbeiro_id">{{ _('Barbeiro:') }}</label>
+            <label for="barbeiro_id">{{ _('Profissional:') }}</label>
             <select id="barbeiro_id" name="barbeiro_id" required>
-                <option value="">{{ _('Selecione um barbeiro') }}</option>
+                <option value="">{{ _('Selecione o Profissional') }}</option>
                 {% for barbeiro in barbeiros %}
-                    <option value="{{ barbeiro[0] }}">{{ barbeiro[1] }}</option>
+                    <option value="{{ barbeiro[0] }}"
+                        {% if profissional_sugerido and barbeiro[0] == profissional_sugerido %}selected{% endif %}>
+                        {{ barbeiro[1] }}
+                    </option>
                 {% endfor %}
             </select>
+            {% if profissional_sugerido %}
+            <p class="text-muted small" style="margin-top: 6px; color: #c7a17a !important;">
+                <i class="fas fa-link"></i> {{ _('Profissional sugerido pelo seu link de agendamento.') }}
+            </p>
+            {% endif %}
 
             <label for="data">{{ _('Data Desejada:') }}</label>
             <input type="date" id="data" name="data" required>
@@ -81,8 +119,14 @@
         </a>
     </div>
 
-    <div class="branding-section">
-        <span class="name-animate">💈 Christian Shall<br>Barber Shop</span>
+    <div class="bloco-direito branding-section"
+         {% if configs.foto_fundo_direito_url %}
+         style="background-image: url('{{ url_for('static', filename='uploads/banners/' + configs.foto_fundo_direito_url) }}');"
+         {% endif %}>
+        <div class="bloco-direito-overlay"></div>
+        <span class="destaque-texto name-animate">
+            {{ configs.texto_marcar_direito|default(configs.nome_negocio)|default('AgendaSimples') }}
+        </span>
     </div>
 </div>
 

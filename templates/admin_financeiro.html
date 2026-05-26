@@ -1,109 +1,410 @@
 <!DOCTYPE html>
+
 <html lang="pt-br">
+
 <head>
+
     <meta charset="UTF-8">
+
     <title>{{ _('Financeiro - Christian Shall') }}</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
+
         body { background: #0f0f0f; color: #fff; }
+
         .card-stat { background: #1a1a1a; border-radius: 15px; border-left: 5px solid #d4af37; padding: 20px; }
+
         .text-gold { color: #d4af37; }
+
         .table { color: #fff; }
-        
-        /* CORREÇÃO DO BOTÃO GOLD */
+
         .btn-gold {
+
             background-color: #d4af37;
+
             color: #0f0f0f;
+
             font-weight: bold;
-        }
-        .btn-gold:hover {
-            background-color: #b8952e;
-            color: #0f0f0f;
+
         }
 
-        /* Estilo para as bandeiras de idioma */
+        .btn-gold:hover {
+
+            background-color: #b8952e;
+
+            color: #0f0f0f;
+
+        }
+
+        .btn-export {
+
+            border: 1px solid #d4af37;
+
+            color: #d4af37;
+
+            font-size: 0.85rem;
+
+        }
+
+        .btn-export:hover {
+
+            background: #d4af37;
+
+            color: #0f0f0f;
+
+        }
+
         .lang-picker-financeiro a {
+
             text-decoration: none;
+
             font-size: 1.3rem;
+
             margin-right: 10px;
+
             display: inline-block;
+
             transition: transform 0.2s;
+
         }
+
         .lang-picker-financeiro a:hover {
+
             transform: scale(1.2);
+
         }
+
+        .faturamento-card {
+            background: #1a1a1a;
+            border-radius: 15px;
+            border: 1px solid #333;
+            border-top: 3px solid #d4af37;
+            padding: 16px 20px;
+        }
+
+        .faturamento-card .table {
+            margin-bottom: 0;
+            font-size: 0.95rem;
+        }
+
+        .faturamento-card .table td,
+        .faturamento-card .table th {
+            border-color: #333;
+            vertical-align: middle;
+        }
+
+        .faturamento-total {
+            border-top: 1px solid #d4af37;
+            font-weight: 600;
+        }
+
     </style>
+
 </head>
+
 <body class="p-5">
+
     <div class="container">
+
         <div class="d-flex justify-content-between mb-5 align-items-center">
+
             <div>
+
                 <h2 class="text-gold mb-1">{{ _('RESUMO FINANCEIRO') }}</h2>
-                <div class="lang-picker-financeiro">
-                    <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
-                    <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
-                    <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+
+                <div class="lang-picker-financeiro lang-selector-admin">
+                    {% include '_lang_selector.html' %}
                 </div>
+
             </div>
+
             <a href="{{ url_for('admin_agenda') }}" class="btn btn-gold">{{ _('Voltar Agenda') }}</a>
+
         </div>
+
+
 
         <div class="row mb-4">
+
             <div class="col-md-4">
+
                 <div class="card-stat">
+
                     <h6>{{ _('SALDO EM CAIXA') }}</h6>
-                    <h2 class="text-gold">R$ {{ "%.2f"|format(saldo) }}</h2>
+
+                    <h2 class="text-gold mb-3">R$ {{ "%.2f"|format(saldo) }}</h2>
+
+                    <div class="btn-group w-100" role="group">
+
+                        <a href="{{ url_for('financeiro_exportar_pdf') }}" class="btn btn-export flex-fill">
+
+                            <i class="fas fa-file-pdf"></i> {{ _('Exportar PDF') }}
+
+                        </a>
+
+                        <a href="{{ url_for('financeiro_exportar_excel') }}" class="btn btn-export flex-fill">
+
+                            <i class="fas fa-file-excel"></i> {{ _('Exportar Excel') }}
+
+                        </a>
+
+                    </div>
+
                 </div>
+
             </div>
+
             <div class="col-md-8">
+
                 <div class="card-stat h-100">
+
                     <h6>{{ _('NOVO LANÇAMENTO') }}</h6>
-                    <form action="{{ url_for('lancar_transacao') }}" method="POST" class="row g-2">
-                        <div class="col-md-4"><input type="text" name="descricao" class="form-control" placeholder="{{ _('Descrição') }}" required></div>
-                        <div class="col-md-3"><input type="text" name="valor" class="form-control" placeholder="{{ _('Valor') }}" required></div>
+
+                    <form action="{{ url_for('lancar_transacao') }}" method="POST" class="row g-2 align-items-end">
+
                         <div class="col-md-3">
-                            <select name="tipo_transacao" class="form-select">
-                                <option value="Receita">{{ _('Receita') }}</option>
-                                <option value="Despesa">{{ _('Despesa') }}</option>
-                            </select>
+
+                            <label class="form-label small text-muted mb-0">{{ _('Descrição') }}</label>
+
+                            <input type="text" name="descricao" class="form-control" placeholder="{{ _('Descrição') }}" required>
+
                         </div>
-                        <div class="col-md-2"><button class="btn btn-gold w-100">OK</button></div>
+
+                        <div class="col-md-2">
+
+                            <label class="form-label small text-muted mb-0">{{ _('Valor') }}</label>
+
+                            <input type="text" name="valor" class="form-control" placeholder="0,00" required>
+
+                        </div>
+
+                        <div class="col-md-3">
+
+                            <label class="form-label small text-muted mb-0">{{ _('Profissional') }}</label>
+
+                            <select name="profissional_id" class="form-select">
+
+                                <option value="">{{ _('Geral / Estabelecimento') }}</option>
+
+                                {% for p in profissionais %}
+
+                                <option value="{{ p[0] }}">{{ p[1] }}</option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+                        <div class="col-md-2">
+
+                            <label class="form-label small text-muted mb-0">{{ _('Tipo') }}</label>
+
+                            <select name="tipo_transacao" class="form-select">
+
+                                <option value="Receita">{{ _('Receita') }}</option>
+
+                                <option value="Despesa">{{ _('Despesa') }}</option>
+
+                            </select>
+
+                        </div>
+
+                        <div class="col-md-2">
+
+                            <button type="submit" class="btn btn-gold w-100">{{ _('OK') }}</button>
+
+                        </div>
+
                     </form>
+
                 </div>
+
             </div>
+
         </div>
 
-        <div class="card-stat">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>{{ _('Data') }}</th>
-                        <th>{{ _('Descrição') }}</th>
-                        <th>{{ _('Barbeiro') }}</th>
-                        <th>{{ _('Tipo') }}</th>
-                        <th>{{ _('Valor') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for t in transacoes %}
-                    <tr>
-                        <td>
-                            {% if t[4].strftime %}
-                                {{ t[4].strftime('%d/%m') }}
+
+
+        <div class="row mb-4">
+
+            <div class="col-12 col-lg-5">
+
+                <div class="faturamento-card h-100">
+
+                    <h6 class="text-gold mb-3">
+
+                        <i class="fas fa-users me-2"></i>{{ _('Faturamento por Profissional') }}
+
+                    </h6>
+
+                    <p class="small text-muted mb-2">{{ _('Total de receitas vinculadas a cada profissional (base para comissões).') }}</p>
+
+                    <table class="table table-sm">
+
+                        <thead>
+
+                            <tr>
+
+                                <th class="text-gold">{{ _('Profissional') }}</th>
+
+                                <th class="text-gold text-end">{{ _('Total') }}</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for nome, total in faturamento_profissionais %}
+
+                            <tr>
+
+                                <td>{{ nome }}</td>
+
+                                <td class="text-end text-gold">R$ {{ "%.2f"|format(total|float) }}</td>
+
+                            </tr>
+
                             {% else %}
-                                {{ t[4][:5] }}
-                            {% endif %}
-                        </td>
-                        <td>{{ t[0] }}</td>
-                        <td>{{ t[3] }}</td>
-                        <td>{{ _(t[2]) }}</td>
-                        <td class="{{ 'text-success' if t[2] == 'Receita' else 'text-danger' }}">R$ {{ t[1] }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+                            <tr>
+
+                                <td colspan="2" class="text-muted text-center">{{ _('Nenhuma receita por profissional ainda.') }}</td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                        {% if faturamento_profissionais %}
+
+                        <tfoot>
+
+                            <tr class="faturamento-total">
+
+                                <td>{{ _('Soma das receitas por profissional') }}</td>
+
+                                <td class="text-end text-gold">
+
+                                    R$ {{ "%.2f"|format(total_faturamento_equipe) }}
+
+                                </td>
+
+                            </tr>
+
+                        </tfoot>
+
+                        {% endif %}
+
+                    </table>
+
+                </div>
+
+            </div>
+
         </div>
+
+
+
+        <div class="card-stat">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+
+                <h6 class="mb-0 text-gold">{{ _('Transações') }}</h6>
+
+                <div class="btn-group btn-group-sm">
+
+                    <a href="{{ url_for('financeiro_exportar_pdf') }}" class="btn btn-export">
+
+                        <i class="fas fa-file-pdf"></i> PDF
+
+                    </a>
+
+                    <a href="{{ url_for('financeiro_exportar_excel') }}" class="btn btn-export">
+
+                        <i class="fas fa-file-excel"></i> Excel
+
+                    </a>
+
+                </div>
+
+            </div>
+
+            <table class="table table-hover mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th>{{ _('Data') }}</th>
+
+                        <th>{{ _('Descrição') }}</th>
+
+                        <th>{{ _('Profissional') }}</th>
+
+                        <th>{{ _('Tipo') }}</th>
+
+                        <th>{{ _('Valor') }}</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for t in transacoes %}
+
+                    <tr>
+
+                        <td>
+
+                            {% if t[4].strftime %}
+
+                                {{ t[4].strftime('%d/%m/%Y') }}
+
+                            {% else %}
+
+                                {{ t[4][:10] if t[4]|length > 10 else t[4] }}
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>{{ t[0] }}</td>
+
+                        <td>{{ t[3] }}</td>
+
+                        <td>{{ _(t[2]) }}</td>
+
+                        <td class="{{ 'text-success' if t[2] == 'Receita' else 'text-danger' }}">R$ {{ "%.2f"|format(t[1]|float) }}</td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+
+                        <td colspan="5" class="text-center text-muted">{{ _('Nenhuma transação registrada.') }}</td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
     </div>
+
 </body>
+
 </html>
+

@@ -58,6 +58,39 @@
             color: var(--accent-color);
         }
 
+        .link-agendamento-card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+            border: 1px solid rgba(199, 161, 122, 0.5);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin: 16px 20px 0;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+        .link-agendamento-card h6 { color: var(--accent-color); font-weight: 700; margin-bottom: 8px; }
+        .link-agendamento-card .hint { color: #888; font-size: 0.85rem; margin-bottom: 10px; }
+        .link-agendamento-card .form-control {
+            background: #fff;
+            border: 1px solid #ddd;
+            font-size: 0.85rem;
+        }
+        .btn-copy-link {
+            background: var(--accent-color);
+            color: #1a1a1a;
+            font-weight: 700;
+            border: none;
+        }
+        .copy-toast {
+            display: none;
+            margin-top: 8px;
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(199, 161, 122, 0.2);
+            color: #5c4a32;
+            font-size: 0.88rem;
+            text-align: center;
+        }
+        .copy-toast.show { display: block; }
+
         .time-row {
             display: flex;
             border-bottom: 1px solid #eee;
@@ -78,9 +111,60 @@
             position: relative;
         }
 
+        .appointment-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
         .btn-action {
-            margin-right: 5px;
+            margin-right: 0;
             font-size: 0.85rem;
+        }
+
+        .btn-wa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 50%;
+            background-color: #25D366;
+            color: #fff !important;
+            text-decoration: none;
+            font-size: 1.15rem;
+            line-height: 1;
+            border: none;
+            flex-shrink: 0;
+            transition: transform 0.22s ease, background-color 0.22s ease, box-shadow 0.22s ease;
+        }
+
+        .btn-wa:hover {
+            background-color: #1ebe57;
+            color: #fff !important;
+            transform: scale(1.1);
+            box-shadow: 0 4px 16px rgba(37, 211, 102, 0.5);
+        }
+
+        .btn-wa:focus-visible {
+            outline: 2px solid #128C7E;
+            outline-offset: 2px;
+        }
+
+        .cliente-whatsapp {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.88rem;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        .cliente-whatsapp i {
+            color: #25D366;
         }
 
         .empty-slot {
@@ -115,9 +199,7 @@
         <span class="navbar-brand">💈 Christian Shall Barber Shop - {{ session.user_name }}</span>
         <div class="ms-auto d-flex align-items-center gap-3">
             <div class="lang-nav-agenda me-2">
-                <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
-                <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
-                <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+                {% include '_lang_selector.html' %}
             </div>
             
             <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-light btn-sm" title="{{ _('Exportar Excel') }}">
@@ -142,6 +224,19 @@
     </div>
 </div>
 {% endif %}
+
+<div class="link-agendamento-card">
+    <h6><i class="fas fa-link me-2"></i>{{ _('Seu Link de Agendamento') }}</h6>
+    <p class="hint">{{ _('Envie aos clientes — abrem direto esta página para marcar com você.') }}</p>
+    <div class="input-group input-group-sm">
+        <input type="text" readonly class="form-control" id="linkAgendamento"
+               value="{{ url_for('marcar', profissional=session.user_id, _external=True) }}">
+        <button type="button" class="btn btn-copy-link" onclick="copiarLinkAgendamento()">
+            <i class="fas fa-copy"></i> {{ _('Copiar') }}
+        </button>
+    </div>
+    <div id="copyToast" class="copy-toast">{{ _('Link copiado!') }}</div>
+</div>
 
 <div class="date-scroller">
     {% for data_iso, horarios_dict in agenda.items() %}
@@ -175,22 +270,31 @@
                     <div class="appointment-card">
                         <strong>{{ horarios_dict[hora].nome }}</strong><br>
                         {{ _(horarios_dict[hora].servico) }}<br>
-                        {{ horarios_dict[hora].whatsapp }}<br>
+                        {% if horarios_dict[hora].whatsapp %}
+                        <span class="cliente-whatsapp">
+                            <i class="fab fa-whatsapp"></i> {{ horarios_dict[hora].whatsapp }}
+                        </span>
+                        {% endif %}
 
-                        <div class="mt-2">
+                        <div class="appointment-actions">
                             <a href="{{ url_for('editar', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}" class="btn btn-primary btn-sm btn-action" title="{{ _('Editar') }}">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="{{ url_for('excluir', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}" 
+                            <a href="{{ url_for('excluir', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}"
                                class="btn btn-danger btn-sm btn-action"
                                title="{{ _('Excluir') }}"
                                onclick="return confirm('{{ _('Deseja excluir este agendamento?') }}')">
                                 <i class="fas fa-trash"></i>
                             </a>
-                            <a href="{{ url_for('enviar_whatsapp', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}" 
-                               class="btn btn-success btn-sm btn-action" title="{{ _('Enviar WhatsApp') }}">
-                                <i class="fas fa-whatsapp"></i>
+                            {% if horarios_dict[hora].whatsapp %}
+                            <a href="{{ url_for('enviar_whatsapp', data=data_iso, hora=hora, barbeiro_id=session.user_id) }}"
+                               class="btn-wa"
+                               title="{{ _('Enviar lembrete') }}"
+                               data-bs-toggle="tooltip"
+                               data-bs-placement="top">
+                                <i class="fab fa-whatsapp"></i>
                             </a>
+                            {% endif %}
                         </div>
                     </div>
                 {% else %}
@@ -256,6 +360,32 @@ function openModal(data, hora){
     document.getElementById('modalData').value = data;
     document.getElementById('modalHora').value = hora;
     new bootstrap.Modal(document.getElementById('agendarModal')).show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipList.map(function(el) { return new bootstrap.Tooltip(el); });
+});
+
+function copiarLinkAgendamento() {
+    var input = document.getElementById('linkAgendamento');
+    var toast = document.getElementById('copyToast');
+    var url = input.value;
+    function ok() {
+        toast.classList.add('show');
+        setTimeout(function() { toast.classList.remove('show'); }, 2800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(ok).catch(function() {
+            input.select();
+            document.execCommand('copy');
+            ok();
+        });
+    } else {
+        input.select();
+        document.execCommand('copy');
+        ok();
+    }
 }
 </script>
 </body>

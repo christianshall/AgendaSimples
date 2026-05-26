@@ -100,13 +100,11 @@
 <body>
 
     <div class="container">
-        <div class="lang-picker-cadastro">
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+        <div class="lang-picker-cadastro lang-picker-login">
+            {% include '_lang_selector.html' %}
         </div>
 
-        <h2>{{ _('Cadastro de Barbeiro') }}</h2>
+        <h2>{{ _('Cadastro de Profissional') }}</h2>
 
         <form method="POST">
 

@@ -1,0 +1,16 @@
+{# Seletor PT | EN | ES — incluir com: {% include '_lang_selector.html' %} #}
+{% set loc = current_locale|string %}
+{% set next_path = request.path %}
+<div class="lang-switcher {{ extra_class|default('') }}" role="navigation" aria-label="{{ _('Idioma') }}">
+    <a href="{{ url_for('mudar_idioma', lang='pt', next=next_path) }}"
+       class="lang-switcher__btn {% if loc == 'pt' %}is-active{% endif %}"
+       title="{{ _('Português') }}">PT</a>
+    <span class="lang-switcher__sep">|</span>
+    <a href="{{ url_for('mudar_idioma', lang='en', next=next_path) }}"
+       class="lang-switcher__btn {% if loc == 'en' %}is-active{% endif %}"
+       title="{{ _('English') }}">EN</a>
+    <span class="lang-switcher__sep">|</span>
+    <a href="{{ url_for('mudar_idioma', lang='es', next=next_path) }}"
+       class="lang-switcher__btn {% if loc == 'es' %}is-active{% endif %}"
+       title="{{ _('Español') }}">ES</a>
+</div>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Nova Senha - Agenda Simples') }}</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #000000, #444444);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background: #fff;
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px #00000070;
+            animation: fadeIn 0.6s;
+        }
+        h2 {
+            text-align: center;
+            margin: 0 0 10px;
+            color: #000;
+        }
+        p.sub {
+            text-align: center;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        label { font-weight: bold; font-size: 15px; }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid #bbb;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            background: black;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 17px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        button:hover { background: #333; }
+        .link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .link a {
+            text-decoration: none;
+            color: black;
+            font-weight: bold;
+        }
+        .flash {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .flash.error { background: #f8d7da; color: #721c24; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>{{ _('Definir nova senha') }}</h2>
+        <p class="sub">{{ _('Escolha uma senha segura com pelo menos 6 caracteres.') }}</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST">
+            <label for="nova_senha">{{ _('Nova Senha') }}</label>
+            <input
+                type="password"
+                id="nova_senha"
+                name="nova_senha"
+                required
+                minlength="6"
+                autocomplete="new-password"
+                placeholder="{{ _('Digite a nova senha') }}"
+            >
+
+            <label for="confirma_senha">{{ _('Confirme a Nova Senha') }}</label>
+            <input
+                type="password"
+                id="confirma_senha"
+                name="confirma_senha"
+                required
+                minlength="6"
+                autocomplete="new-password"
+                placeholder="{{ _('Repita a nova senha') }}"
+            >
+
+            <button type="submit">{{ _('Salvar nova senha') }}</button>
+        </form>
+
+        <div class="link">
+            <a href="{{ url_for('login') }}">{{ _('Voltar para o Login') }}</a>
+        </div>
+    </div>
+</body>
+</html>

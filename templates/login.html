@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ _('Login - Barber Agenda') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
 
     <style>
         body {
@@ -122,14 +123,21 @@
 
     <div class="container">
         <div class="lang-picker-login">
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='pt') }}" title="Português">🇧🇷</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='en') }}" title="English">🇺🇸</a>
-            <a href="{{ url_for('mudar_idioma', codigo_idioma='es') }}" title="Español">🇪🇸</a>
+            {% include '_lang_selector.html' %}
         </div>
 
-        <h2>{{ _('Login do Barbeiro') }}</h2>
+        <h2>{{ _('Login do Profissional') }}</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div style="padding:10px;border-radius:6px;margin-bottom:12px;font-size:14px;{% if category == 'error' %}background:#f8d7da;color:#721c24;{% elif category == 'success' %}background:#d4edda;color:#155724;{% else %}background:#fff3cd;color:#856404;{% endif %}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
 
         <form method="POST">
+            {% if next_url %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            {% endif %}
 
             <label>{{ _('Email:') }}</label>
             <input type="email" name="email" required placeholder="{{ _('Digite seu email') }}">
@@ -142,11 +150,7 @@
         </form>
 
         <div class="link">
-            <a href="#" onclick="alert('{{ _("Recuperação ainda não conectada ao email.") }}');">{{ _('Esqueci minha senha') }}</a>
-        </div>
-
-        <div class="link" style="margin-top: 20px;">
-            <a href="/cadastro" class="btn-cadastro">{{ _('Cadastrar Novo Barbeiro') }}</a>
+            <a href="{{ url_for('esqueci_senha') }}">{{ _('Esqueci minha senha') }}</a>
         </div>
     </div>
 
