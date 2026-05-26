@@ -261,20 +261,15 @@ class TursoHttpConnection:
         return TursoHttpCursor(self)
 
     def commit(self):
+        """Turso HTTP confirma cada execute no pipeline; COMMIT explícito é opcional."""
         try:
             self.cursor().execute("COMMIT")
         except Exception as exc:
-            print("Erro Turso commit:", exc)
-            traceback.print_exc()
-            raise
+            print("Turso commit (ignorado — HTTP já persiste por request):", exc)
 
     def rollback(self):
-        try:
-            self.cursor().execute("ROLLBACK")
-        except Exception as exc:
-            print("Erro Turso rollback:", exc)
-            traceback.print_exc()
-            raise
+        """Sem transação multi-request no cliente HTTP."""
+        print("Turso rollback: no-op no cliente HTTP")
 
     def close(self):
         if not self._baton:
@@ -310,7 +305,12 @@ class TursoHttpCursor:
                     f"Resultado Turso não é dict: {type(result).__name__}"
                 )
 
-            self.lastrowid = result.get("last_insert_rowid")
+            lid = (
+                result.get("last_insert_rowid")
+                or result.get("lastInsertRowid")
+                or result.get("last_insert_id")
+            )
+            self.lastrowid = lid
             if self.lastrowid is not None:
                 try:
                     self.lastrowid = int(self.lastrowid)
@@ -521,9 +521,102 @@ def get_connection():
     return _connect_sqlite()
 
 
+def _valor_linha(row, indice=0, nome=None):
+    if row is None:
+        return None
+    if nome is not None:
+        try:
+            return row[nome]
+        except (KeyError, TypeError, IndexError):
+            try:
+                return getattr(row, nome)
+            except AttributeError:
+                pass
+    try:
+        return row[indice]
+    except (KeyError, TypeError, IndexError):
+        return None
+
+
 def _coluna_existe(cursor, tabela, coluna):
-    cursor.execute(f"PRAGMA table_info({tabela})")
-    return any(row[1] == coluna for row in cursor.fetchall())
+    """Detecta coluna via PRAGMA ou probe SELECT (compatível Turso HTTP)."""
+    try:
+        cursor.execute(f"PRAGMA table_info({tabela})")
+        rows = cursor.fetchall()
+        if rows:
+            for row in rows:
+                nome_col = _valor_linha(row, 1, "name")
+                if nome_col == coluna:
+                    return True
+    except Exception as exc:
+        print(f"_coluna_existe PRAGMA ({tabela}.{coluna}): {exc}")
+
+    try:
+        cursor.execute(f"SELECT {coluna} FROM {tabela} LIMIT 0")
+        return True
+    except Exception:
+        return False
+
+
+def obter_id_inserido(cursor, sql_fallback=None, params_fallback=None):
+    """
+    Obtém ID após INSERT — Turso HTTP pode não expor lastrowid de forma confiável.
+    Ordem: cursor.lastrowid → last_insert_rowid() → consulta fallback.
+    """
+    if cursor.lastrowid not in (None, 0):
+        try:
+            return int(cursor.lastrowid)
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        cursor.execute("SELECT last_insert_rowid() AS id")
+        row = cursor.fetchone()
+        val = _valor_linha(row, 0, "id")
+        if val not in (None, 0):
+            return int(val)
+    except Exception as exc:
+        print(f"obter_id_inserido last_insert_rowid(): {exc}")
+
+    if sql_fallback:
+        try:
+            cursor.execute(sql_fallback, params_fallback or ())
+            row = cursor.fetchone()
+            val = _valor_linha(row, 0, "id")
+            if val not in (None, 0):
+                return int(val)
+        except Exception as exc:
+            print(f"obter_id_inserido fallback: {exc}")
+
+    return None
+
+
+def safe_commit(conn):
+    if conn is None:
+        return
+    try:
+        conn.commit()
+    except Exception as exc:
+        print(f"safe_commit: {exc}")
+        traceback.print_exc()
+
+
+def safe_rollback(conn):
+    if conn is None:
+        return
+    try:
+        conn.rollback()
+    except Exception as exc:
+        print(f"safe_rollback: {exc}")
+
+
+def safe_close(conn):
+    if conn is None:
+        return
+    try:
+        conn.close()
+    except Exception as exc:
+        print(f"safe_close: {exc}")
 
 
 SERVICOS_PADRAO = (
@@ -637,9 +730,8 @@ def ensure_schema_migrations(cursor):
         except Exception as exc:
             print(f"ensure_schema_migrations ({tabela}.{coluna}): {exc}")
 
-    try:
-        cursor.executescript(
-            """
+    for ddl_tabela in (
+        """
         CREATE TABLE IF NOT EXISTS servicos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barbearia_id INTEGER NOT NULL,
@@ -647,8 +739,9 @@ def ensure_schema_migrations(cursor):
             ativo INTEGER DEFAULT 1,
             ordem INTEGER DEFAULT 0,
             FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
-        );
-
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS horarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barbearia_id INTEGER NOT NULL,
@@ -656,32 +749,32 @@ def ensure_schema_migrations(cursor):
             ativo INTEGER DEFAULT 1,
             ordem INTEGER DEFAULT 0,
             FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS IX_servicos_barbearia ON servicos(barbearia_id);
-        CREATE INDEX IF NOT EXISTS IX_horarios_barbearia ON horarios(barbearia_id);
-        CREATE INDEX IF NOT EXISTS IX_usuarios_barbearia ON usuarios(barbearia_id);
-        CREATE INDEX IF NOT EXISTS IX_Clientes_barbearia ON Clientes(barbearia_id);
-        CREATE INDEX IF NOT EXISTS IX_financeiro_barbearia ON financeiro(barbearia_id);
-        """
         )
-    except Exception as exc:
-        print(f"ensure_schema_migrations (servicos/horarios): {exc}")
+        """,
+    ):
+        try:
+            cursor.execute(ddl_tabela)
+        except Exception as exc:
+            print(f"ensure_schema_migrations (CREATE TABLE): {exc}")
 
     backfill_barbearia_id(cursor)
 
-    indices_tenant = [
-        "CREATE INDEX IF NOT EXISTS IX_Clientes_barbearia ON Clientes(barbearia_id)",
-        "CREATE INDEX IF NOT EXISTS IX_servicos_barbearia ON servicos(barbearia_id)",
-        "CREATE INDEX IF NOT EXISTS IX_horarios_barbearia ON horarios(barbearia_id)",
-        "CREATE INDEX IF NOT EXISTS IX_usuarios_barbearia ON usuarios(barbearia_id)",
-        "CREATE INDEX IF NOT EXISTS IX_financeiro_barbearia ON financeiro(barbearia_id)",
-    ]
-    for sql_idx in indices_tenant:
+    indices_tenant = (
+        ("IX_usuarios_barbearia", "usuarios", "barbearia_id"),
+        ("IX_Clientes_barbearia", "Clientes", "barbearia_id"),
+        ("IX_financeiro_barbearia", "financeiro", "barbearia_id"),
+        ("IX_servicos_barbearia", "servicos", "barbearia_id"),
+        ("IX_horarios_barbearia", "horarios", "barbearia_id"),
+    )
+    for nome_idx, tabela_idx, coluna_idx in indices_tenant:
+        if not _coluna_existe(cursor, tabela_idx, coluna_idx):
+            continue
         try:
-            cursor.execute(sql_idx)
+            cursor.execute(
+                f"CREATE INDEX IF NOT EXISTS {nome_idx} ON {tabela_idx}({coluna_idx})"
+            )
         except Exception as exc:
-            print(f"ensure_schema_migrations (índice): {exc}")
+            print(f"ensure_schema_migrations (índice {nome_idx}): {exc}")
 
 
 def init_database():

@@ -11,9 +11,14 @@ from datetime import datetime, timedelta
 from database import (
     DbError,
     SERVICOS_PADRAO,
+    _coluna_existe,
     ensure_schema_migrations,
     get_connection,
     init_database,
+    obter_id_inserido,
+    safe_close,
+    safe_commit,
+    safe_rollback,
     seed_servicos_horarios_padrao,
 )
 import smtplib
@@ -30,6 +35,7 @@ import io
 import re
 import os
 import secrets
+import traceback
 
 # 1. IMPORTAR O FLASK-BABEL
 from flask_babel import Babel, _
@@ -714,104 +720,169 @@ def _ctx_landing_vendas(form=None):
     }
 
 
+def _log_erro_cadastro_saas(exc, etapa, **contexto):
+    print("=== ERRO CADASTRO SAAS ===")
+    print(f"Etapa: {etapa}")
+    print(f"Exceção: {type(exc).__name__}: {exc}")
+    for chave, valor in contexto.items():
+        print(f"  {chave}: {valor}")
+    traceback.print_exc()
+    print("=== FIM ERRO CADASTRO SAAS ===")
+    app.logger.exception("Cadastro SaaS [%s]: %s", etapa, exc)
+
+
+def _inserir_barbearia_cadastro(cursor, nome_negocio, slug, email, senha_hash, agora, ramo):
+    """INSERT em barbearias com colunas opcionais conforme schema migrado."""
+    base_cols = [
+        "nome", "slug", "email", "senha", "plano_ativo",
+        "titulo_catalogo1", "titulo_catalogo2", "titulo_catalogo3", "titulo_catalogo4",
+        "texto_marcar_direito", "data_cadastro",
+    ]
+    base_vals = [
+        nome_negocio,
+        slug,
+        email,
+        senha_hash,
+        1,
+        DEFAULT_TITULOS_CATALOGO[0],
+        DEFAULT_TITULOS_CATALOGO[1],
+        DEFAULT_TITULOS_CATALOGO[2],
+        DEFAULT_TITULOS_CATALOGO[3],
+        nome_negocio,
+        agora,
+    ]
+    if _coluna_existe(cursor, "barbearias", "ramo_atividade"):
+        base_cols.append("ramo_atividade")
+        base_vals.append(ramo)
+
+    placeholders = ", ".join("?" for _ in base_vals)
+    colunas_sql = ", ".join(base_cols)
+    cursor.execute(
+        f"INSERT INTO barbearias ({colunas_sql}) VALUES ({placeholders})",
+        tuple(base_vals),
+    )
+
+
+def _inserir_usuario_admin_cadastro(
+    cursor, nome_profissional, email, senha_hash, agora, barbearia_id
+):
+    """INSERT em usuarios — só inclui colunas que existem no Turso/SQLite."""
+    cols = ["nome", "email", "senha", "role"]
+    vals = [nome_profissional, email, senha_hash, "admin"]
+    if _coluna_existe(cursor, "usuarios", "data_cadastro"):
+        cols.append("data_cadastro")
+        vals.append(agora)
+    if _coluna_existe(cursor, "usuarios", "status_trial"):
+        cols.append("status_trial")
+        vals.append("trialing")
+    if _coluna_existe(cursor, "usuarios", "barbearia_id"):
+        cols.append("barbearia_id")
+        vals.append(barbearia_id)
+
+    placeholders = ", ".join("?" for _ in vals)
+    colunas_sql = ", ".join(cols)
+    cursor.execute(
+        f"INSERT INTO usuarios ({colunas_sql}) VALUES ({placeholders})",
+        tuple(vals),
+    )
+
+
 def _processar_cadastro_saas(template_name="home_vendas.html"):
     """Valida e cria conta admin + trial; retorna redirect ou template com erros."""
-    nome_negocio = (request.form.get("nome_negocio") or "").strip()
-    nome_profissional = (request.form.get("nome_profissional") or "").strip()
-    email = (request.form.get("email") or "").strip().lower()
-    ramo = (request.form.get("ramo_atividade") or "").strip().lower()
-    senha = request.form.get("password") or ""
-    senha_confirma = request.form.get("password_confirm") or ""
-
-    form = {
-        "nome_negocio": nome_negocio,
-        "nome_profissional": nome_profissional,
-        "email": email,
-        "ramo_atividade": ramo,
-    }
-
-    erros = []
-    if not nome_negocio:
-        erros.append(_("Informe o nome do seu negócio."))
-    if not nome_profissional:
-        erros.append(_("Informe o seu nome."))
-    if not email or "@" not in email:
-        erros.append(_("Informe um e-mail válido."))
-    if ramo not in _RAMOS_VALIDOS:
-        erros.append(_("Selecione o ramo de atividade."))
-    if len(senha) < 6:
-        erros.append(_("A senha deve ter pelo menos 6 caracteres."))
-    if senha != senha_confirma:
-        erros.append(_("As senhas não coincidem."))
-
-    conn = get_connection()
-    cursor = conn.cursor()
-    ensure_schema_migrations(cursor)
-
-    if not erros and _email_ja_cadastrado(cursor, email):
-        erros.append(_("Este e-mail já está cadastrado. Faça login ou use outro e-mail."))
-
-    slug = slugify(nome_negocio) if nome_negocio else ""
-    if not erros and slug:
-        cursor.execute(
-            "SELECT id FROM barbearias WHERE slug = ? OR LOWER(TRIM(email)) = LOWER(?)",
-            (slug, email),
-        )
-        if cursor.fetchone():
-            erros.append(
-                _("Já existe uma conta com este e-mail ou nome de negócio semelhante.")
-            )
-
-    if erros:
-        conn.close()
-        for msg in erros:
-            flash(msg, "error")
-        return render_template(template_name, **_ctx_landing_vendas(form))
-
-    senha_hash = generate_password_hash(senha)
-    agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    conn = None
+    form = {}
 
     try:
-        cursor.execute(
-            """
-            INSERT INTO barbearias (
-                nome, slug, email, senha, plano_ativo,
-                titulo_catalogo1, titulo_catalogo2, titulo_catalogo3, titulo_catalogo4,
-                texto_marcar_direito, data_cadastro, ramo_atividade
+        nome_negocio = (request.form.get("nome_negocio") or "").strip()
+        nome_profissional = (request.form.get("nome_profissional") or "").strip()
+        email = (request.form.get("email") or "").strip().lower()
+        ramo = (request.form.get("ramo_atividade") or "").strip().lower()
+        senha = request.form.get("password") or ""
+        senha_confirma = request.form.get("password_confirm") or ""
+
+        form = {
+            "nome_negocio": nome_negocio,
+            "nome_profissional": nome_profissional,
+            "email": email,
+            "ramo_atividade": ramo,
+        }
+
+        erros = []
+        if not nome_negocio:
+            erros.append(_("Informe o nome do seu negócio."))
+        if not nome_profissional:
+            erros.append(_("Informe o seu nome."))
+        if not email or "@" not in email:
+            erros.append(_("Informe um e-mail válido."))
+        if ramo not in _RAMOS_VALIDOS:
+            erros.append(_("Selecione o ramo de atividade."))
+        if len(senha) < 6:
+            erros.append(_("A senha deve ter pelo menos 6 caracteres."))
+        if senha != senha_confirma:
+            erros.append(_("As senhas não coincidem."))
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        try:
+            ensure_schema_migrations(cursor)
+            safe_commit(conn)
+        except Exception as exc_mig:
+            _log_erro_cadastro_saas(exc_mig, "ensure_schema_migrations", email=email)
+            flash(
+                _("Erro ao preparar o banco de dados. Tente novamente em instantes."),
+                "error",
             )
-            VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                nome_negocio,
-                slug,
-                email,
-                senha_hash,
-                DEFAULT_TITULOS_CATALOGO[0],
-                DEFAULT_TITULOS_CATALOGO[1],
-                DEFAULT_TITULOS_CATALOGO[2],
-                DEFAULT_TITULOS_CATALOGO[3],
-                nome_negocio,
-                agora,
-                ramo,
-            ),
+            return render_template(template_name, **_ctx_landing_vendas(form))
+
+        if not erros and _email_ja_cadastrado(cursor, email):
+            erros.append(
+                _("Este e-mail já está cadastrado. Faça login ou use outro e-mail.")
+            )
+
+        slug = slugify(nome_negocio) if nome_negocio else ""
+        if not erros and slug:
+            cursor.execute(
+                """
+                SELECT id FROM barbearias
+                WHERE slug = ? OR LOWER(TRIM(email)) = LOWER(?)
+                """,
+                (slug, email),
+            )
+            if cursor.fetchone():
+                erros.append(
+                    _(
+                        "Já existe uma conta com este e-mail ou nome de negócio semelhante."
+                    )
+                )
+
+        if erros:
+            for msg in erros:
+                flash(msg, "error")
+            return render_template(template_name, **_ctx_landing_vendas(form))
+
+        senha_hash = generate_password_hash(senha)
+        agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        _inserir_barbearia_cadastro(
+            cursor, nome_negocio, slug, email, senha_hash, agora, ramo
         )
-        barbearia_id = cursor.lastrowid
+        barbearia_id = obter_id_inserido(
+            cursor,
+            "SELECT id FROM barbearias WHERE LOWER(TRIM(email)) = LOWER(?) ORDER BY id DESC LIMIT 1",
+            (email,),
+        )
         if not barbearia_id:
-            raise RuntimeError("Não foi possível obter o ID da barbearia criada.")
+            raise RuntimeError(
+                "INSERT barbearias OK, mas ID não retornado (lastrowid/Turso)."
+            )
 
         criar_assinatura_trial(cursor, barbearia_id, cfg.TRIAL_DAYS)
         seed_servicos_horarios_padrao(cursor, barbearia_id)
-
-        cursor.execute(
-            """
-            INSERT INTO usuarios (
-                nome, email, senha, role, data_cadastro, status_trial, barbearia_id
-            )
-            VALUES (?, ?, ?, 'admin', ?, 'trialing', ?)
-            """,
-            (nome_profissional, email, senha_hash, agora, barbearia_id),
+        _inserir_usuario_admin_cadastro(
+            cursor, nome_profissional, email, senha_hash, agora, barbearia_id
         )
-        conn.commit()
+        safe_commit(conn)
 
         cursor.execute(
             """
@@ -822,11 +893,15 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
         )
         user = cursor.fetchone()
         if not user:
-            conn.close()
-            flash(_("Conta criada, mas falhou o login automático. Entre com seu e-mail."), "warning")
+            flash(
+                _("Conta criada, mas falhou o login automático. Entre com seu e-mail."),
+                "warning",
+            )
             return redirect(url_for("login"))
+
         _iniciar_sessao_usuario(cursor, user, email)
-        conn.close()
+        safe_close(conn)
+        conn = None
 
         flash(
             _("Bem-vindo! Sua conta foi criada com %(days)s dias de teste grátis.")
@@ -836,14 +911,21 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
         return redirect(url_for("admin_agenda"))
 
     except Exception as exc:
-        conn.rollback()
-        conn.close()
-        app.logger.exception("Erro ao registrar conta SaaS: %s", exc)
+        safe_rollback(conn)
+        _log_erro_cadastro_saas(
+            exc,
+            "processamento_cadastro",
+            email=form.get("email"),
+            negocio=form.get("nome_negocio"),
+        )
         flash(
             _("Não foi possível criar sua conta. Tente novamente em instantes."),
             "error",
         )
         return render_template(template_name, **_ctx_landing_vendas(form))
+
+    finally:
+        safe_close(conn)
 
 
 @app.route("/registrar", methods=["GET", "POST"])
