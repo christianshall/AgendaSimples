@@ -521,6 +521,27 @@ def get_connection():
     return _connect_sqlite()
 
 
+def _coluna_existe(cursor, tabela, coluna):
+    cursor.execute(f"PRAGMA table_info({tabela})")
+    return any(row[1] == coluna for row in cursor.fetchall())
+
+
+def ensure_schema_migrations(cursor):
+    """Adiciona colunas novas em bancos já existentes (SQLite / Turso)."""
+    alteracoes = [
+        ("usuarios", "data_cadastro", "TEXT"),
+        ("usuarios", "status_trial", "TEXT"),
+    ]
+    for tabela, coluna, tipo_sql in alteracoes:
+        try:
+            if not _coluna_existe(cursor, tabela, coluna):
+                cursor.execute(
+                    f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo_sql}"
+                )
+        except Exception as exc:
+            print(f"ensure_schema_migrations ({tabela}.{coluna}): {exc}")
+
+
 def init_database():
     """Cria tabelas e dados mínimos se o banco ainda não existir."""
     try:
@@ -560,7 +581,9 @@ def init_database():
             senha TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'profissional',
             especialidade TEXT,
-            foto_perfil TEXT
+            foto_perfil TEXT,
+            data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
+            status_trial TEXT DEFAULT 'trialing'
         );
 
         CREATE TABLE IF NOT EXISTS Clientes (
@@ -618,6 +641,8 @@ def init_database():
         CREATE INDEX IF NOT EXISTS IX_assinaturas_stripe_subscription ON assinaturas(stripe_subscription_id);
         """
         )
+
+        ensure_schema_migrations(cursor)
 
         cursor.execute("SELECT COUNT(*) FROM barbearias")
         count_row = cursor.fetchone()

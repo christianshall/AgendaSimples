@@ -8,7 +8,7 @@ from urllib.parse import quote
 from datetime import datetime, timedelta
 
 # Conexão: Turso HTTP (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN) ou SQLite local (agenda.db)
-from database import DbError, get_connection, init_database
+from database import DbError, ensure_schema_migrations, get_connection, init_database
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -131,6 +131,34 @@ def _salvar_upload_foto_perfil(arquivo):
     nome = f"perfil_{secrets.token_hex(12)}.{ext}"
     arquivo.save(os.path.join(PERFIL_UPLOAD_DIR, nome))
     return nome
+
+
+def _iniciar_sessao_usuario(cursor, user, email):
+    """Preenche session Flask após login ou cadastro bem-sucedido."""
+    session.clear()
+    session["user_id"] = user["id"]
+    session["user_name"] = user["nome"]
+    session["role"] = user["role"]
+
+    user_id = session["user_id"]
+    cursor.execute("SELECT id, nome FROM barbearias WHERE id = ?", (user_id,))
+    b_row = cursor.fetchone()
+    if not b_row:
+        cursor.execute(
+            "SELECT id, nome FROM barbearias WHERE email = ? LIMIT 1",
+            (email,),
+        )
+        b_row = cursor.fetchone()
+    if b_row:
+        session["barbearia_id"] = b_row["id"]
+        session["nome_barbearia"] = b_row["nome"]
+    else:
+        cursor.execute("SELECT id, nome FROM barbearias LIMIT 1")
+        primeira = cursor.fetchone()
+        session["barbearia_id"] = primeira["id"] if primeira else user_id
+        session["nome_barbearia"] = (
+            primeira["nome"] if primeira else "AgendaSimples"
+        )
 
 
 def _email_ja_cadastrado(cursor, email, ignorar_id=None):
@@ -548,39 +576,152 @@ def mudar_idioma(lang):
 
 # -------------------------- ROTAS DO SAAS / CADASTRO --------------------------
 
-@app.route("/cadastro_barbearia", methods=["GET", "POST"])
-def cadastro_barbearia():
-    if request.method == "POST":
-        nome = request.form.get("nome_barbearia")
-        email = request.form.get("email")
-        senha = request.form.get("password")
-        slug = slugify(nome)
-        
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            INSERT INTO barbearias (nome, slug, email, senha, plano_ativo)
-            VALUES (?, ?, ?, ?, 1)
-        """, (nome, slug, email, senha))
-        novo_id = cursor.lastrowid
+@app.route("/registrar", methods=["GET", "POST"])
+@app.route("/cadastro", methods=["GET", "POST"])
+def registrar():
+    """Cadastro público de novo negócio (admin + trial grátis)."""
+    if request.method == "GET":
+        if session.get("user_id") and session.get("role") == "admin":
+            return redirect(url_for("admin_agenda"))
+        return render_template(
+            "registrar.html",
+            trial_days=cfg.TRIAL_DAYS,
+            form={},
+        )
 
-        # Trial gratuito local (cfg.TRIAL_DAYS dias, padrão 7)
-        criar_assinatura_trial(cursor, novo_id, cfg.TRIAL_DAYS)
+    nome_negocio = (request.form.get("nome_negocio") or "").strip()
+    nome_profissional = (request.form.get("nome_profissional") or "").strip()
+    email = (request.form.get("email") or "").strip().lower()
+    senha = request.form.get("password") or ""
+    senha_confirma = request.form.get("password_confirm") or ""
 
-        cursor.execute("""
-            INSERT INTO usuarios (nome, email, senha, role)
-            VALUES (?, ?, ?, 'admin')
-        """, (nome, email, senha))
+    form = {
+        "nome_negocio": nome_negocio,
+        "nome_profissional": nome_profissional,
+        "email": email,
+    }
 
-        conn.commit()
+    erros = []
+    if not nome_negocio:
+        erros.append(_("Informe o nome do seu negócio."))
+    if not nome_profissional:
+        erros.append(_("Informe o seu nome."))
+    if not email or "@" not in email:
+        erros.append(_("Informe um e-mail válido."))
+    if len(senha) < 6:
+        erros.append(_("A senha deve ter pelo menos 6 caracteres."))
+    if senha != senha_confirma:
+        erros.append(_("As senhas não coincidem."))
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    ensure_schema_migrations(cursor)
+
+    if not erros and _email_ja_cadastrado(cursor, email):
+        erros.append(_("Este e-mail já está cadastrado. Faça login ou use outro e-mail."))
+
+    slug = slugify(nome_negocio) if nome_negocio else ""
+    if not erros and slug:
+        cursor.execute(
+            "SELECT id FROM barbearias WHERE slug = ? OR LOWER(TRIM(email)) = LOWER(?)",
+            (slug, email),
+        )
+        if cursor.fetchone():
+            erros.append(
+                _("Já existe uma conta com este e-mail ou nome de negócio semelhante.")
+            )
+
+    if erros:
         conn.close()
+        for msg in erros:
+            flash(msg, "error")
+        return render_template(
+            "registrar.html",
+            trial_days=cfg.TRIAL_DAYS,
+            form=form,
+        )
+
+    senha_hash = generate_password_hash(senha)
+    agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    try:
+        cursor.execute(
+            """
+            INSERT INTO barbearias (
+                nome, slug, email, senha, plano_ativo,
+                titulo_catalogo1, titulo_catalogo2, titulo_catalogo3, titulo_catalogo4,
+                texto_marcar_direito, data_cadastro
+            )
+            VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                nome_negocio,
+                slug,
+                email,
+                senha_hash,
+                DEFAULT_TITULOS_CATALOGO[0],
+                DEFAULT_TITULOS_CATALOGO[1],
+                DEFAULT_TITULOS_CATALOGO[2],
+                DEFAULT_TITULOS_CATALOGO[3],
+                nome_negocio,
+                agora,
+            ),
+        )
+        barbearia_id = cursor.lastrowid
+        if not barbearia_id:
+            raise RuntimeError("Não foi possível obter o ID da barbearia criada.")
+
+        criar_assinatura_trial(cursor, barbearia_id, cfg.TRIAL_DAYS)
+
+        cursor.execute(
+            """
+            INSERT INTO usuarios (
+                nome, email, senha, role, data_cadastro, status_trial
+            )
+            VALUES (?, ?, ?, 'admin', ?, 'trialing')
+            """,
+            (nome_profissional, email, senha_hash, agora),
+        )
+        conn.commit()
+
+        cursor.execute(
+            "SELECT id, nome, role FROM usuarios WHERE LOWER(TRIM(email)) = LOWER(?)",
+            (email,),
+        )
+        user = cursor.fetchone()
+        if not user:
+            conn.close()
+            flash(_("Conta criada, mas falhou o login automático. Entre com seu e-mail."), "warning")
+            return redirect(url_for("login"))
+        _iniciar_sessao_usuario(cursor, user, email)
+        conn.close()
+
         flash(
-            f"Conta criada! Você tem {cfg.TRIAL_DAYS} dias de teste grátis. Faça login para começar.",
+            _("Bem-vindo! Sua conta foi criada com %(days)s dias de teste grátis.")
+            % {"days": cfg.TRIAL_DAYS},
             "success",
         )
-        return redirect(url_for('login'))
-    return render_template("cadastro_barbearia.html", trial_days=cfg.TRIAL_DAYS)
+        return redirect(url_for("admin_agenda"))
+
+    except Exception as exc:
+        conn.rollback()
+        conn.close()
+        app.logger.exception("Erro ao registrar conta SaaS: %s", exc)
+        flash(
+            _("Não foi possível criar sua conta. Tente novamente em instantes."),
+            "error",
+        )
+        return render_template(
+            "registrar.html",
+            trial_days=cfg.TRIAL_DAYS,
+            form=form,
+        )
+
+
+@app.route("/cadastro_barbearia", methods=["GET", "POST"])
+def cadastro_barbearia():
+    """Legado — redireciona para o cadastro SaaS unificado."""
+    return redirect(url_for("registrar"))
 
 # -------------------------- LOGIN / LOGOUT --------------------------
 @app.route("/")
@@ -622,7 +763,6 @@ def home():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        session.clear()
         email = request.form.get("email")
         senha = request.form.get("password")
         conn = get_connection()
@@ -635,29 +775,7 @@ def login():
         user = cursor.fetchone()
 
         if user and _senha_confere(user.senha, senha):
-            session["user_id"] = user.id
-            session["user_name"] = user.nome
-            session["role"] = user.role
-            
-            cursor.execute("SELECT id, nome FROM barbearias WHERE id = ?", (user.id,))
-            b_row = cursor.fetchone()
-            if not b_row:
-                cursor.execute(
-                    "SELECT id, nome FROM barbearias WHERE email = ? LIMIT 1",
-                    (email,),
-                )
-                b_row = cursor.fetchone()
-            if b_row:
-                session["barbearia_id"] = b_row[0]
-                session["nome_barbearia"] = b_row[1]
-            else:
-                cursor.execute("SELECT id, nome FROM barbearias LIMIT 1")
-                primeira = cursor.fetchone()
-                session["barbearia_id"] = primeira[0] if primeira else user.id
-                session["nome_barbearia"] = (
-                    primeira[1] if primeira else "Christian Shall Barber Shop"
-                )
-            
+            _iniciar_sessao_usuario(cursor, user, email)
             conn.close()
             destino = _url_segura_apos_login(request.form.get("next") or request.args.get("next"))
             if user.role == "admin":
@@ -876,16 +994,6 @@ def admin_agenda():
 
     # 🌟 ATUALIZAÇÃO: Enviando foto_capa para o HTML
     return render_template("admin_agenda.html", agenda=agenda_data, horarios=HORARIOS, datetime=datetime, dias_pt=DIAS_PT, barbeiros=barbeiros, foto_capa=foto_capa)
-
-
-@app.route("/cadastro", methods=["GET", "POST"])
-def cadastro_profissional_bloqueado():
-    """Cadastro de profissionais só pelo painel admin — bloqueia URL pública legada."""
-    flash(
-        "Acesso negado! O cadastro de profissionais é realizado apenas pelo administrador.",
-        "error",
-    )
-    return redirect(url_for("login"))
 
 
 @app.route("/admin/profissionais/novo", methods=["GET", "POST"])

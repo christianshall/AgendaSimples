@@ -237,7 +237,7 @@ msgstr "Nombre completo"
 
 #: templates/admin_cadastrar_profissional.html:128
 msgid "Ex.: Maria Silva"
-msgstr ""
+msgstr "Ej.: María Silva"
 
 #: templates/admin_cadastrar_profissional.html:132 templates/login.html:37
 #, fuzzy
@@ -268,7 +268,7 @@ msgstr ""
 
 #: templates/admin_cadastrar_profissional.html:156
 msgid "Mínimo 6 caracteres"
-msgstr ""
+msgstr "Mínimo 6 caracteres"
 
 #: templates/admin_cadastrar_profissional.html:160
 msgid "Foto de perfil"

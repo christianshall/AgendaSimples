@@ -57,6 +57,10 @@ body.page-login {
     margin-bottom: 12px;
 }
 
+.page-login .login-card--wide {
+    max-width: 460px;
+}
+
 .page-login .login-header h2 {
     margin: 0;
     color: var(--admin-blue-dark);
@@ -64,6 +68,21 @@ body.page-login {
     font-weight: 700;
     font-family: 'Playfair Display', Georgia, serif;
     letter-spacing: 0.02em;
+}
+
+.page-registrar .registrar-subtitle {
+    margin: 10px 0 0;
+    font-size: 0.9rem;
+    color: var(--admin-text);
+    opacity: 0.85;
+}
+
+.page-registrar .login-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 20px;
 }
 
 .page-login .login-body {
@@ -141,6 +160,11 @@ body.page-login {
 
 .page-login .login-links a:hover {
     color: var(--admin-accent);
+}
+
+.page-login .login-links-sep {
+    color: rgba(45, 55, 72, 0.45);
+    font-weight: 600;
 }
 
 .page-login .alert {

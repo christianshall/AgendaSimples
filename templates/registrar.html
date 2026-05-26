@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Criar conta') }} — {{ _('AgendaSimples') }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
+</head>
+<body class="page-login page-registrar" lang="{{ current_locale }}">
+
+    <div class="login-card login-card--wide">
+        <div class="login-header">
+            <div class="lang-picker-login">
+                {% include '_lang_selector.html' %}
+            </div>
+            <h2>{{ _('Comece grátis') }}</h2>
+            <p class="registrar-subtitle">
+                {{ _('%(days)s dias de teste — sem cartão de crédito') % {'days': trial_days} }}
+            </p>
+        </div>
+
+        <div class="login-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}" role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('registrar') }}">
+                <label for="nome_negocio">{{ _('Nome do negócio') }}</label>
+                <input type="text" id="nome_negocio" name="nome_negocio" required
+                       value="{{ form.nome_negocio or '' }}"
+                       placeholder="{{ _('Ex.: Studio Bella, Clínica Horizonte') }}"
+                       autocomplete="organization">
+
+                <label for="nome_profissional">{{ _('Seu nome (profissional)') }}</label>
+                <input type="text" id="nome_profissional" name="nome_profissional" required
+                       value="{{ form.nome_profissional or '' }}"
+                       placeholder="{{ _('Ex.: Maria Silva') }}"
+                       autocomplete="name">
+
+                <label for="email">{{ _('E-mail') }}</label>
+                <input type="email" id="email" name="email" required
+                       value="{{ form.email or '' }}"
+                       placeholder="{{ _('seu@email.com') }}"
+                       autocomplete="email">
+
+                <label for="password">{{ _('Senha') }}</label>
+                <input type="password" id="password" name="password" required minlength="6"
+                       placeholder="{{ _('Mínimo 6 caracteres') }}"
+                       autocomplete="new-password">
+
+                <label for="password_confirm">{{ _('Confirmar senha') }}</label>
+                <input type="password" id="password_confirm" name="password_confirm" required minlength="6"
+                       placeholder="{{ _('Repita a senha') }}"
+                       autocomplete="new-password">
+
+                <button type="submit">{{ _('Criar minha conta') }}</button>
+            </form>
+
+            <div class="login-links">
+                <span>{{ _('Já tem conta?') }}</span>
+                <a href="{{ url_for('login') }}">{{ _('Entrar') }}</a>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
