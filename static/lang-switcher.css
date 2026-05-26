@@ -61,8 +61,13 @@
     justify-content: flex-end;
 }
 .lang-picker-login .lang-switcher__btn,
-.top-actions .lang-switcher__btn {
-    color: #333;
+.top-actions .lang-switcher__btn,
+.page-marcar .lang-switcher__btn {
+    color: #2d3748;
+}
+.page-marcar .lang-switcher__btn.is-active {
+    background: rgba(255, 255, 255, 0.85);
+    color: #1b365d;
 }
 .top-actions .lang-switcher__btn {
     color: #d4af37;

@@ -1,107 +1,73 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="{{ current_locale }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ _('Marcar Horário') }} — {{ configs.nome_negocio }}</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        /* Estilo rápido para alinhar as bandeiras no topo do formulário */
-        .lang-picker-marcar {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .lang-picker-marcar a {
-            text-decoration: none;
-            font-size: 1.4rem;
-            transition: transform 0.2s;
-        }
-        .lang-picker-marcar a:hover {
-            transform: scale(1.2);
-        }
-        .alert {
-            padding: 14px 18px;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            line-height: 1.45;
-        }
-        .alert-warning {
-            background: rgba(212, 175, 55, 0.15);
-            border: 1px solid #d4af37;
-            color: #f5e6b3;
-        }
-        .alert-danger {
-            background: rgba(220, 53, 69, 0.15);
-            border: 1px solid #dc3545;
-            color: #f8d7da;
-        }
-        .alert-success {
-            background: rgba(25, 135, 84, 0.15);
-            border: 1px solid #198754;
-            color: #d1e7dd;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='marcar.css') }}">
 </head>
-<body>
+<body class="page-marcar" lang="{{ current_locale }}">
 
-<div class="container">
+<div class="container-marcar">
     <div class="form-section">
-        
-        <div class="lang-picker-marcar lang-picker-login">
-            {% include '_lang_selector.html' %}
+        <div class="marcar-header">
+            <div class="lang-picker-marcar">
+                {% include '_lang_selector.html' %}
+            </div>
+            <h2>{{ _('Marcar Horário') }}</h2>
         </div>
-
-        <h2>📅 {{ _('Marcar Horário') }}</h2>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-            <div class="alert alert-{{ category if category != 'error' else 'danger' }} text-center" role="alert" style="margin-bottom: 20px;">
+            <div class="alert alert-{{ category if category != 'error' else 'danger' }} text-center" role="alert">
                 {{ message }}
             </div>
             {% endfor %}
         {% endif %}
         {% endwith %}
-        
+
         <form method="POST" action="{{ url_for('agendar') }}">
-            
-            <label for="nome">{{ _('Nome Completo:') }}</label>
-            <input type="text" id="nome" name="nome" required placeholder="{{ _('Digite seu nome completo') }}">
+            <label for="nome">{{ _('Nome completo') }}</label>
+            <input type="text" id="nome" name="nome" required
+                   placeholder="{{ _('Digite seu nome completo') }}" autocomplete="name">
 
-            <label for="whatsapp">{{ _('WhatsApp:') }}</label>
-            <input type="text" id="whatsapp" name="whatsapp" required placeholder="+55 19 99999-9999">
+            <label for="whatsapp">{{ _('WhatsApp') }}</label>
+            <input type="tel" id="whatsapp" name="whatsapp" required
+                   placeholder="{{ _('Ex.: +55 19 99999-9999') }}" autocomplete="tel">
 
-            <label for="barbeiro_id">{{ _('Profissional:') }}</label>
+            <label for="barbeiro_id">{{ _('Selecione o profissional') }}</label>
             <select id="barbeiro_id" name="barbeiro_id" required>
-                <option value="">{{ _('Selecione o Profissional') }}</option>
+                <option value="">{{ _('Escolha um profissional') }}</option>
                 {% for barbeiro in barbeiros %}
-                    <option value="{{ barbeiro[0] }}"
-                        {% if profissional_sugerido and barbeiro[0] == profissional_sugerido %}selected{% endif %}>
-                        {{ barbeiro[1] }}
-                    </option>
+                <option value="{{ barbeiro[0] }}"
+                    {% if profissional_sugerido and barbeiro[0] == profissional_sugerido %}selected{% endif %}>
+                    {{ barbeiro[1] }}
+                </option>
                 {% endfor %}
             </select>
             {% if profissional_sugerido %}
-            <p class="text-muted small" style="margin-top: 6px; color: #c7a17a !important;">
-                <i class="fas fa-link"></i> {{ _('Profissional sugerido pelo seu link de agendamento.') }}
+            <p class="hint-profissional">
+                <i class="fas fa-link" aria-hidden="true"></i>
+                {{ _('Profissional sugerido pelo seu link de agendamento.') }}
             </p>
             {% endif %}
 
-            <label for="data">{{ _('Data Desejada:') }}</label>
+            <label for="data">{{ _('Data desejada') }}</label>
             <input type="date" id="data" name="data" required>
 
-            <label for="hora">{{ _('Horário:') }}</label>
+            <label for="hora">{{ _('Escolha o horário') }}</label>
             <select id="hora" name="hora" required>
                 <option value="">{{ _('Selecione um horário') }}</option>
                 {% for hora in horarios %}
-                    <option value="{{ hora }}">{{ hora }}</option>
+                <option value="{{ hora }}">{{ hora }}</option>
                 {% endfor %}
             </select>
 
-            <label for="servico">{{ _('Serviço:') }}</label>
+            <label for="servico">{{ _('Serviço') }}</label>
             <select id="servico" name="servico" required>
                 <option value="">{{ _('Selecione o serviço') }}</option>
                 <option value="Corte">{{ _('Corte') }}</option>
@@ -111,15 +77,13 @@
                 <option value="Outro">{{ _('Outro') }}</option>
             </select>
 
-            <button type="submit">{{ _('✅ Confirmar Agendamento') }}</button>
+            <button type="submit">{{ _('Confirmar agendamento') }}</button>
         </form>
 
-        <a href="/" style="display: block; text-align: center; margin-top: 20px; color: #ff4b5c; text-decoration: none;">
-            {{ _('← Voltar para a página inicial') }}
-        </a>
+        <a href="{{ url_for('home') }}" class="link-voltar">{{ _('Voltar para a página inicial') }}</a>
     </div>
 
-    <div class="bloco-direito branding-section"
+    <div class="bloco-direito"
          {% if configs.foto_fundo_direito_url %}
          style="background-image: url('{{ url_for('static', filename='uploads/banners/' + configs.foto_fundo_direito_url) }}');"
          {% endif %}>

@@ -1,0 +1,261 @@
+/* ==================== /marcar — identidade Home/Admin (azul claro) ==================== */
+:root {
+    --admin-blue-light: #cee5f2;
+    --admin-blue-soft: #bbe1fa;
+    --admin-blue-dark: #1b365d;
+    --admin-text: #2d3748;
+    --admin-accent: #2563eb;
+    --admin-border: #9ecae6;
+    --admin-border-nav: #a8d4eb;
+    --bg-page: #ffffff;
+    --bg-subtle: #f8fafc;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 4px 14px rgba(27, 54, 93, 0.08);
+    --shadow-md: 0 8px 24px rgba(27, 54, 93, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body.page-marcar {
+    font-family: 'Outfit', 'Poppins', Arial, sans-serif;
+    background: var(--bg-subtle);
+    min-height: 100vh;
+    color: var(--admin-text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px 16px;
+    -webkit-font-smoothing: antialiased;
+}
+
+.page-marcar .container-marcar {
+    display: flex;
+    width: 960px;
+    max-width: 100%;
+    background: var(--bg-page);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--admin-border);
+}
+
+.page-marcar .form-section {
+    flex: 1;
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: var(--admin-blue-soft);
+}
+
+.page-marcar .marcar-header {
+    background: var(--admin-blue-light);
+    margin: -36px -32px 24px;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--admin-border-nav);
+}
+
+.page-marcar .marcar-header h2 {
+    margin: 0;
+    color: var(--admin-blue-dark);
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'Playfair Display', Georgia, serif;
+    letter-spacing: 0.02em;
+}
+
+.page-marcar .lang-picker-marcar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.page-marcar label {
+    font-weight: 600;
+    margin-top: 4px;
+    display: block;
+    color: var(--admin-blue-dark);
+    font-size: 0.9rem;
+}
+
+.page-marcar input,
+.page-marcar select {
+    width: 100%;
+    padding: 12px 14px;
+    margin-top: 6px;
+    margin-bottom: 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--admin-border);
+    background-color: var(--bg-page);
+    color: var(--admin-text);
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 2px rgba(27, 54, 93, 0.04);
+}
+
+.page-marcar input:focus,
+.page-marcar select:focus {
+    border-color: var(--admin-accent);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+    outline: none;
+}
+
+.page-marcar input::placeholder {
+    color: #94a3b8;
+}
+
+.page-marcar .hint-profissional {
+    margin-top: -10px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    color: var(--admin-text);
+    opacity: 0.9;
+}
+
+.page-marcar .hint-profissional i {
+    color: var(--admin-accent);
+}
+
+.page-marcar button[type="submit"] {
+    width: 100%;
+    padding: 14px;
+    background: var(--admin-blue-dark);
+    border: none;
+    border-radius: var(--radius-md);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    box-shadow: var(--shadow-sm);
+    margin-top: 8px;
+}
+
+.page-marcar button[type="submit"]:hover {
+    background: var(--admin-accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.page-marcar .link-voltar {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: var(--admin-blue-dark);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.page-marcar .link-voltar:hover {
+    color: var(--admin-accent);
+}
+
+.page-marcar .alert {
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    margin-bottom: 18px;
+}
+
+.page-marcar .alert-warning {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+}
+
+.page-marcar .alert-danger {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+}
+
+.page-marcar .alert-success {
+    background: #ecfdf5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+}
+
+/* Painel direito */
+.page-marcar .bloco-direito {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-height: 320px;
+    background: var(--admin-blue-light);
+    background-size: cover;
+    background-position: center;
+}
+
+.page-marcar .bloco-direito-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        160deg,
+        rgba(27, 54, 93, 0.55) 0%,
+        rgba(27, 54, 93, 0.35) 50%,
+        rgba(206, 229, 242, 0.4) 100%
+    );
+    z-index: 0;
+}
+
+.page-marcar .destaque-texto {
+    position: relative;
+    z-index: 1;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(1.35rem, 2.5vw, 2rem);
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--admin-blue-dark);
+    text-shadow: 0 1px 8px rgba(255, 255, 255, 0.5);
+    padding: 24px;
+    max-width: 90%;
+    white-space: pre-line;
+}
+
+.page-marcar .bloco-direito[style*="background-image"] .destaque-texto {
+    color: #ffffff;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+}
+
+.page-marcar .bloco-direito[style*="background-image"] .bloco-direito-overlay {
+    background: linear-gradient(
+        160deg,
+        rgba(27, 54, 93, 0.75) 0%,
+        rgba(27, 54, 93, 0.45) 100%
+    );
+}
+
+.page-marcar .destaque-texto::after {
+    content: "";
+    display: block;
+    width: 56px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--admin-accent), transparent);
+    margin: 14px auto 0;
+}
+
+@media (max-width: 768px) {
+    body.page-marcar {
+        padding: 12px;
+    }
+    .page-marcar .container-marcar {
+        flex-direction: column;
+    }
+    .page-marcar .marcar-header {
+        margin: -36px -32px 20px;
+    }
+    .page-marcar .bloco-direito {
+        min-height: 200px;
+    }
+}

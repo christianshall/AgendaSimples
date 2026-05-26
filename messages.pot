@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-26 06:11-0300\n"
+"POT-Creation-Date: 2026-05-26 06:35-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -107,7 +107,7 @@ msgstr ""
 msgid "Todos"
 msgstr ""
 
-#: templates/admin_agenda.html:385 templates/marcar_agendamento.html:77
+#: templates/admin_agenda.html:385
 msgid "Profissional:"
 msgstr ""
 
@@ -149,12 +149,12 @@ msgid "Cliente"
 msgstr ""
 
 #: templates/admin_agenda.html:447 templates/admin_agenda.html:495
-#: templates/agenda.html:332
+#: templates/agenda.html:332 templates/marcar_agendamento.html:70
 msgid "Serviço"
 msgstr ""
 
 #: templates/admin_agenda.html:452 templates/agenda.html:337
-#: templates/home.html:337
+#: templates/home.html:337 templates/marcar_agendamento.html:38
 msgid "WhatsApp"
 msgstr ""
 
@@ -227,6 +227,7 @@ msgid "Cadastre funcionários com acesso à agenda"
 msgstr ""
 
 #: templates/admin_cadastrar_profissional.html:126
+#: templates/marcar_agendamento.html:34
 msgid "Nome completo"
 msgstr ""
 
@@ -234,7 +235,7 @@ msgstr ""
 msgid "Ex.: Maria Silva"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:132
+#: templates/admin_cadastrar_profissional.html:132 templates/login.html:37
 msgid "E-mail"
 msgstr ""
 
@@ -390,23 +391,23 @@ msgstr ""
 msgid "Nome:"
 msgstr ""
 
-#: templates/cadastro.html:112 templates/marcar_agendamento.html:72
+#: templates/cadastro.html:112 templates/marcar_agendamento.html:36
 msgid "Digite seu nome completo"
 msgstr ""
 
-#: templates/cadastro.html:114 templates/login.html:142
+#: templates/cadastro.html:114
 msgid "Email:"
 msgstr ""
 
-#: templates/cadastro.html:115 templates/login.html:143
+#: templates/cadastro.html:115
 msgid "Digite seu email"
 msgstr ""
 
-#: templates/cadastro.html:117 templates/login.html:145
+#: templates/cadastro.html:117
 msgid "Senha:"
 msgstr ""
 
-#: templates/cadastro.html:118 templates/login.html:146
+#: templates/cadastro.html:118 templates/login.html:43
 msgid "Digite sua senha"
 msgstr ""
 
@@ -500,7 +501,7 @@ msgid "Qualidade, praticidade e o portfólio do seu profissional em um só lugar
 msgstr ""
 
 #: templates/home.html:81 templates/marcar_agendamento.html:6
-#: templates/marcar_agendamento.html:57
+#: templates/marcar_agendamento.html:20
 msgid "Marcar Horário"
 msgstr ""
 
@@ -524,7 +525,7 @@ msgstr ""
 msgid "Acesso ao painel da equipe"
 msgstr ""
 
-#: templates/home.html:138 templates/login.html:148
+#: templates/home.html:138 templates/login.html:45
 msgid "Entrar"
 msgstr ""
 
@@ -598,84 +599,88 @@ msgstr ""
 msgid "© %(nome)s · %(marca)s"
 msgstr ""
 
-#: templates/home.html:355
+#: templates/home.html:355 templates/login.html:6
 msgid "AgendaSimples"
 msgstr ""
 
 #: templates/login.html:6
-msgid "Login - Barber Agenda"
+msgid "Login"
 msgstr ""
 
-#: templates/login.html:129
+#: templates/login.html:20
 msgid "Login do Profissional"
 msgstr ""
 
-#: templates/login.html:153
+#: templates/login.html:39
+msgid "Digite seu e-mail"
+msgstr ""
+
+#: templates/login.html:41
+msgid "Senha"
+msgstr ""
+
+#: templates/login.html:49
 msgid "Esqueci minha senha"
 msgstr ""
 
-#: templates/marcar_agendamento.html:71
-msgid "Nome Completo:"
+#: templates/marcar_agendamento.html:40
+msgid "Ex.: +55 19 99999-9999"
 msgstr ""
 
-#: templates/marcar_agendamento.html:74
-msgid "WhatsApp:"
+#: templates/marcar_agendamento.html:42
+msgid "Selecione o profissional"
 msgstr ""
 
-#: templates/marcar_agendamento.html:79
-msgid "Selecione o Profissional"
+#: templates/marcar_agendamento.html:44
+msgid "Escolha um profissional"
 msgstr ""
 
-#: templates/marcar_agendamento.html:89
+#: templates/marcar_agendamento.html:55
 msgid "Profissional sugerido pelo seu link de agendamento."
 msgstr ""
 
-#: templates/marcar_agendamento.html:93
-msgid "Data Desejada:"
+#: templates/marcar_agendamento.html:59
+msgid "Data desejada"
 msgstr ""
 
-#: templates/marcar_agendamento.html:96
-msgid "Horário:"
+#: templates/marcar_agendamento.html:62
+msgid "Escolha o horário"
 msgstr ""
 
-#: templates/marcar_agendamento.html:98
+#: templates/marcar_agendamento.html:64
 msgid "Selecione um horário"
 msgstr ""
 
-#: templates/marcar_agendamento.html:104
-msgid "Serviço:"
-msgstr ""
-
-#: templates/marcar_agendamento.html:106
+#: templates/marcar_agendamento.html:72
 msgid "Selecione o serviço"
 msgstr ""
 
-#: templates/marcar_agendamento.html:107
+#: templates/marcar_agendamento.html:73
 msgid "Corte"
 msgstr ""
 
-#: templates/marcar_agendamento.html:108
+#: templates/marcar_agendamento.html:74
 msgid "Corte e Barba"
 msgstr ""
 
-#: templates/marcar_agendamento.html:109
+#: templates/marcar_agendamento.html:75
 msgid "Corte + Sobrancelha"
 msgstr ""
 
-#: templates/marcar_agendamento.html:110
+#: templates/marcar_agendamento.html:76
 msgid "Barba"
 msgstr ""
 
-#: templates/marcar_agendamento.html:111
+#: templates/marcar_agendamento.html:77
 msgid "Outro"
 msgstr ""
 
-#: templates/marcar_agendamento.html:114
-msgid "✅ Confirmar Agendamento"
+#: templates/marcar_agendamento.html:80
+msgid "Confirmar agendamento"
 msgstr ""
 
-#: templates/marcar_agendamento.html:118
-msgid "← Voltar para a página inicial"
+#: templates/marcar_agendamento.html:83
+msgid "Voltar para a página inicial"
 msgstr ""
 
 #: templates/redefinir_senha.html:6

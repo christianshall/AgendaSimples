@@ -1,156 +1,53 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="{{ current_locale }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('Login - Barber Agenda') }}</title>
+    <title>{{ _('Login') }} — {{ _('AgendaSimples') }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
-
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #000000, #444444);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .container {
-            background: #fff;
-            width: 350px;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 20px #00000070;
-            animation: fadeIn 0.6s;
-        }
-
-        /* Seletor de idiomas dentro do container */
-        .lang-picker-login {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        .lang-picker-login a {
-            text-decoration: none;
-            font-size: 1.3rem;
-            transition: transform 0.2s;
-        }
-        .lang-picker-login a:hover {
-            transform: scale(1.2);
-        }
-
-        h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #000;
-            margin-top: 5px;
-        }
-
-        label {
-            font-weight: bold;
-            font-size: 15px;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            margin-top: 5px;
-            margin-bottom: 15px;
-            border-radius: 6px;
-            border: 1px solid #bbb;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-
-        button {
-            width: 100%;
-            background: black;
-            color: white;
-            border: none;
-            padding: 12px;
-            font-size: 17px;
-            cursor: pointer;
-            border-radius: 6px;
-            font-weight: bold;
-        }
-
-        button:hover {
-            background: #333;
-        }
-
-        .link {
-            text-align: center;
-            margin-top: 15px;
-        }
-
-        .link a {
-            text-decoration: none;
-            color: black;
-            font-weight: bold;
-        }
-
-        .btn-cadastro {
-            display: inline-block;
-            width: 100%;
-            padding: 12px;
-            background: #333;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 17px;
-            text-align: center;
-            cursor: pointer;
-            transition: background 0.3s;
-            box-sizing: border-box;
-        }
-
-        .btn-cadastro:hover {
-            background: #000;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px);}
-            to { opacity: 1; transform: translateY(0);}
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
 </head>
-<body>
+<body class="page-login" lang="{{ current_locale }}">
 
-    <div class="container">
-        <div class="lang-picker-login">
-            {% include '_lang_selector.html' %}
+    <div class="login-card">
+        <div class="login-header">
+            <div class="lang-picker-login">
+                {% include '_lang_selector.html' %}
+            </div>
+            <h2>{{ _('Login do Profissional') }}</h2>
         </div>
 
-        <h2>{{ _('Login do Profissional') }}</h2>
+        <div class="login-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}" role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endwith %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% for category, message in messages %}
-                <div style="padding:10px;border-radius:6px;margin-bottom:12px;font-size:14px;{% if category == 'error' %}background:#f8d7da;color:#721c24;{% elif category == 'success' %}background:#d4edda;color:#155724;{% else %}background:#fff3cd;color:#856404;{% endif %}">{{ message }}</div>
-            {% endfor %}
-        {% endwith %}
+            <form method="POST" action="{{ url_for('login') }}">
+                {% if next_url %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
 
-        <form method="POST">
-            {% if next_url %}
-            <input type="hidden" name="next" value="{{ next_url }}">
-            {% endif %}
+                <label for="email">{{ _('E-mail') }}</label>
+                <input type="email" id="email" name="email" required
+                       placeholder="{{ _('Digite seu e-mail') }}" autocomplete="email">
 
-            <label>{{ _('Email:') }}</label>
-            <input type="email" name="email" required placeholder="{{ _('Digite seu email') }}">
+                <label for="password">{{ _('Senha') }}</label>
+                <input type="password" id="password" name="password" required
+                       placeholder="{{ _('Digite sua senha') }}" autocomplete="current-password">
 
-            <label>{{ _('Senha:') }}</label>
-            <input type="password" name="password" required placeholder="{{ _('Digite sua senha') }}">
+                <button type="submit">{{ _('Entrar') }}</button>
+            </form>
 
-            <button type="submit">{{ _('Entrar') }}</button>
-
-        </form>
-
-        <div class="link">
-            <a href="{{ url_for('esqueci_senha') }}">{{ _('Esqueci minha senha') }}</a>
+            <div class="login-links">
+                <a href="{{ url_for('esqueci_senha') }}">{{ _('Esqueci minha senha') }}</a>
+            </div>
         </div>
     </div>
 
