@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ _('Agenda online, controle financeiro e menos faltas para barbearias, salões e clínicas.') }}">
+    <title>{{ _('AgendaSimples') }} — {{ _('Agenda online que vende mais') }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home_vendas.css') }}">
+</head>
+<body class="vendas-body" lang="{{ current_locale }}">
+
+<nav class="vendas-nav" aria-label="{{ _('Navegação principal') }}">
+    <a href="{{ url_for('home') }}" class="vendas-brand">AgendaSimples</a>
+    <div class="vendas-nav-actions">
+        <div class="lang-picker-login">{% include '_lang_selector.html' %}</div>
+        <a href="{{ url_for('login') }}" class="vendas-btn vendas-btn--ghost">{{ _('Entrar') }}</a>
+        <a href="#cadastro" class="vendas-btn vendas-btn--primary js-scroll-cadastro">{{ _('Começar grátis') }}</a>
+    </div>
+</nav>
+
+<section class="vendas-hero" aria-labelledby="hero-title">
+    <div class="vendas-hero-inner">
+        <div>
+            <span class="vendas-hero-badge">{{ _('Plataforma #1 para agendamentos') }}</span>
+            <h1 id="hero-title">{{ _('Sua agenda online. Mais clientes. Menos faltas.') }}</h1>
+            <p class="vendas-hero-lead">
+                {{ _('Automatize reservas, controle o caixa e ofereça uma página profissional para seus clientes — tudo em um só lugar.') }}
+            </p>
+            <div class="vendas-benefits">
+                <span class="vendas-benefit-pill">
+                    <i class="fas fa-chart-line" aria-hidden="true"></i>
+                    {{ _('Reduza faltas em até 50%%') }}
+                </span>
+                <span class="vendas-benefit-pill">
+                    <i class="fas fa-sack-dollar" aria-hidden="true"></i>
+                    {{ _('Aumente seu faturamento') }}
+                </span>
+                <span class="vendas-benefit-pill">
+                    <i class="fas fa-bolt" aria-hidden="true"></i>
+                    {{ _('Configure em minutos') }}
+                </span>
+            </div>
+            <a href="#cadastro" class="vendas-btn vendas-btn--primary vendas-btn--lg js-scroll-cadastro">
+                <i class="fas fa-rocket" aria-hidden="true"></i>
+                {{ _('Começar teste grátis') }}
+            </a>
+        </div>
+        <div class="vendas-hero-visual" aria-hidden="true">
+            <div class="vendas-mockup">
+                <div class="vendas-mockup-title">{{ _('Painel do seu negócio') }}</div>
+                <div class="vendas-mockup-row"><i class="fas fa-calendar-check"></i> {{ _('Agenda do dia preenchida') }}</div>
+                <div class="vendas-mockup-row"><i class="fas fa-wallet"></i> {{ _('Fluxo de caixa em tempo real') }}</div>
+                <div class="vendas-mockup-row"><i class="fas fa-link"></i> {{ _('Link exclusivo para clientes') }}</div>
+                <div class="vendas-mockup-row"><i class="fas fa-users"></i> {{ _('Equipe e serviços organizados') }}</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="vendas-section vendas-section--alt" aria-labelledby="recursos-title">
+    <div class="vendas-section-inner">
+        <h2 id="recursos-title" class="vendas-section-title">{{ _('Tudo que seu negócio precisa') }}</h2>
+        <p class="vendas-section-sub">
+            {{ _('Ferramentas pensadas para barbearias, salões e clínicas que querem crescer com organização.') }}
+        </p>
+        <div class="vendas-features">
+            <article class="vendas-feature-card">
+                <div class="vendas-feature-icon"><i class="fas fa-calendar-alt" aria-hidden="true"></i></div>
+                <h3>{{ _('Agenda Online') }}</h3>
+                <p>{{ _('Clientes marcam horário 24h pelo link da sua página, sem troca de mensagens.') }}</p>
+            </article>
+            <article class="vendas-feature-card">
+                <div class="vendas-feature-icon"><i class="fas fa-coins" aria-hidden="true"></i></div>
+                <h3>{{ _('Controle Financeiro') }}</h3>
+                <p>{{ _('Receitas, despesas e faturamento por profissional em um painel claro.') }}</p>
+            </article>
+            <article class="vendas-feature-card">
+                <div class="vendas-feature-icon"><i class="fas fa-chart-pie" aria-hidden="true"></i></div>
+                <h3>{{ _('Fluxo de Caixa') }}</h3>
+                <p>{{ _('Saiba quanto entrou e saiu — tome decisões com números reais.') }}</p>
+            </article>
+            <article class="vendas-feature-card">
+                <div class="vendas-feature-icon"><i class="fas fa-store" aria-hidden="true"></i></div>
+                <h3>{{ _('Barbearias & Salões') }}</h3>
+                <p>{{ _('Perfeito para barbearias, salões de beleza, estética e negócios similares.') }}</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="vendas-section" aria-labelledby="preco-title">
+    <h2 id="preco-title" class="vendas-section-title">{{ _('Preço simples, sem surpresas') }}</h2>
+    <p class="vendas-section-sub">{{ _('Comece hoje. Cancele quando quiser.') }}</p>
+    <div class="vendas-pricing-wrap">
+        <div class="vendas-pricing-card">
+            <h3>{{ _('Plano Profissional') }}</h3>
+            <p class="vendas-pricing-trial">
+                {{ _('%(days)s dias grátis', days=trial_days) }}
+            </p>
+            <p class="vendas-pricing-price">
+                R$ {{ '%.2f'|format(preco_mensal) }}<small>/{{ _('mês') }}</small>
+            </p>
+            <p class="vendas-pricing-note">{{ _('Depois do trial. Sem fidelidade. Sem taxa escondida.') }}</p>
+            <ul class="vendas-pricing-list">
+                <li><i class="fas fa-check-circle" aria-hidden="true"></i> {{ _('Agenda e link público ilimitados') }}</li>
+                <li><i class="fas fa-check-circle" aria-hidden="true"></i> {{ _('Financeiro e fluxo de caixa') }}</li>
+                <li><i class="fas fa-check-circle" aria-hidden="true"></i> {{ _('Múltiplos profissionais') }}</li>
+                <li><i class="fas fa-check-circle" aria-hidden="true"></i> {{ _('Página personalizada do seu negócio') }}</li>
+            </ul>
+            <a href="#cadastro" class="vendas-btn vendas-btn--light vendas-btn--lg js-scroll-cadastro">
+                {{ _('Começar teste grátis') }}
+            </a>
+        </div>
+    </div>
+</section>
+
+<section id="cadastro" class="vendas-cadastro" aria-labelledby="cadastro-title">
+    <div class="vendas-cadastro-inner">
+        <h2 id="cadastro-title">{{ _('Crie sua conta agora') }}</h2>
+        <p class="vendas-cadastro-sub">
+            {{ _('%(days)s dias grátis — depois apenas R$ %(preco).2f/mês. Sem cartão para começar.',
+                 days=trial_days, preco=preco_mensal) }}
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="vendas-alert vendas-alert--{{ 'danger' if category == 'error' else category }}" role="alert">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endwith %}
+
+        <form class="vendas-form" method="POST" action="{{ url_for('home') }}">
+            <label for="nome_negocio">{{ _('Nome do negócio') }}</label>
+            <input type="text" id="nome_negocio" name="nome_negocio" required
+                   value="{{ form.nome_negocio or '' }}"
+                   placeholder="{{ _('Ex.: Studio Bella, Barbearia Horizonte') }}"
+                   autocomplete="organization">
+
+            <label for="ramo_atividade">{{ _('Ramo de atividade') }}</label>
+            <select id="ramo_atividade" name="ramo_atividade" required>
+                <option value="">{{ _('Selecione...') }}</option>
+                {% for valor, rotulo in ramos %}
+                <option value="{{ valor }}"
+                    {% if form.ramo_atividade == valor %}selected{% endif %}>{{ rotulo }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="nome_profissional">{{ _('Seu nome (responsável)') }}</label>
+            <input type="text" id="nome_profissional" name="nome_profissional" required
+                   value="{{ form.nome_profissional or '' }}"
+                   placeholder="{{ _('Ex.: Maria Silva') }}"
+                   autocomplete="name">
+
+            <label for="email">{{ _('E-mail') }}</label>
+            <input type="email" id="email" name="email" required
+                   value="{{ form.email or '' }}"
+                   placeholder="{{ _('seu@email.com') }}"
+                   autocomplete="email">
+
+            <label for="password">{{ _('Senha') }}</label>
+            <input type="password" id="password" name="password" required minlength="6"
+                   placeholder="{{ _('Mínimo 6 caracteres') }}"
+                   autocomplete="new-password">
+
+            <label for="password_confirm">{{ _('Confirmar senha') }}</label>
+            <input type="password" id="password_confirm" name="password_confirm" required minlength="6"
+                   placeholder="{{ _('Repita a senha') }}"
+                   autocomplete="new-password">
+
+            <button type="submit" class="vendas-btn vendas-btn--primary vendas-btn--lg">
+                <i class="fas fa-user-plus" aria-hidden="true"></i>
+                {{ _('Criar minha conta grátis') }}
+            </button>
+        </form>
+
+        <p class="vendas-form-footer">
+            {{ _('Já tem conta?') }}
+            <a href="{{ url_for('login') }}">{{ _('Entrar no painel') }}</a>
+        </p>
+    </div>
+</section>
+
+<footer class="vendas-footer">
+    <p>&copy; {{ _('AgendaSimples') }} — {{ _('Agenda online para o seu negócio crescer.') }}</p>
+</footer>
+
+<script>
+document.querySelectorAll('.js-scroll-cadastro').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+        var alvo = document.getElementById('cadastro');
+        if (alvo) {
+            e.preventDefault();
+            alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+});
+if (window.location.hash === '#cadastro') {
+    var sec = document.getElementById('cadastro');
+    if (sec) setTimeout(function () { sec.scrollIntoView({ behavior: 'smooth' }); }, 100);
+}
+</script>
+</body>
+</html>

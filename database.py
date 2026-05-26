@@ -626,6 +626,7 @@ def ensure_schema_migrations(cursor):
         ("usuarios", "barbearia_id", "INTEGER"),
         ("Clientes", "barbearia_id", "INTEGER"),
         ("financeiro", "barbearia_id", "INTEGER"),
+        ("barbearias", "ramo_atividade", "TEXT"),
     ]
     for tabela, coluna, tipo_sql in alteracoes:
         try:
@@ -711,7 +712,8 @@ def init_database():
             link_instagram TEXT,
             link_facebook TEXT,
             link_whatsapp TEXT,
-            data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP
+            data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
+            ramo_atividade TEXT
         );
 
         CREATE TABLE IF NOT EXISTS usuarios (

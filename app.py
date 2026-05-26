@@ -686,22 +686,40 @@ def mudar_idioma(lang):
 
 # -------------------------- ROTAS DO SAAS / CADASTRO --------------------------
 
-@app.route("/registrar", methods=["GET", "POST"])
-@app.route("/cadastro", methods=["GET", "POST"])
-def registrar():
-    """Cadastro público de novo negócio (admin + trial grátis)."""
-    if request.method == "GET":
-        if session.get("user_id") and session.get("role") == "admin":
-            return redirect(url_for("admin_agenda"))
-        return render_template(
-            "registrar.html",
-            trial_days=cfg.TRIAL_DAYS,
-            form={},
-        )
+RAMOS_ATIVIDADE = (
+    ("barbearia", _("Barbearia")),
+    ("salao", _("Salão de Beleza")),
+    ("estetica", _("Clínica de Estética")),
+    ("outros", _("Outros")),
+)
+_RAMOS_VALIDOS = {c for c, _ in RAMOS_ATIVIDADE}
 
+
+def _resolver_barbearia(cursor, identificador):
+    """Busca estabelecimento por slug ou ID numérico."""
+    identificador = (identificador or "").strip()
+    if not identificador:
+        return None
+    if identificador.isdigit():
+        return _obter_barbearia_por_id(cursor, int(identificador))
+    return _obter_barbearia_por_slug(cursor, identificador)
+
+
+def _ctx_landing_vendas(form=None):
+    return {
+        "trial_days": cfg.TRIAL_DAYS,
+        "preco_mensal": cfg.PLANO_MENSAL_VALOR,
+        "ramos": RAMOS_ATIVIDADE,
+        "form": form or {},
+    }
+
+
+def _processar_cadastro_saas(template_name="home_vendas.html"):
+    """Valida e cria conta admin + trial; retorna redirect ou template com erros."""
     nome_negocio = (request.form.get("nome_negocio") or "").strip()
     nome_profissional = (request.form.get("nome_profissional") or "").strip()
     email = (request.form.get("email") or "").strip().lower()
+    ramo = (request.form.get("ramo_atividade") or "").strip().lower()
     senha = request.form.get("password") or ""
     senha_confirma = request.form.get("password_confirm") or ""
 
@@ -709,6 +727,7 @@ def registrar():
         "nome_negocio": nome_negocio,
         "nome_profissional": nome_profissional,
         "email": email,
+        "ramo_atividade": ramo,
     }
 
     erros = []
@@ -718,6 +737,8 @@ def registrar():
         erros.append(_("Informe o seu nome."))
     if not email or "@" not in email:
         erros.append(_("Informe um e-mail válido."))
+    if ramo not in _RAMOS_VALIDOS:
+        erros.append(_("Selecione o ramo de atividade."))
     if len(senha) < 6:
         erros.append(_("A senha deve ter pelo menos 6 caracteres."))
     if senha != senha_confirma:
@@ -745,11 +766,7 @@ def registrar():
         conn.close()
         for msg in erros:
             flash(msg, "error")
-        return render_template(
-            "registrar.html",
-            trial_days=cfg.TRIAL_DAYS,
-            form=form,
-        )
+        return render_template(template_name, **_ctx_landing_vendas(form))
 
     senha_hash = generate_password_hash(senha)
     agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -760,9 +777,9 @@ def registrar():
             INSERT INTO barbearias (
                 nome, slug, email, senha, plano_ativo,
                 titulo_catalogo1, titulo_catalogo2, titulo_catalogo3, titulo_catalogo4,
-                texto_marcar_direito, data_cadastro
+                texto_marcar_direito, data_cadastro, ramo_atividade
             )
-            VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 nome_negocio,
@@ -775,6 +792,7 @@ def registrar():
                 DEFAULT_TITULOS_CATALOGO[3],
                 nome_negocio,
                 agora,
+                ramo,
             ),
         )
         barbearia_id = cursor.lastrowid
@@ -825,39 +843,50 @@ def registrar():
             _("Não foi possível criar sua conta. Tente novamente em instantes."),
             "error",
         )
-        return render_template(
-            "registrar.html",
-            trial_days=cfg.TRIAL_DAYS,
-            form=form,
-        )
+        return render_template(template_name, **_ctx_landing_vendas(form))
+
+
+@app.route("/registrar", methods=["GET", "POST"])
+@app.route("/cadastro", methods=["GET", "POST"])
+def registrar():
+    """Cadastro SaaS — GET redireciona à landing; POST processa o formulário."""
+    if request.method == "GET":
+        if session.get("user_id") and session.get("role") == "admin":
+            return redirect(url_for("admin_agenda"))
+        return redirect(url_for("home") + "#cadastro")
+    return _processar_cadastro_saas("home_vendas.html")
 
 
 @app.route("/cadastro_barbearia", methods=["GET", "POST"])
 def cadastro_barbearia():
-    """Legado — redireciona para o cadastro SaaS unificado."""
-    return redirect(url_for("registrar"))
+    """Legado — redireciona para a landing de vendas."""
+    return redirect(url_for("home") + "#cadastro")
 
-# -------------------------- HOME PÚBLICA / LANDING SAAS --------------------------
-@app.route("/")
+
+# -------------------------- LANDING DE VENDAS (/) --------------------------
+@app.route("/", methods=["GET", "POST"])
 def home():
-    """Landing da plataforma (sem dados de um tenant específico)."""
-    return render_template("landing_saas.html")
+    """Landing Page SaaS — conversão para plano mensal."""
+    if request.method == "POST":
+        return _processar_cadastro_saas("home_vendas.html")
+    if session.get("user_id") and session.get("role") == "admin":
+        return redirect(url_for("admin_agenda"))
+    return render_template("home_vendas.html", **_ctx_landing_vendas())
 
 
-@app.route("/b/<slug>")
-def barbearia_home(slug):
-    """Home pública isolada por estabelecimento."""
+@app.route("/b/<identificador>")
+def barbearia_home(identificador):
+    """Home pública do estabelecimento (slug ou ID numérico)."""
     conn = get_connection()
     cursor = conn.cursor()
     ensure_schema_migrations(cursor)
-    barbearia = _obter_barbearia_por_slug(cursor, slug)
+    barbearia = _resolver_barbearia(cursor, identificador)
     if not barbearia:
         conn.close()
         flash(_("Estabelecimento não encontrado."), "warning")
         return redirect(url_for("home"))
-    pagina = _render_home_estabelecimento(
-        cursor, barbearia["id"], barbearia["slug"] or slug
-    )
+    slug_exib = barbearia["slug"] or str(barbearia["id"])
+    pagina = _render_home_estabelecimento(cursor, barbearia["id"], slug_exib)
     conn.close()
     return pagina
 
@@ -1621,18 +1650,19 @@ def marcar():
     return redirect(url_for("home"))
 
 
-@app.route("/b/<slug>/marcar")
-def marcar_barbearia(slug):
+@app.route("/b/<identificador>/marcar")
+def marcar_barbearia(identificador):
     conn = get_connection()
     cursor = conn.cursor()
     ensure_schema_migrations(cursor)
-    barbearia = _obter_barbearia_por_slug(cursor, slug)
+    barbearia = _resolver_barbearia(cursor, identificador)
     if not barbearia:
         conn.close()
         flash(_("Estabelecimento não encontrado."), "warning")
         return redirect(url_for("home"))
 
     barbearia_id = barbearia["id"]
+    slug_exib = barbearia["slug"] or str(barbearia["id"])
     configs = _carregar_configs_home(cursor, barbearia_id)
     barbeiros = _listar_profissionais(cursor, barbearia_id)
     horarios = _listar_horarios(cursor, barbearia_id)
@@ -1658,7 +1688,7 @@ def marcar_barbearia(slug):
         profissional_sugerido=profissional_sugerido,
         configs=configs,
         barbearia_id=barbearia_id,
-        barbearia_slug=barbearia["slug"] or slug,
+        barbearia_slug=slug_exib,
     )
 
 # -------------------------- EXPORTAR PDF / EXCEL --------------------------
