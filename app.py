@@ -903,21 +903,73 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
             cursor, nome_profissional, email, senha_hash, agora, barbearia_id
         )
         safe_commit(conn)
+
+        cursor.execute(
+            """
+            SELECT id, nome, role, barbearia_id FROM usuarios
+            WHERE LOWER(TRIM(email)) = LOWER(?)
+            """,
+            (email,),
+        )
+        user = cursor.fetchone()
+        if not user:
+            safe_close(conn)
+            conn = None
+            flash(
+                gettext(
+                    "Conta criada! Sua página pública já está no ar — faça login para gerenciá-la."
+                ),
+                "success",
+            )
+            identificador_publico = slug or str(barbearia_id)
+            return redirect(
+                url_for("barbearia_home", identificador=identificador_publico)
+            )
+
+        user_id = _valor_linha(user, 0, "id")
+        if not user_id:
+            user_id = obter_id_inserido(
+                cursor,
+                """
+                SELECT id FROM usuarios
+                WHERE LOWER(TRIM(email)) = LOWER(?)
+                ORDER BY id DESC LIMIT 1
+                """,
+                (email,),
+            )
+
+        identificador_publico = slug or str(barbearia_id)
         safe_close(conn)
         conn = None
 
-        session.clear()
+        try:
+            if user_id:
+                _definir_sessao_admin(
+                    user_id,
+                    nome_profissional or _valor_linha(user, 1, "nome"),
+                    barbearia_id,
+                    nome_negocio,
+                    slug,
+                )
+        except Exception as exc_sessao:
+            _log_erro_cadastro_saas(
+                exc_sessao,
+                "sessao_pos_cadastro",
+                email=email,
+                barbearia_id=barbearia_id,
+            )
 
         flash(
             gettext(
-                "Conta criada com sucesso! Você tem %(days)s dias de teste grátis "
-                "para explorar tudo. Faça login com seu e-mail e senha e comece "
-                "a configurar seu negócio agora!"
+                "Parabéns! Sua conta teste de %(days)s dias foi criada. "
+                "Esta é a página pública do seu negócio — já está no ar para seus clientes!"
             )
             % {"days": int(cfg.TRIAL_DAYS)},
             "success",
         )
-        return redirect(url_for("home"))
+        return redirect(
+            url_for("barbearia_home", identificador=identificador_publico)
+        )
 
     except Exception as exc:
         safe_rollback(conn)
