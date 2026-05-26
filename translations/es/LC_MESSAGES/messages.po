@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-26 06:35-0300\n"
+"POT-Creation-Date: 2026-05-26 13:09-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es\n"
@@ -277,6 +277,30 @@ msgstr ""
 #: templates/admin_cadastrar_profissional.html:163
 msgid "JPG, PNG, WEBP ou GIF. Opcional."
 msgstr ""
+
+#: templates/admin_configuracoes.html:78
+msgid "Ações destrutivas"
+msgstr "Acciones destructivas"
+
+#: templates/admin_configuracoes.html:86
+msgid "Excluir Fichário"
+msgstr "Eliminar portafolio"
+
+#: templates/admin_configuracoes.html:95
+msgid "Excluir Foto"
+msgstr "Eliminar foto"
+
+#: templates/admin_configuracoes.html:100
+msgid "Use com cuidado: a exclusão é permanente."
+msgstr "Úselo con cuidado: la eliminación es permanente."
+
+#: templates/admin_configuracoes.html:173
+msgid "Tem certeza que deseja excluir o fichário?"
+msgstr "¿Está seguro de que desea eliminar el portafolio?"
+
+#: templates/admin_configuracoes.html:174
+msgid "Tem certeza que deseja excluir a foto?"
+msgstr "¿Está seguro de que desea eliminar la foto?"
 
 #: templates/admin_financeiro.html:9
 msgid "Financeiro - Christian Shall"

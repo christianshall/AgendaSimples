@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-26 06:35-0300\n"
+"POT-Creation-Date: 2026-05-26 13:09-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -271,6 +271,30 @@ msgstr ""
 
 #: templates/admin_cadastrar_profissional.html:163
 msgid "JPG, PNG, WEBP ou GIF. Opcional."
+msgstr ""
+
+#: templates/admin_configuracoes.html:78
+msgid "Ações destrutivas"
+msgstr ""
+
+#: templates/admin_configuracoes.html:86
+msgid "Excluir Fichário"
+msgstr ""
+
+#: templates/admin_configuracoes.html:95
+msgid "Excluir Foto"
+msgstr ""
+
+#: templates/admin_configuracoes.html:100
+msgid "Use com cuidado: a exclusão é permanente."
+msgstr ""
+
+#: templates/admin_configuracoes.html:173
+msgid "Tem certeza que deseja excluir o fichário?"
+msgstr ""
+
+#: templates/admin_configuracoes.html:174
+msgid "Tem certeza que deseja excluir a foto?"
 msgstr ""
 
 #: templates/admin_financeiro.html:9

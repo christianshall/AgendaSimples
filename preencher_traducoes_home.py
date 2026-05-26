@@ -67,6 +67,12 @@ TRADUCOES = {
         "Entrar": "Sign in",
         "Esqueci minha senha": "Forgot my password",
         "Login - Barber Agenda": "Login - Barber Agenda",
+        "Ações destrutivas": "Destructive actions",
+        "Excluir Fichário": "Delete Binder",
+        "Excluir Foto": "Delete Photo",
+        "Use com cuidado: a exclusão é permanente.": "Use with care: deletion is permanent.",
+        "Tem certeza que deseja excluir o fichário?": "Are you sure you want to delete the binder?",
+        "Tem certeza que deseja excluir a foto?": "Are you sure you want to delete the photo?",
     },
     "es": {
         "Agendamento online profissional": "Reserva online profesional",
@@ -133,6 +139,12 @@ TRADUCOES = {
         "Entrar": "Entrar",
         "Esqueci minha senha": "Olvidé mi contraseña",
         "Login - Barber Agenda": "Inicio de sesión - Barber Agenda",
+        "Ações destrutivas": "Acciones destructivas",
+        "Excluir Fichário": "Eliminar portafolio",
+        "Excluir Foto": "Eliminar foto",
+        "Use com cuidado: a exclusão é permanente.": "Úselo con cuidado: la eliminación es permanente.",
+        "Tem certeza que deseja excluir o fichário?": "¿Está seguro de que desea eliminar el portafolio?",
+        "Tem certeza que deseja excluir a foto?": "¿Está seguro de que desea eliminar la foto?",
     },
 }
 

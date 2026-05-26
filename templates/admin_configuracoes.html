@@ -7,68 +7,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(160deg, #0f0f0f 0%, #1a1a1a 50%, #121212 100%);
-            font-family: 'Outfit', sans-serif;
-            min-height: 100vh;
-            padding: 32px 16px;
-            color: #eee;
-        }
-        .config-card {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-top: 3px solid #d4af37;
-            border-radius: 16px;
-            padding: 32px;
-            max-width: 720px;
-            margin: 0 auto;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
-        }
-        .config-card h3 { color: #d4af37; font-weight: 700; }
-        .form-label { color: #d4af37; font-weight: 600; font-size: 0.9rem; }
-        .form-control, .form-select {
-            background: #252525;
-            border: 1px solid #444;
-            color: #fff;
-        }
-        .form-control:focus {
-            background: #2a2a2a;
-            border-color: #d4af37;
-            color: #fff;
-            box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.2);
-        }
-        .preview-img {
-            width: 100%;
-            max-height: 140px;
-            object-fit: contain;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            background: #252525;
-            border: 1px dashed #444;
-            padding: 8px;
-        }
-        .preview-logo { max-height: 100px; object-fit: contain; }
-        .btn-save {
-            background: linear-gradient(135deg, #d4af37, #b8952e);
-            color: #0f0f0f;
-            font-weight: 700;
-            border: none;
-        }
-        .btn-save:hover { filter: brightness(1.08); color: #000; }
-        .section-title {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: #888;
-            margin: 24px 0 12px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 8px;
-        }
-        small.text-muted { color: #999 !important; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_configuracoes.css') }}">
 </head>
-<body>
+<body class="page-admin-config">
 
 <div class="config-card">
     <h3 class="mb-1 text-center"><i class="fas fa-cog me-2"></i>Configurações</h3>
@@ -133,6 +74,33 @@
             <input type="file" name="foto_capa" class="form-control" accept="image/*">
         </div>
 
+        <div class="mt-3">
+            <p class="section-title mb-3">{{ _('Ações destrutivas') }}</p>
+            <div class="row g-2">
+                <div class="col-12 col-md-6">
+                    <button
+                        type="button"
+                        class="btn-delete-config w-100"
+                        onclick="confirmarExcluirFichario()"
+                        {% if not foto_capa %}disabled{% endif %}>
+                        <i class="fas fa-trash-alt me-2"></i>{{ _('Excluir Fichário') }}
+                    </button>
+                </div>
+                <div class="col-12 col-md-6">
+                    <button
+                        type="button"
+                        class="btn-delete-config w-100"
+                        onclick="confirmarExcluirFoto()"
+                        {% if not foto_fundo_direito_url %}disabled{% endif %}>
+                        <i class="fas fa-trash-alt me-2"></i>{{ _('Excluir Foto') }}
+                    </button>
+                </div>
+            </div>
+            <p class="small text-muted mt-2 mb-0">
+                {{ _('Use com cuidado: a exclusão é permanente.') }}
+            </p>
+        </div>
+
         <p class="section-title">Títulos dos 4 catálogos na Home</p>
         <p class="small text-muted mb-3">
             Cada título corresponde a um bloco de fotos na galeria (categorias internas: corte, corte_barba, sobrancelha, outros).
@@ -150,7 +118,7 @@
             (4, titulo_catalogo4, capa_catalogo4)
         ] %}
         {% for num, titulo, capa in catalogos_cfg %}
-        <div class="mb-4 p-3 rounded" style="background: #252525; border: 1px solid #333;">
+        <div class="mb-4 p-3 rounded" style="background: #ffffff; border: 1px solid rgba(158, 202, 230, 0.8);">
             <label class="form-label">Catálogo {{ num }} — título</label>
             <input type="text" name="titulo_catalogo{{ num }}" class="form-control mb-2"
                    value="{{ titulo }}" placeholder="Ex: Implantes, Canal, Estética…">
@@ -200,6 +168,41 @@
         </div>
     </form>
 </div>
+
+<script>
+    const MSG_EXCLUIR_FICHARIO = {{ _('Tem certeza que deseja excluir o fichário?') | tojson }};
+    const MSG_EXCLUIR_FOTO = {{ _('Tem certeza que deseja excluir a foto?') | tojson }};
+
+    async function excluirFicharioCallback() {
+        // TODO: integrar com a rota do backend para excluir o "fichário" (ex.: foto_capa).
+        const endpoint = "/admin/configuracoes/excluir_fichario";
+        console.warn("TODO excluirFichario:", endpoint);
+
+        // Exemplo (depois que você criar a rota no backend):
+        // const resp = await fetch(endpoint, { method: "POST", credentials: "same-origin" });
+        // if (!resp.ok) { alert("Falha ao excluir."); return; }
+        // window.location.reload();
+    }
+
+    async function excluirFotoCallback() {
+        // TODO: integrar com a rota do backend para excluir a "foto" (ex.: foto_fundo_direito_url).
+        const endpoint = "/admin/configuracoes/excluir_foto";
+        console.warn("TODO excluirFoto:", endpoint);
+
+        // Exemplo (depois que você criar a rota no backend):
+        // const resp = await fetch(endpoint, { method: "POST", credentials: "same-origin" });
+        // if (!resp.ok) { alert("Falha ao excluir."); return; }
+        // window.location.reload();
+    }
+
+    function confirmarExcluirFichario() {
+        if (confirm(MSG_EXCLUIR_FICHARIO)) excluirFicharioCallback();
+    }
+
+    function confirmarExcluirFoto() {
+        if (confirm(MSG_EXCLUIR_FOTO)) excluirFotoCallback();
+    }
+</script>
 
 </body>
 </html>
