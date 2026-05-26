@@ -800,6 +800,97 @@ def backfill_barbearia_id(cursor):
         print(f"backfill_barbearia_id: {exc}")
 
 
+def vincular_usuarios_orfaos_por_email_nome(cursor):
+    """
+    Preenche usuarios.barbearia_id NULL usando e-mail, agendamentos, nome e tenant único.
+    Retorna quantidade de usuários que ainda estão órfãos.
+    """
+    if not _coluna_existe(cursor, "usuarios", "barbearia_id"):
+        return -1
+
+    backfill_barbearia_id(cursor)
+
+    try:
+        if _coluna_existe(cursor, "barbearias", "email"):
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET barbearia_id = (
+                    SELECT b.id FROM barbearias b
+                    WHERE LOWER(TRIM(b.email)) = LOWER(TRIM(usuarios.email))
+                    LIMIT 1
+                )
+                WHERE barbearia_id IS NULL
+                  AND email IS NOT NULL AND TRIM(email) <> ''
+                """
+            )
+
+        cursor.execute(
+            """
+            UPDATE usuarios
+            SET barbearia_id = (
+                SELECT c.barbearia_id FROM Clientes c
+                WHERE c.barbeiro_id = usuarios.id
+                  AND c.barbearia_id IS NOT NULL
+                LIMIT 1
+            )
+            WHERE barbearia_id IS NULL
+              AND role IN ('barbeiro', 'profissional')
+            """
+        )
+
+        if _coluna_existe(cursor, "barbearias", "nome"):
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET barbearia_id = (
+                    SELECT b.id FROM barbearias b
+                    WHERE LOWER(TRIM(b.nome)) LIKE '%' || LOWER(TRIM(usuarios.nome)) || '%'
+                       OR LOWER(TRIM(usuarios.nome)) LIKE '%' || LOWER(TRIM(b.nome)) || '%'
+                    LIMIT 1
+                )
+                WHERE barbearia_id IS NULL
+                  AND role IN ('barbeiro', 'profissional')
+                  AND nome IS NOT NULL AND TRIM(nome) <> ''
+                """
+            )
+
+        cursor.execute(
+            """
+            SELECT COUNT(DISTINCT barbearia_id) FROM usuarios
+            WHERE role = 'admin' AND barbearia_id IS NOT NULL
+            """
+        )
+        n_tenants = (_valor_linha(cursor.fetchone(), 0) or 0) or 0
+        if n_tenants == 1:
+            padrao = _barbearia_id_padrao(cursor)
+            cursor.execute(
+                """
+                SELECT barbearia_id FROM usuarios
+                WHERE role = 'admin' AND barbearia_id IS NOT NULL
+                LIMIT 1
+                """
+            )
+            admin_row = cursor.fetchone()
+            admin_bid = _valor_linha(admin_row, 0) if admin_row else padrao
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET barbearia_id = ?
+                WHERE barbearia_id IS NULL
+                """,
+                (admin_bid,),
+            )
+    except Exception as exc:
+        print(f"vincular_usuarios_orfaos_por_email_nome: {exc}")
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM usuarios WHERE barbearia_id IS NULL"
+    )
+    row = cursor.fetchone()
+    return int(_valor_linha(row, 0) or 0)
+
+
 def vincular_usuario_barbearia(cursor, user_id):
     """
     Tenta preencher barbearia_id de um usuário (ex.: profissional órfão).

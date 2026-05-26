@@ -149,6 +149,7 @@ def _salvar_upload_foto_perfil(arquivo):
 
 
 ROLES_EQUIPE = frozenset({"admin", "barbeiro", "profissional"})
+MSG_ERRO_VINCULO = "Erro de vinculação: contate o administrador"
 
 
 def _definir_sessao_usuario(
@@ -247,7 +248,7 @@ def _linha_usuario_login(row):
     }
 
 
-def _barbearia_id_do_usuario(cursor, user_id):
+def _barbearia_id_do_usuario(cursor, user_id, tentar_corrigir=True):
     """barbearia_id gravado no registro do usuário (fonte de verdade)."""
     cursor.execute(
         "SELECT barbearia_id FROM usuarios WHERE id = ?",
@@ -257,9 +258,29 @@ def _barbearia_id_do_usuario(cursor, user_id):
     if not row:
         return None
     bid = _valor_linha(row, 0, "barbearia_id") or _valor_linha(row, nome="barbearia_id")
+    if bid is None and tentar_corrigir:
+        bid = vincular_usuario_barbearia(cursor, int(user_id))
     if bid is None:
-        return vincular_usuario_barbearia(cursor, int(user_id))
+        return None
     return int(bid)
+
+
+def _logout_por_falta_vinculo():
+    """Encerra sessão e impede acesso sem barbearia_id no banco."""
+    session.clear()
+    flash(_(MSG_ERRO_VINCULO), "error")
+    return redirect(url_for("login"))
+
+
+def _barbearia_id_admin_sessao_obrigatorio():
+    """barbearia_id do admin logado — None se ausente ou inválido."""
+    bid = session.get("barbearia_id")
+    if bid is None:
+        return None
+    try:
+        return int(bid)
+    except (TypeError, ValueError):
+        return None
 
 
 def _sincronizar_barbearia_sessao(cursor):
@@ -271,16 +292,9 @@ def _sincronizar_barbearia_sessao(cursor):
     if not user_id:
         return redirect(url_for("login"))
 
-    bid_db = _barbearia_id_do_usuario(cursor, user_id)
+    bid_db = _barbearia_id_do_usuario(cursor, user_id, tentar_corrigir=False)
     if bid_db is None:
-        flash(
-            _(
-                "Sua conta não está vinculada a um negócio. "
-                "Peça ao administrador para recadastrar ou vincular seu perfil."
-            ),
-            "error",
-        )
-        return redirect(url_for("login"))
+        return _logout_por_falta_vinculo()
 
     bid_sessao = session.get("barbearia_id")
     if bid_sessao is None or int(bid_sessao) != int(bid_db):
@@ -300,8 +314,17 @@ def _inserir_profissional_usuario(
     cursor, nome, email, senha_hash, barbearia_id, telefone=None, especialidade=None, foto_perfil=None
 ):
     """INSERT em usuarios sempre com barbearia_id da sessão do admin."""
+    if barbearia_id is None:
+        raise ValueError("barbearia_id obrigatório para cadastrar profissional")
+    try:
+        bid = int(barbearia_id)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("barbearia_id inválido") from exc
+    if bid < 1:
+        raise ValueError("barbearia_id inválido")
+
     cols = ["nome", "email", "senha", "role", "barbearia_id"]
-    vals = [nome, email, senha_hash, "profissional", int(barbearia_id)]
+    vals = [nome, email, senha_hash, "profissional", bid]
     if telefone is not None and _coluna_existe(cursor, "usuarios", "telefone"):
         cols.append("telefone")
         vals.append(telefone)
@@ -1287,32 +1310,44 @@ def login():
 
         senha_armazenada = (usuario or {}).get("senha")
         if usuario and _senha_confere(senha_armazenada, senha):
+            user_id = int(usuario["id"])
+            bid_db = _barbearia_id_do_usuario(cursor, user_id, tentar_corrigir=True)
+            if bid_db is None:
+                safe_rollback(conn)
+                safe_close(conn)
+                app.logger.warning(
+                    "Login bloqueado: user_id=%s sem barbearia_id no banco",
+                    user_id,
+                )
+                return _logout_por_falta_vinculo()
+
             try:
+                usuario["barbearia_id"] = bid_db
                 _iniciar_sessao_usuario(cursor, usuario, email)
-                bid = usuario.get("barbearia_id")
-                if bid is not None:
-                    session["barbearia_id"] = int(bid)
-                elif session.get("barbearia_id"):
-                    session["barbearia_id"] = int(session["barbearia_id"])
-                session["usuario_id"] = int(usuario["id"])
-                session["user_id"] = int(usuario["id"])
+                session["barbearia_id"] = int(bid_db)
+                session["usuario_id"] = user_id
+                session["user_id"] = user_id
                 session.modified = True
+
+                bid_final = _barbearia_id_do_usuario(
+                    cursor, user_id, tentar_corrigir=False
+                )
+                if bid_final is None or not session.get("barbearia_id"):
+                    safe_rollback(conn)
+                    safe_close(conn)
+                    return _logout_por_falta_vinculo()
+
                 app.logger.info(
-                    "Login OK user_id=%s barbearia_id=%s (db=%s)",
-                    usuario["id"],
-                    session.get("barbearia_id"),
-                    bid,
+                    "Login OK user_id=%s barbearia_id=%s",
+                    user_id,
+                    bid_final,
                 )
                 safe_commit(conn)
             except ValueError as exc:
                 safe_rollback(conn)
                 safe_close(conn)
                 app.logger.warning("Login sem barbearia vinculada: %s", exc)
-                flash(
-                    _("Conta sem negócio vinculado. Peça ao administrador para reconfigurar seu cadastro."),
-                    "error",
-                )
-                return redirect(url_for("login"))
+                return _logout_por_falta_vinculo()
             safe_close(conn)
             destino = _url_segura_apos_login(
                 request.form.get("next") or request.args.get("next")
@@ -1583,6 +1618,17 @@ def admin_cadastrar_profissional():
         return bloqueio
 
     if request.method == "POST":
+        barbearia_id_sessao = _barbearia_id_admin_sessao_obrigatorio()
+        if not barbearia_id_sessao:
+            flash(
+                _(
+                    "Não foi possível cadastrar o profissional: negócio não identificado "
+                    "na sessão. Faça login novamente como administrador."
+                ),
+                "error",
+            )
+            return redirect(url_for("login"))
+
         nome = (request.form.get("nome") or "").strip()
         email = (request.form.get("email") or "").strip()
         celular_raw = (request.form.get("celular") or "").strip()
@@ -1610,12 +1656,7 @@ def admin_cadastrar_profissional():
                     "Foto inválida. Use JPG, PNG, WEBP ou GIF (máx. recomendado 5 MB)."
                 )
 
-        barbearia_id = session.get("barbearia_id")
-        if barbearia_id is not None:
-            barbearia_id = int(barbearia_id)
-        if not barbearia_id:
-            flash(_("Sessão sem negócio vinculado. Faça login novamente."), "error")
-            return redirect(url_for("login"))
+        barbearia_id = barbearia_id_sessao
 
         app.logger.info(
             "Cadastro profissional: admin user_id=%s barbearia_id sessão=%s",
@@ -1656,16 +1697,48 @@ def admin_cadastrar_profissional():
 
         senha_hash = generate_password_hash(senha)
 
-        _inserir_profissional_usuario(
-            cursor,
-            nome,
-            email,
-            senha_hash,
-            barbearia_id,
-            telefone=celular or None,
-            especialidade=especialidade or None,
-            foto_perfil=foto_nome,
+        try:
+            _inserir_profissional_usuario(
+                cursor,
+                nome,
+                email,
+                senha_hash,
+                barbearia_id,
+                telefone=celular or None,
+                especialidade=especialidade or None,
+                foto_perfil=foto_nome,
+            )
+        except ValueError as exc:
+            conn.close()
+            flash(str(exc), "error")
+            return render_template(
+                "admin_cadastrar_profissional.html",
+                form={
+                    "nome": nome,
+                    "email": email,
+                    "celular": celular_raw,
+                    "especialidade": especialidade,
+                },
+            )
+
+        cursor.execute(
+            "SELECT barbearia_id FROM usuarios WHERE LOWER(TRIM(email)) = LOWER(?)",
+            (email,),
         )
+        ver = cursor.fetchone()
+        bid_inserido = _valor_linha(ver, 0, "barbearia_id") if ver else None
+        if bid_inserido is None or int(bid_inserido) != int(barbearia_id):
+            safe_rollback(conn)
+            conn.close()
+            flash(
+                _(
+                    "Falha ao gravar vínculo com o negócio. "
+                    "O profissional não foi cadastrado. Tente novamente."
+                ),
+                "error",
+            )
+            return render_template("admin_cadastrar_profissional.html", form={})
+
         app.logger.info(
             "Profissional criado nome=%s email=%s barbearia_id=%s",
             nome,
