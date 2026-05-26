@@ -12,6 +12,7 @@ from database import (
     DbError,
     SERVICOS_PADRAO,
     _coluna_existe,
+    _valor_linha,
     ensure_schema_migrations,
     get_connection,
     init_database,
@@ -38,7 +39,7 @@ import secrets
 import traceback
 
 # 1. IMPORTAR O FLASK-BABEL
-from flask_babel import Babel, _
+from flask_babel import Babel, _, gettext
 
 app = Flask(__name__)
 app.secret_key = "CHRISTIAN_BARBESHOP_KEY_2025"
@@ -146,17 +147,28 @@ def _salvar_upload_foto_perfil(arquivo):
     return nome
 
 
+def _definir_sessao_admin(user_id, user_name, barbearia_id, nome_barbearia, barbearia_slug):
+    """Grava sessão Flask com tipos JSON-safe (evita None que quebra cookie/redirect)."""
+    session.clear()
+    session["user_id"] = int(user_id)
+    session["user_name"] = str(user_name or "").strip() or "Administrador"
+    session["role"] = "admin"
+    session["barbearia_id"] = int(barbearia_id)
+    session["nome_barbearia"] = str(nome_barbearia or "").strip() or "AgendaSimples"
+    session["barbearia_slug"] = str(barbearia_slug or "").strip()
+    session.modified = True
+
+
 def _iniciar_sessao_usuario(cursor, user, email):
     """Preenche session Flask após login ou cadastro bem-sucedido."""
-    session.clear()
-    session["user_id"] = user["id"]
-    session["user_name"] = user["nome"]
-    session["role"] = user["role"]
-
-    try:
-        barbearia_id = user["barbearia_id"]
-    except (KeyError, TypeError, IndexError):
-        barbearia_id = getattr(user, "barbearia_id", None)
+    user_id = _valor_linha(user, 0, "id")
+    user_name = _valor_linha(user, 1, "nome")
+    barbearia_id = _valor_linha(user, nome="barbearia_id")
+    if barbearia_id is None:
+        try:
+            barbearia_id = user["barbearia_id"]
+        except (KeyError, TypeError, IndexError):
+            barbearia_id = getattr(user, "barbearia_id", None)
 
     b_row = None
     if barbearia_id:
@@ -167,18 +179,26 @@ def _iniciar_sessao_usuario(cursor, user, email):
         b_row = cursor.fetchone()
     if not b_row and email:
         cursor.execute(
-            "SELECT id, nome, slug FROM barbearias WHERE LOWER(TRIM(email)) = LOWER(?) LIMIT 1",
+            """
+            SELECT id, nome, slug FROM barbearias
+            WHERE LOWER(TRIM(email)) = LOWER(?) LIMIT 1
+            """,
             (email,),
         )
         b_row = cursor.fetchone()
+
     if b_row:
-        session["barbearia_id"] = b_row["id"]
-        session["nome_barbearia"] = b_row["nome"]
-        session["barbearia_slug"] = b_row["slug"] or ""
+        _definir_sessao_admin(
+            user_id,
+            user_name,
+            _valor_linha(b_row, 0, "id"),
+            _valor_linha(b_row, 1, "nome"),
+            _valor_linha(b_row, 2, "slug"),
+        )
+    elif barbearia_id:
+        _definir_sessao_admin(user_id, user_name, barbearia_id, "AgendaSimples", "")
     else:
-        session["barbearia_id"] = barbearia_id
-        session["nome_barbearia"] = "AgendaSimples"
-        session["barbearia_slug"] = ""
+        raise ValueError("Não foi possível vincular o usuário a um estabelecimento na sessão.")
 
 
 def _email_ja_cadastrado(cursor, email, ignorar_id=None):
@@ -893,22 +913,62 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
         )
         user = cursor.fetchone()
         if not user:
+            safe_close(conn)
+            conn = None
             flash(
-                _("Conta criada, mas falhou o login automático. Entre com seu e-mail."),
+                gettext("Conta criada, mas falhou o login automático. Entre com seu e-mail."),
                 "warning",
             )
             return redirect(url_for("login"))
 
-        _iniciar_sessao_usuario(cursor, user, email)
+        user_id = _valor_linha(user, 0, "id")
+        if not user_id:
+            user_id = obter_id_inserido(
+                cursor,
+                """
+                SELECT id FROM usuarios
+                WHERE LOWER(TRIM(email)) = LOWER(?)
+                ORDER BY id DESC LIMIT 1
+                """,
+                (email,),
+            )
+        if not user_id:
+            raise RuntimeError("Usuário admin criado, mas ID não encontrado para a sessão.")
+
         safe_close(conn)
         conn = None
 
-        flash(
-            _("Bem-vindo! Sua conta foi criada com %(days)s dias de teste grátis.")
-            % {"days": cfg.TRIAL_DAYS},
-            "success",
-        )
-        return redirect(url_for("admin_agenda"))
+        try:
+            _definir_sessao_admin(
+                user_id,
+                nome_profissional or _valor_linha(user, 1, "nome"),
+                barbearia_id,
+                nome_negocio,
+                slug,
+            )
+            flash(
+                gettext(
+                    "Bem-vindo! Sua conta foi criada com %(days)s dias de teste grátis."
+                )
+                % {"days": int(cfg.TRIAL_DAYS)},
+                "success",
+            )
+            return redirect(url_for("admin_agenda"))
+        except Exception as exc_sessao:
+            _log_erro_cadastro_saas(
+                exc_sessao,
+                "sessao_e_redirect_pos_cadastro",
+                email=email,
+                user_id=user_id,
+                barbearia_id=barbearia_id,
+            )
+            flash(
+                gettext(
+                    "Conta criada com sucesso! Faça login com seu e-mail para acessar o painel."
+                ),
+                "success",
+            )
+            return redirect(url_for("login"))
 
     except Exception as exc:
         safe_rollback(conn)
@@ -1572,7 +1632,7 @@ def agendar():
         conn.close()
         flash(_("Profissional inválido para este estabelecimento."), "error")
         if slug_volta:
-            return redirect(url_for("marcar_barbearia", slug=slug_volta))
+            return redirect(url_for("marcar_barbearia", identificador=slug_volta))
         return redirect(url_for("home"))
 
     cursor.execute(
@@ -1596,7 +1656,7 @@ def agendar():
         if role in ("barbeiro", "profissional"):
             return redirect(url_for("agenda"))
         if slug_volta:
-            return redirect(url_for("marcar_barbearia", slug=slug_volta))
+            return redirect(url_for("marcar_barbearia", identificador=slug_volta))
         return redirect(url_for("home"))
 
     novo_id = _inserir_agendamento_retornar_id(
@@ -1617,7 +1677,7 @@ def agendar():
         if role in ("barbeiro", "profissional"):
             return redirect(url_for("agenda"))
         if slug_volta:
-            return redirect(url_for("marcar_barbearia", slug=slug_volta))
+            return redirect(url_for("marcar_barbearia", identificador=slug_volta))
         return redirect(url_for("home"))
 
     return redirect(
@@ -1635,7 +1695,7 @@ def sucesso_agendamento(agendamento_id):
     if not agendamento_id or agendamento_id < 1:
         flash("Link de confirmação inválido.", "warning")
         if slug:
-            return redirect(url_for("barbearia_home", slug=slug))
+            return redirect(url_for("barbearia_home", identificador=slug))
         return redirect(url_for("home"))
 
     conn = get_connection()
@@ -1650,7 +1710,7 @@ def sucesso_agendamento(agendamento_id):
     if not ag:
         flash("Agendamento não encontrado ou já removido.", "danger")
         if slug:
-            return redirect(url_for("barbearia_home", slug=slug))
+            return redirect(url_for("barbearia_home", identificador=slug))
         return redirect(url_for("home"))
 
     is_admin_or_staff = (
@@ -1720,14 +1780,14 @@ def marcar():
     """Legado: redireciona para a URL pública do estabelecimento."""
     slug_sessao = session.get("barbearia_slug")
     if slug_sessao:
-        return redirect(url_for("marcar_barbearia", slug=slug_sessao, **request.args))
+        return redirect(url_for("marcar_barbearia", identificador=slug_sessao, **request.args))
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT slug FROM barbearias ORDER BY id LIMIT 1")
     row = cursor.fetchone()
     conn.close()
     if row and row[0]:
-        return redirect(url_for("marcar_barbearia", slug=row[0], **request.args))
+        return redirect(url_for("marcar_barbearia", identificador=row[0], **request.args))
     flash(_("Nenhum estabelecimento cadastrado ainda."), "warning")
     return redirect(url_for("home"))
 

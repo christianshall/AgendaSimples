@@ -111,7 +111,7 @@
         <a href="{{ url_for('agenda') }}" class="btn">⬅ Voltar para a Agenda</a>
         {% endif %}
     {% else %}
-        <a href="{{ url_for('barbearia_home', slug=barbearia_slug) if barbearia_slug else url_for('home') }}" class="btn">⬅ Voltar para o Início</a>
+        <a href="{{ url_for('barbearia_home', identificador=barbearia_slug) if barbearia_slug else url_for('home') }}" class="btn">⬅ Voltar para o Início</a>
     {% endif %}
 
     <div class="brand">AgendaSimples</div>

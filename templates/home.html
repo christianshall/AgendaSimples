@@ -76,7 +76,7 @@
 
                 <p class="hero-lead">{{ _('Qualidade, praticidade e o portfólio do seu profissional em um só lugar.') }}</p>
 
-                <a href="{{ url_for('marcar_barbearia', slug=barbearia_slug) if barbearia_slug else url_for('marcar') }}" class="btn-landing-primary">
+                <a href="{{ url_for('marcar_barbearia', identificador=barbearia_slug) if barbearia_slug else url_for('marcar') }}" class="btn-landing-primary">
 
                     <i class="fas fa-calendar-check me-2" aria-hidden="true"></i>{{ _('Marcar Horário') }}
 
@@ -123,7 +123,7 @@
                 <h3>{{ _('Cliente') }}</h3>
 
                 <p>{{ _('Reserve seu horário em poucos cliques') }}</p>
-                <a href="{{ url_for('marcar_barbearia', slug=barbearia_slug) if barbearia_slug else url_for('marcar') }}" class="btn-landing-outline">{{ _('Agendar') }}</a>
+                <a href="{{ url_for('marcar_barbearia', identificador=barbearia_slug) if barbearia_slug else url_for('marcar') }}" class="btn-landing-outline">{{ _('Agendar') }}</a>
 
             </article>
 

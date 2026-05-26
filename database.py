@@ -531,7 +531,8 @@ def _valor_linha(row, indice=0, nome=None):
             try:
                 return getattr(row, nome)
             except AttributeError:
-                pass
+                return None
+        return None
     try:
         return row[indice]
     except (KeyError, TypeError, IndexError):
