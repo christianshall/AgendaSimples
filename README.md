@@ -1,29 +1,35 @@
-# AgendaSimples 📅 • Christian Shall Barber Shop
+# 📅 AgendaSimples
 
-O **AgendaSimples** é uma aplicação web completa de gestão e agendamento em tempo real desenvolvida para a **Christian Shall Barber Shop**. O sistema automatiza o fluxo de marcações de clientes, otimiza a organização das agendas dos barbeiros e centraliza o controle financeiro e a auditoria para o administrador.
+O **AgendaSimples** é uma plataforma de agendamento online moderna, leve e responsiva, desenvolvida no modelo SaaS. O sistema foi projetado para atender diversos profissionais e estabelecimentos, como clínicas odontológicas, salões de beleza, manicures, barbearias e profissionais autônomos.
+
+Com uma interface limpa em tons claros e suporte multi-idioma, a plataforma oferece uma experiência fluida tanto para os clientes realizarem agendamentos quanto para os administradores gerenciarem suas equipes e horários.
+
+---
+
+## ✨ Funcionalidades Principais
+
+* 🌍 **Sistema Multi-Idioma (i18n):** Suporte completo para Português (BR), Inglês (US) e Espanhol (ES) usando *Flask-Babel*.
+* 🎨 **Interface Moderna & Light Mode:** Design limpo, profissional e intuitivo adaptado para qualquer nicho de mercado.
+* 📲 **Lembretes Semi-Automáticos via WhatsApp:** Botões estilizados integrados ao painel administrativo para envio rápido de confirmações com mensagens personalizadas.
+* 🛡️ **Segurança Avançada (Painel Administrativo):** Controle estrito de sessões e permissões. Apenas o Administrador pode cadastrar novos profissionais/funcionários.
+* 👤 **Cadastro de Profissionais Completo:** Gerenciamento de equipe com foto de perfil, especialidade/cargo e contatos móveis (Celular).
+* 🔑 **Recuperação de Senha Segura:** Sistema inteligente de "Esqueci minha senha" validando por E-mail ou Telefone com geração de tokens temporários.
 
 ---
 
 ## 🚀 Tecnologias Utilizadas
 
-- **Backend:** Python 3.11 & Flask (Micro-framework)
-- **Frontend:** HTML5, CSS3 (Custom Dark Mode) & Jinja2 Templates
-- **Banco de Dados:** SQL Estruturado com transações via cursores Python
-- **Ambiente:** VS Code & Isolamento de dependências via Virtual Environment (`.venv`)
+* **Backend:** Python 3.x / Flask
+* **Traduções:** Flask-Babel
+* **Banco de Dados:** SQLAlchemy (SQLite/PostgreSQL)
+* **Frontend:** HTML5, CSS3 (Design Responsivo), Jinja2 (Templates)
+* **Ícones:** Font Awesome 6
 
 ---
 
-## 🛠️ Arquitetura e Módulos do Sistema
-
-1. **Módulo de Apresentação (Frontend):** Templates dinâmicos (`marcar.html`, `admin_agenda.html`) integrados à estilização global `style.css`.
-2. **Módulo de Controle (Core Backend):** Arquivo centralizado `app.py` responsável pelas regras de negócio, tratamento de rotas, middlewares de segurança (`session["role"]`) e geração de relatórios (`pdf_diario`).
-3. **Módulo de Dados (Persistência):** Arquivo de migração estrutural `AgendaSimples.sql`.
-
----
-
-## ⚙️ Como Executar o Projeto Localmente
+## 🛠️ Como Executar o Projeto Localmente
 
 ### 1. Clonar o Repositório
 ```bash
-git clone [https://github.com/christianshall/AgendaSimples.git](https://github.com/christianshall/AgendaSimples.git)
-cd AgendaSimples
+git clone [https://github.com/seu-usuario/agenda-simples.git](https://github.com/seu-usuario/agenda-simples.git)
+cd agenda-simples
