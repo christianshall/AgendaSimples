@@ -1213,7 +1213,15 @@ def redefinir_senha(token):
 
 @app.route("/logout")
 def logout():
+    """Encerra sessão e volta à página pública do negócio (não à landing SaaS)."""
+    identificador = (session.get("barbearia_slug") or "").strip()
+    if not identificador and session.get("barbearia_id"):
+        identificador = str(session.get("barbearia_id"))
+
     session.clear()
+
+    if identificador:
+        return redirect(url_for("barbearia_home", identificador=identificador))
     return redirect(url_for("home"))
 
 # -------------------------- AGENDA BARBEIRO --------------------------
