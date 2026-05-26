@@ -966,6 +966,7 @@ def ensure_schema_migrations(cursor):
         ("Clientes", "barbearia_id", "INTEGER"),
         ("financeiro", "barbearia_id", "INTEGER"),
         ("financeiro", "agendamento_id", "INTEGER"),
+        ("financeiro", "categoria", "TEXT"),
         ("servicos", "preco", "REAL"),
         ("barbearias", "ramo_atividade", "TEXT"),
     ]
@@ -1123,8 +1124,10 @@ def init_database():
             descricao TEXT,
             valor REAL NOT NULL,
             tipo_transacao TEXT NOT NULL,
+            categoria TEXT,
             barbeiro TEXT,
             profissional_id INTEGER,
+            agendamento_id INTEGER,
             data TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (barbearia_id) REFERENCES barbearias(id),
             FOREIGN KEY (profissional_id) REFERENCES usuarios(id)

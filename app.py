@@ -1937,6 +1937,7 @@ def admin_agenda_concluir():
         descricao_fin = _montar_descricao_atendimento(
             tipo_feito, detalhe, servico_agendado, nome_cliente
         )
+        cat_fin = _categoria_de_tipo_atendimento(tipo_feito)
         if valor > 0:
             _registrar_receita_agendamento(
                 cursor,
@@ -1946,6 +1947,7 @@ def admin_agenda_concluir():
                 barbearia_id,
                 agendamento_id=agendamento_id,
                 substituir_existente=True,
+                categoria=cat_fin,
             )
             flash(
                 f"Atendimento concluído. Receita de R$ {valor:.2f} registrada no financeiro.",
@@ -1961,6 +1963,7 @@ def admin_agenda_concluir():
                     barbearia_id,
                     agendamento_id=agendamento_id,
                     substituir_existente=True,
+                    categoria=cat_fin,
                 )
             flash(
                 "Atendimento concluído sem lançamento financeiro (valor R$ 0,00).",
@@ -2124,6 +2127,7 @@ def agendar():
             barbearia_id,
             agendamento_id=novo_id,
             substituir_existente=True,
+            categoria="Serviço",
         )
 
     ident_home = _identificador_publico_barbearia(cursor, barbearia_id, slug_volta)
@@ -2448,12 +2452,61 @@ def pdf_diario(data):
     return send_file(output, download_name=f"agenda_{data}.pdf", as_attachment=True)
 
 # -------------------------- FINANCEIRO ADMIN --------------------------
+CATEGORIAS_FINANCEIRAS = ("Serviço", "Produto", "Despesa")
+
+
+def _resolver_categoria_financeira(categoria, descricao, tipo_transacao):
+    """Normaliza categoria para Serviço, Produto ou Despesa."""
+    cat = (categoria or "").strip()
+    if cat in CATEGORIAS_FINANCEIRAS:
+        return cat
+    if (tipo_transacao or "").strip() == "Despesa":
+        return "Despesa"
+    desc = (descricao or "").strip().lower()
+    if desc.startswith("venda") or "produto" in desc[:24]:
+        return "Produto"
+    return "Serviço"
+
+
+def _categoria_de_tipo_atendimento(tipo_feito):
+    tipo = (tipo_feito or "").strip()
+    if tipo in ("Venda de Produto", "Produto"):
+        return "Produto"
+    return "Serviço"
+
+
+def _tipo_transacao_de_categoria(categoria):
+    return "Despesa" if categoria == "Despesa" else "Receita"
+
+
+def _formatar_transacao_financeira(row):
+    """Converte linha SQL em dict para templates/exportação."""
+    descricao = row[0]
+    valor = float(row[1] or 0)
+    tipo_transacao = row[2]
+    profissional = row[3]
+    data = row[4]
+    categoria_raw = row[6] if len(row) > 6 else None
+    categoria = _resolver_categoria_financeira(
+        categoria_raw, descricao, tipo_transacao
+    )
+    return {
+        "descricao": descricao,
+        "valor": valor,
+        "tipo_transacao": tipo_transacao,
+        "profissional": profissional,
+        "data": data,
+        "profissional_id": row[5] if len(row) > 5 else None,
+        "categoria": categoria,
+    }
+
+
 def _buscar_transacoes_financeiro(cursor, barbearia_id, profissional_id=None):
     """Lançamentos do tenant, opcionalmente filtrados por profissional."""
     sql = """
         SELECT f.descricao, f.valor, f.tipo_transacao,
                COALESCE(u.nome, f.barbeiro, 'Geral / Estabelecimento') AS profissional,
-               f.data, f.profissional_id
+               f.data, f.profissional_id, f.categoria
         FROM financeiro f
         LEFT JOIN usuarios u ON f.profissional_id = u.id
         WHERE f.barbearia_id = ?
@@ -2464,13 +2517,18 @@ def _buscar_transacoes_financeiro(cursor, barbearia_id, profissional_id=None):
         params.append(int(profissional_id))
     sql += " ORDER BY f.data DESC"
     cursor.execute(sql, tuple(params))
-    return cursor.fetchall()
+    return [_formatar_transacao_financeira(r) for r in cursor.fetchall()]
 
 
 def _calcular_saldo_financeiro(transacoes):
     saldo = 0.0
     for t in transacoes:
-        if t[2] == "Receita":
+        if isinstance(t, dict):
+            if t.get("tipo_transacao") == "Receita":
+                saldo += float(t.get("valor", 0))
+            else:
+                saldo -= float(t.get("valor", 0))
+        elif t[2] == "Receita":
             saldo += float(t[1])
         else:
             saldo -= float(t[1])
@@ -2478,19 +2536,42 @@ def _calcular_saldo_financeiro(transacoes):
 
 
 def _buscar_faturamento_profissionais(cursor, barbearia_id):
-    """Total de receitas agrupado por profissional (para comissões / folha)."""
+    """Total de receitas agrupado por profissional (legado / exportações)."""
+    detalhado = _buscar_faturamento_detalhado_profissionais(cursor, barbearia_id)
+    return [(r["nome"], r["total"]) for r in detalhado]
+
+
+def _buscar_faturamento_detalhado_profissionais(cursor, barbearia_id):
+    """Receitas por profissional com totais de Serviços e Produtos."""
     cursor.execute(
         """
-        SELECT u.nome, SUM(f.valor) AS total_faturado
+        SELECT u.id, u.nome, f.descricao, f.valor, f.tipo_transacao, f.categoria
         FROM financeiro f
         INNER JOIN usuarios u ON f.profissional_id = u.id
-        WHERE f.tipo_transacao = 'Receita' AND f.barbearia_id = ?
-        GROUP BY u.id, u.nome
-        ORDER BY total_faturado DESC
+        WHERE f.barbearia_id = ? AND f.tipo_transacao = 'Receita'
         """,
         (barbearia_id,),
     )
-    return cursor.fetchall()
+    agregado = {}
+    for row in cursor.fetchall() or []:
+        uid = row[0]
+        nome = row[1]
+        cat = _resolver_categoria_financeira(row[5], row[2], row[4])
+        valor = float(row[3] or 0)
+        if uid not in agregado:
+            agregado[uid] = {
+                "id": uid,
+                "nome": nome,
+                "total_servicos": 0.0,
+                "total_produtos": 0.0,
+                "total": 0.0,
+            }
+        if cat == "Produto":
+            agregado[uid]["total_produtos"] += valor
+        else:
+            agregado[uid]["total_servicos"] += valor
+        agregado[uid]["total"] += valor
+    return sorted(agregado.values(), key=lambda x: -x["total"])
 
 
 def _inserir_receita_financeiro(
@@ -2500,8 +2581,10 @@ def _inserir_receita_financeiro(
     profissional_id,
     barbearia_id,
     agendamento_id=None,
+    categoria="Serviço",
 ):
     """Registra receita na tabela financeiro (uso pela agenda e lançamentos manuais)."""
+    categoria = _resolver_categoria_financeira(categoria, descricao, "Receita")
     nome_prof, pid = _nome_profissional_lancamento(
         cursor, profissional_id, barbearia_id
     )
@@ -2523,6 +2606,9 @@ def _inserir_receita_financeiro(
         int(barbearia_id),
         datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
     ]
+    if _coluna_existe(cursor, "financeiro", "categoria"):
+        cols.append("categoria")
+        vals.append(categoria)
     if agendamento_id and _coluna_existe(cursor, "financeiro", "agendamento_id"):
         cols.append("agendamento_id")
         vals.append(int(agendamento_id))
@@ -2542,11 +2628,13 @@ def _registrar_receita_agendamento(
     barbearia_id,
     agendamento_id=None,
     substituir_existente=False,
+    categoria="Serviço",
 ):
     """
     Lança ou atualiza receita vinculada a um agendamento (evita duplicata ao concluir).
     """
     valor = float(valor or 0)
+    categoria = _resolver_categoria_financeira(categoria, descricao, "Receita")
     if (
         substituir_existente
         and agendamento_id
@@ -2566,24 +2654,44 @@ def _registrar_receita_agendamento(
             nome_prof, pid = _nome_profissional_lancamento(
                 cursor, profissional_id, barbearia_id
             )
-            cursor.execute(
-                """
-                UPDATE financeiro
-                SET descricao = ?, valor = ?, barbeiro = ?, profissional_id = ?,
-                    tipo_transacao = 'Receita',
-                    data = ?
-                WHERE id = ? AND barbearia_id = ?
-                """,
-                (
-                    descricao,
-                    valor,
-                    nome_prof,
-                    pid,
-                    datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                    fin_id,
-                    int(barbearia_id),
-                ),
-            )
+            data_lanc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            if _coluna_existe(cursor, "financeiro", "categoria"):
+                cursor.execute(
+                    """
+                    UPDATE financeiro
+                    SET descricao = ?, valor = ?, barbeiro = ?, profissional_id = ?,
+                        tipo_transacao = 'Receita', categoria = ?, data = ?
+                    WHERE id = ? AND barbearia_id = ?
+                    """,
+                    (
+                        descricao,
+                        valor,
+                        nome_prof,
+                        pid,
+                        categoria,
+                        data_lanc,
+                        fin_id,
+                        int(barbearia_id),
+                    ),
+                )
+            else:
+                cursor.execute(
+                    """
+                    UPDATE financeiro
+                    SET descricao = ?, valor = ?, barbeiro = ?, profissional_id = ?,
+                        tipo_transacao = 'Receita', data = ?
+                    WHERE id = ? AND barbearia_id = ?
+                    """,
+                    (
+                        descricao,
+                        valor,
+                        nome_prof,
+                        pid,
+                        data_lanc,
+                        fin_id,
+                        int(barbearia_id),
+                    ),
+                )
             return
     _inserir_receita_financeiro(
         cursor,
@@ -2592,6 +2700,7 @@ def _registrar_receita_agendamento(
         profissional_id,
         barbearia_id,
         agendamento_id=agendamento_id,
+        categoria=categoria,
     )
 
 
@@ -2634,37 +2743,53 @@ def _formatar_data_transacao(data):
     return str(data)[:16] if data else ""
 
 
-def _gerar_excel_financeiro(transacoes, saldo, faturamento_profissionais):
+def _gerar_excel_financeiro(transacoes, saldo, faturamento_detalhado):
     from openpyxl import Workbook
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Financeiro"
-    ws.append(["Data", "Descrição", "Profissional", "Tipo", "Valor"])
+    ws.append(["Data", "Descrição", "Profissional", "Categoria", "Tipo", "Valor"])
     for t in transacoes:
+        if isinstance(t, dict):
+            ws.append([
+                _formatar_data_transacao(t["data"]),
+                t["descricao"],
+                t["profissional"],
+                t["categoria"],
+                t["tipo_transacao"],
+                float(t["valor"]),
+            ])
+        else:
+            ws.append([
+                _formatar_data_transacao(t[4]),
+                t[0],
+                t[3],
+                "",
+                t[2],
+                float(t[1]),
+            ])
+    ws.append([])
+    ws.append(["", "", "", "", "Saldo em caixa", saldo])
+    ws.append([])
+    ws.append(["Faturamento por Profissional", ""])
+    ws.append(["Profissional", "Serviços (R$)", "Produtos (R$)", "Total (R$)"])
+    for row in faturamento_detalhado:
         ws.append([
-            _formatar_data_transacao(t[4]),
-            t[0],
-            t[3],
-            t[2],
-            float(t[1]),
+            row["nome"],
+            float(row["total_servicos"]),
+            float(row["total_produtos"]),
+            float(row["total"]),
         ])
-    ws.append([])
-    ws.append(["", "", "", "Saldo em caixa", saldo])
-    ws.append([])
-    ws.append(["Faturamento por Profissional (Receitas)", ""])
-    ws.append(["Profissional", "Total faturado (R$)"])
-    for nome, total in faturamento_profissionais:
-        ws.append([nome, float(total)])
-    if not faturamento_profissionais:
-        ws.append(["—", 0.0])
+    if not faturamento_detalhado:
+        ws.append(["—", 0.0, 0.0, 0.0])
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
     return output
 
 
-def _gerar_pdf_financeiro(transacoes, saldo, titulo_estabelecimento, faturamento_profissionais):
+def _gerar_pdf_financeiro(transacoes, saldo, titulo_estabelecimento, faturamento_detalhado):
     output = io.BytesIO()
     c = canvas.Canvas(output, pagesize=A4)
     largura, altura = A4
@@ -2680,8 +2805,8 @@ def _gerar_pdf_financeiro(transacoes, saldo, titulo_estabelecimento, faturamento
     c.drawString(2 * cm, y, f"Saldo em caixa: R$ {saldo:.2f}")
     y -= 1 * cm
 
-    colunas = ["Data", "Descrição", "Profissional", "Tipo", "Valor"]
-    xs = [2 * cm, 4.2 * cm, 9.5 * cm, 14.5 * cm, 17 * cm]
+    colunas = ["Data", "Descrição", "Profissional", "Categoria", "Valor"]
+    xs = [2 * cm, 3.8 * cm, 8.5 * cm, 12.5 * cm, 16 * cm]
     c.setFont("Helvetica-Bold", 9)
     for i, col in enumerate(colunas):
         c.drawString(xs[i], y, col)
@@ -2695,13 +2820,22 @@ def _gerar_pdf_financeiro(transacoes, saldo, titulo_estabelecimento, faturamento
             c.showPage()
             y = altura - 2 * cm
             c.setFont("Helvetica", 8)
-        linha = [
-            _formatar_data_transacao(t[4])[:10],
-            (t[0] or "")[:28],
-            (t[3] or "")[:18],
-            t[2] or "",
-            f"R$ {float(t[1]):.2f}",
-        ]
+        if isinstance(t, dict):
+            linha = [
+                _formatar_data_transacao(t["data"])[:10],
+                (t["descricao"] or "")[:24],
+                (t["profissional"] or "")[:16],
+                (t["categoria"] or "")[:12],
+                f"R$ {float(t['valor']):.2f}",
+            ]
+        else:
+            linha = [
+                _formatar_data_transacao(t[4])[:10],
+                (t[0] or "")[:24],
+                (t[3] or "")[:16],
+                t[2] or "",
+                f"R$ {float(t[1]):.2f}",
+            ]
         for i, texto in enumerate(linha):
             c.drawString(xs[i], y, texto)
         y -= 0.45 * cm
@@ -2712,24 +2846,28 @@ def _gerar_pdf_financeiro(transacoes, saldo, titulo_estabelecimento, faturamento
         y = altura - 2 * cm
 
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(2 * cm, y, "Faturamento por Profissional (Receitas)")
+    c.drawString(2 * cm, y, "Faturamento por Profissional")
     y -= 0.6 * cm
-    c.setFont("Helvetica-Bold", 9)
+    c.setFont("Helvetica-Bold", 8)
     c.drawString(2 * cm, y, "Profissional")
-    c.drawString(12 * cm, y, "Total (R$)")
+    c.drawString(7.5 * cm, y, "Serviços")
+    c.drawString(11 * cm, y, "Produtos")
+    c.drawString(14.5 * cm, y, "Total")
     y -= 0.4 * cm
     c.line(2 * cm, y, largura - 2 * cm, y)
     y -= 0.35 * cm
 
-    c.setFont("Helvetica", 9)
-    if faturamento_profissionais:
-        for nome, total in faturamento_profissionais:
+    c.setFont("Helvetica", 8)
+    if faturamento_detalhado:
+        for row in faturamento_detalhado:
             if y < 2 * cm:
                 c.showPage()
                 y = altura - 2 * cm
-                c.setFont("Helvetica", 9)
-            c.drawString(2 * cm, y, (nome or "")[:40])
-            c.drawString(12 * cm, y, f"{float(total):.2f}")
+                c.setFont("Helvetica", 8)
+            c.drawString(2 * cm, y, (row["nome"] or "")[:28])
+            c.drawString(7.5 * cm, y, f"{float(row['total_servicos']):.2f}")
+            c.drawString(11 * cm, y, f"{float(row['total_produtos']):.2f}")
+            c.drawString(14.5 * cm, y, f"{float(row['total']):.2f}")
             y -= 0.4 * cm
     else:
         c.drawString(2 * cm, y, "Nenhuma receita vinculada a profissionais.")
@@ -2774,10 +2912,12 @@ def admin_financeiro():
         cursor, barbearia_id, filtro_profissional_id
     )
     saldo = _calcular_saldo_financeiro(transacoes)
-    faturamento_profissionais = _buscar_faturamento_profissionais(
+    faturamento_detalhado = _buscar_faturamento_detalhado_profissionais(
         cursor, barbearia_id
     )
-    total_faturamento_equipe = sum(float(r[1]) for r in faturamento_profissionais)
+    total_faturamento_equipe = sum(r["total"] for r in faturamento_detalhado)
+    total_servicos_equipe = sum(r["total_servicos"] for r in faturamento_detalhado)
+    total_produtos_equipe = sum(r["total_produtos"] for r in faturamento_detalhado)
     profissionais_por_nome = {p[1]: p[0] for p in profissionais}
     conn.close()
 
@@ -2787,8 +2927,10 @@ def admin_financeiro():
         saldo=saldo,
         profissionais=profissionais,
         profissionais_por_nome=profissionais_por_nome,
-        faturamento_profissionais=faturamento_profissionais,
+        faturamento_detalhado=faturamento_detalhado,
         total_faturamento_equipe=total_faturamento_equipe,
+        total_servicos_equipe=total_servicos_equipe,
+        total_produtos_equipe=total_produtos_equipe,
         filtro_profissional_id=filtro_profissional_id,
     )
 
@@ -2806,9 +2948,15 @@ def lancar_transacao():
 
     descricao = request.form["descricao"]
     valor = request.form["valor"]
-    tipo = request.form["tipo_transacao"]
+    categoria_raw = (request.form.get("categoria") or "Serviço").strip()
     profissional_id_raw = request.form.get("profissional_id", "").strip()
     profissional_id = int(profissional_id_raw) if profissional_id_raw else None
+
+    if categoria_raw not in CATEGORIAS_FINANCEIRAS:
+        flash(_("Categoria inválida."), "error")
+        return redirect(url_for("admin_financeiro"))
+    categoria = categoria_raw
+    tipo = _tipo_transacao_de_categoria(categoria)
 
     try:
         valor_num = float(str(valor).strip().replace(",", "."))
@@ -2818,27 +2966,36 @@ def lancar_transacao():
 
     conn = get_connection()
     cursor = conn.cursor()
+    ensure_schema_migrations(cursor)
     nome_profissional, profissional_id = _nome_profissional_lancamento(
         cursor, profissional_id, barbearia_id
     )
     data_lanc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    cols = [
+        "descricao",
+        "valor",
+        "tipo_transacao",
+        "barbeiro",
+        "profissional_id",
+        "barbearia_id",
+        "data",
+    ]
+    vals = [
+        descricao,
+        valor_num,
+        tipo,
+        nome_profissional,
+        profissional_id,
+        int(barbearia_id),
+        data_lanc,
+    ]
+    if _coluna_existe(cursor, "financeiro", "categoria"):
+        cols.append("categoria")
+        vals.append(categoria)
+    placeholders = ", ".join("?" for _ in vals)
     cursor.execute(
-        """
-        INSERT INTO financeiro (
-            descricao, valor, tipo_transacao, barbeiro, profissional_id,
-            barbearia_id, data
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            descricao,
-            valor_num,
-            tipo,
-            nome_profissional,
-            profissional_id,
-            int(barbearia_id),
-            data_lanc,
-        ),
+        f"INSERT INTO financeiro ({', '.join(cols)}) VALUES ({placeholders})",
+        tuple(vals),
     )
     conn.commit()
     conn.close()
@@ -2869,12 +3026,12 @@ def financeiro_exportar_excel():
         cursor, barbearia_id, filtro_prof
     )
     saldo = _calcular_saldo_financeiro(transacoes)
-    faturamento_profissionais = _buscar_faturamento_profissionais(
+    faturamento_detalhado = _buscar_faturamento_detalhado_profissionais(
         cursor, barbearia_id
     )
     conn.close()
 
-    output = _gerar_excel_financeiro(transacoes, saldo, faturamento_profissionais)
+    output = _gerar_excel_financeiro(transacoes, saldo, faturamento_detalhado)
     nome = f"financeiro_{datetime.today().strftime('%Y%m%d')}.xlsx"
     return send_file(
         output,
@@ -2908,13 +3065,13 @@ def financeiro_exportar_pdf():
         cursor, barbearia_id, filtro_prof
     )
     saldo = _calcular_saldo_financeiro(transacoes)
-    faturamento_profissionais = _buscar_faturamento_profissionais(
+    faturamento_detalhado = _buscar_faturamento_detalhado_profissionais(
         cursor, barbearia_id
     )
     conn.close()
 
     output = _gerar_pdf_financeiro(
-        transacoes, saldo, titulo, faturamento_profissionais
+        transacoes, saldo, titulo, faturamento_detalhado
     )
     nome = f"financeiro_{datetime.today().strftime('%Y%m%d')}.pdf"
     return send_file(

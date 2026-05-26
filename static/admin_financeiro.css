@@ -1,28 +1,30 @@
 :root {
-    --fin-bg: #f0f7fc;
+    --fin-bg: #e3f2fd;
+    --fin-bg-soft: #f5fafd;
     --fin-surface: #ffffff;
-    --fin-blue-light: #cee5f2;
-    --fin-blue-soft: #dbeafe;
-    --fin-blue-mid: #60a5fa;
-    --fin-blue-dark: #1b365d;
-    --fin-accent: #2563eb;
-    --fin-text: #1e293b;
-    --fin-muted: #64748b;
-    --fin-border: #bfdbfe;
-    --fin-success: #059669;
-    --fin-danger: #dc2626;
+    --fin-blue-light: #e3f2fd;
+    --fin-blue-mid: #bbdefb;
+    --fin-blue-accent: #2196f3;
+    --fin-blue-dark: #1565c0;
+    --fin-cyan-soft: #e0f7fa;
+    --fin-cyan-text: #00838f;
+    --fin-text: #1a237e;
+    --fin-muted: #5c6bc0;
+    --fin-border: #bbdefb;
+    --fin-success: #2e7d32;
+    --fin-danger: #c62828;
 }
 
 body.page-financeiro {
-    background: var(--fin-bg);
+    background: linear-gradient(160deg, var(--fin-bg) 0%, var(--fin-bg-soft) 45%, #ffffff 100%);
     color: var(--fin-text);
     font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
 }
 
 .page-financeiro .fin-header h2 {
     color: var(--fin-blue-dark);
     font-weight: 700;
-    letter-spacing: 0.02em;
 }
 
 .page-financeiro .card-stat,
@@ -31,60 +33,59 @@ body.page-financeiro {
     background: var(--fin-surface);
     border-radius: 14px;
     border: 1px solid var(--fin-border);
-    box-shadow: 0 4px 18px rgba(27, 54, 93, 0.06);
+    box-shadow: 0 6px 20px rgba(33, 150, 243, 0.08);
     padding: 1.25rem 1.5rem;
 }
 
 .page-financeiro .card-stat {
-    border-left: 4px solid var(--fin-accent);
+    border-left: 4px solid var(--fin-blue-accent);
 }
 
 .page-financeiro .faturamento-card {
-    border-top: 3px solid var(--fin-blue-mid);
+    border-top: 3px solid var(--fin-blue-accent);
 }
 
 .page-financeiro .fin-saldo {
-    color: var(--fin-accent);
+    color: var(--fin-blue-accent);
     font-weight: 700;
 }
 
 .page-financeiro .fin-label {
     color: var(--fin-muted);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
+    font-weight: 600;
 }
 
 .page-financeiro .btn-fin-primary {
-    background: var(--fin-accent);
+    background: var(--fin-blue-accent);
     color: #fff;
     font-weight: 600;
     border: none;
+    border-radius: 8px;
 }
 
 .page-financeiro .btn-fin-primary:hover {
-    background: #1d4ed8;
+    background: var(--fin-blue-dark);
     color: #fff;
 }
 
 .page-financeiro .btn-fin-outline {
-    border: 1px solid var(--fin-accent);
-    color: var(--fin-accent);
-    background: transparent;
+    border: 1px solid var(--fin-blue-accent);
+    color: var(--fin-blue-accent);
+    background: var(--fin-blue-light);
+    border-radius: 8px;
+    font-weight: 500;
 }
 
 .page-financeiro .btn-fin-outline:hover {
-    background: var(--fin-blue-soft);
+    background: var(--fin-blue-mid);
     color: var(--fin-blue-dark);
 }
 
-.page-financeiro .table {
-    color: var(--fin-text);
-    margin-bottom: 0;
-}
-
 .page-financeiro .table thead th {
-    background: var(--fin-blue-light);
+    background: var(--fin-blue-mid);
     color: var(--fin-blue-dark);
     border-color: var(--fin-border);
     font-weight: 600;
@@ -98,7 +99,7 @@ body.page-financeiro {
 }
 
 .page-financeiro .table-hover tbody tr:hover {
-    background: var(--fin-blue-soft);
+    background: var(--fin-blue-light);
 }
 
 .page-financeiro .text-receita {
@@ -112,34 +113,70 @@ body.page-financeiro {
 }
 
 .page-financeiro .faturamento-total {
-    border-top: 2px solid var(--fin-border);
+    border-top: 2px solid var(--fin-blue-accent);
     font-weight: 700;
     color: var(--fin-blue-dark);
+    background: var(--fin-blue-light);
 }
 
 .page-financeiro .form-control,
 .page-financeiro .form-select {
     border-color: var(--fin-border);
-    color: var(--fin-text);
+    background: #fff;
 }
 
 .page-financeiro .form-control:focus,
 .page-financeiro .form-select:focus {
-    border-color: var(--fin-accent);
-    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
-}
-
-.page-financeiro .lang-picker-financeiro a {
-    text-decoration: none;
-    font-size: 1.2rem;
-    margin-right: 8px;
+    border-color: var(--fin-blue-accent);
+    box-shadow: 0 0 0 0.2rem rgba(33, 150, 243, 0.2);
 }
 
 .page-financeiro .prof-chip {
     display: inline-block;
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
-    background: var(--fin-blue-soft);
+    background: var(--fin-blue-mid);
     color: var(--fin-blue-dark);
     font-size: 0.8rem;
+}
+
+.page-financeiro .tag-cat {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.page-financeiro .tag-cat-servico {
+    background: var(--fin-blue-light);
+    color: var(--fin-blue-dark);
+    border: 1px solid var(--fin-blue-accent);
+}
+
+.page-financeiro .tag-cat-produto {
+    background: var(--fin-cyan-soft);
+    color: var(--fin-cyan-text);
+    border: 1px solid #80deea;
+}
+
+.page-financeiro .tag-cat-despesa {
+    background: #fce4ec;
+    color: #ad1457;
+    border: 1px solid #f48fb1;
+}
+
+.page-financeiro .col-servicos {
+    color: var(--fin-blue-dark);
+    font-weight: 600;
+}
+
+.page-financeiro .col-produtos {
+    color: var(--fin-cyan-text);
+    font-weight: 600;
+}
+
+.page-financeiro .text-muted {
+    color: var(--fin-muted) !important;
 }
