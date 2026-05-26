@@ -903,72 +903,21 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
             cursor, nome_profissional, email, senha_hash, agora, barbearia_id
         )
         safe_commit(conn)
-
-        cursor.execute(
-            """
-            SELECT id, nome, role, barbearia_id FROM usuarios
-            WHERE LOWER(TRIM(email)) = LOWER(?)
-            """,
-            (email,),
-        )
-        user = cursor.fetchone()
-        if not user:
-            safe_close(conn)
-            conn = None
-            flash(
-                gettext("Conta criada, mas falhou o login automático. Entre com seu e-mail."),
-                "warning",
-            )
-            return redirect(url_for("login"))
-
-        user_id = _valor_linha(user, 0, "id")
-        if not user_id:
-            user_id = obter_id_inserido(
-                cursor,
-                """
-                SELECT id FROM usuarios
-                WHERE LOWER(TRIM(email)) = LOWER(?)
-                ORDER BY id DESC LIMIT 1
-                """,
-                (email,),
-            )
-        if not user_id:
-            raise RuntimeError("Usuário admin criado, mas ID não encontrado para a sessão.")
-
         safe_close(conn)
         conn = None
 
-        try:
-            _definir_sessao_admin(
-                user_id,
-                nome_profissional or _valor_linha(user, 1, "nome"),
-                barbearia_id,
-                nome_negocio,
-                slug,
+        session.clear()
+
+        flash(
+            gettext(
+                "Conta criada com sucesso! Você tem %(days)s dias de teste grátis "
+                "para explorar tudo. Faça login com seu e-mail e senha e comece "
+                "a configurar seu negócio agora!"
             )
-            flash(
-                gettext(
-                    "Bem-vindo! Sua conta foi criada com %(days)s dias de teste grátis."
-                )
-                % {"days": int(cfg.TRIAL_DAYS)},
-                "success",
-            )
-            return redirect(url_for("admin_agenda"))
-        except Exception as exc_sessao:
-            _log_erro_cadastro_saas(
-                exc_sessao,
-                "sessao_e_redirect_pos_cadastro",
-                email=email,
-                user_id=user_id,
-                barbearia_id=barbearia_id,
-            )
-            flash(
-                gettext(
-                    "Conta criada com sucesso! Faça login com seu e-mail para acessar o painel."
-                ),
-                "success",
-            )
-            return redirect(url_for("login"))
+            % {"days": int(cfg.TRIAL_DAYS)},
+            "success",
+        )
+        return redirect(url_for("home"))
 
     except Exception as exc:
         safe_rollback(conn)
