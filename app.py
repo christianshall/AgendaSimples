@@ -161,6 +161,7 @@ def _definir_sessao_usuario(
 
     session.clear()
     session["user_id"] = int(user_id)
+    session["usuario_id"] = int(user_id)
     session["user_name"] = str(user_name or "").strip() or "Usuário"
     session["role"] = role_norm
     session["tipo_usuario"] = role_norm
@@ -223,20 +224,135 @@ def _exigir_admin():
     return None
 
 
+def _linha_usuario_login(row):
+    """
+    Extrai campos do SELECT de login (id, nome, role, senha, barbearia_id).
+    Usa índice e nome de coluna — compatível com Turso HTTP e SQLite.
+    """
+    if row is None:
+        return None
+    uid = _valor_linha(row, 0, "id")
+    nome = _valor_linha(row, 1, "nome")
+    role = _valor_linha(row, 2, "role") or _valor_linha(row, nome="role")
+    senha = _valor_linha(row, 3, "senha") or _valor_linha(row, nome="senha")
+    barbearia_id = _valor_linha(row, 4, "barbearia_id") or _valor_linha(
+        row, nome="barbearia_id"
+    )
+    return {
+        "id": uid,
+        "nome": nome,
+        "role": role,
+        "senha": senha,
+        "barbearia_id": barbearia_id,
+    }
+
+
+def _barbearia_id_do_usuario(cursor, user_id):
+    """barbearia_id gravado no registro do usuário (fonte de verdade)."""
+    cursor.execute(
+        "SELECT barbearia_id FROM usuarios WHERE id = ?",
+        (int(user_id),),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return None
+    bid = _valor_linha(row, 0, "barbearia_id") or _valor_linha(row, nome="barbearia_id")
+    if bid is None:
+        return vincular_usuario_barbearia(cursor, int(user_id))
+    return int(bid)
+
+
+def _sincronizar_barbearia_sessao(cursor):
+    """
+    Garante que session['barbearia_id'] coincide com usuarios.barbearia_id.
+    Retorna redirect se o usuário continuar órfão.
+    """
+    user_id = session.get("user_id") or session.get("usuario_id")
+    if not user_id:
+        return redirect(url_for("login"))
+
+    bid_db = _barbearia_id_do_usuario(cursor, user_id)
+    if bid_db is None:
+        flash(
+            _(
+                "Sua conta não está vinculada a um negócio. "
+                "Peça ao administrador para recadastrar ou vincular seu perfil."
+            ),
+            "error",
+        )
+        return redirect(url_for("login"))
+
+    bid_sessao = session.get("barbearia_id")
+    if bid_sessao is None or int(bid_sessao) != int(bid_db):
+        session["barbearia_id"] = int(bid_db)
+        session.modified = True
+        if bid_sessao is not None and int(bid_sessao) != int(bid_db):
+            app.logger.warning(
+                "Sessão corrigida: user_id=%s barbearia_id %s -> %s",
+                user_id,
+                bid_sessao,
+                bid_db,
+            )
+    return None
+
+
+def _inserir_profissional_usuario(
+    cursor, nome, email, senha_hash, barbearia_id, telefone=None, especialidade=None, foto_perfil=None
+):
+    """INSERT em usuarios sempre com barbearia_id da sessão do admin."""
+    cols = ["nome", "email", "senha", "role", "barbearia_id"]
+    vals = [nome, email, senha_hash, "profissional", int(barbearia_id)]
+    if telefone is not None and _coluna_existe(cursor, "usuarios", "telefone"):
+        cols.append("telefone")
+        vals.append(telefone)
+    if especialidade is not None and _coluna_existe(cursor, "usuarios", "especialidade"):
+        cols.append("especialidade")
+        vals.append(especialidade)
+    if foto_perfil is not None and _coluna_existe(cursor, "usuarios", "foto_perfil"):
+        cols.append("foto_perfil")
+        vals.append(foto_perfil)
+    placeholders = ", ".join("?" for _ in vals)
+    colunas_sql = ", ".join(cols)
+    cursor.execute(
+        f"INSERT INTO usuarios ({colunas_sql}) VALUES ({placeholders})",
+        tuple(vals),
+    )
+
+
 def _iniciar_sessao_usuario(cursor, user, email):
     """Preenche session Flask após login ou cadastro bem-sucedido."""
-    user_id = _valor_linha(user, 0, "id")
-    user_name = _valor_linha(user, 1, "nome")
-    role = _valor_linha(user, nome="role")
+    if isinstance(user, dict):
+        user_id = user.get("id")
+        user_name = user.get("nome")
+        role = user.get("role")
+        barbearia_id = user.get("barbearia_id")
+    else:
+        parsed = _linha_usuario_login(user)
+        if parsed:
+            user_id = parsed["id"]
+            user_name = parsed["nome"]
+            role = parsed["role"]
+            barbearia_id = parsed["barbearia_id"]
+        else:
+            user_id = _valor_linha(user, 0, "id")
+            user_name = _valor_linha(user, 1, "nome")
+            role = _valor_linha(user, nome="role")
+            barbearia_id = _valor_linha(user, 4, "barbearia_id") or _valor_linha(
+                user, nome="barbearia_id"
+            )
     if role is None:
-        try:
-            role = user["role"]
-        except (KeyError, TypeError, IndexError):
-            role = getattr(user, "role", "profissional")
+        if isinstance(user, dict):
+            role = user.get("role", "profissional")
+        else:
+            try:
+                role = user["role"]
+            except (KeyError, TypeError, IndexError):
+                role = getattr(user, "role", "profissional")
     role_norm = (str(role or "profissional").strip().lower())
 
-    barbearia_id = _valor_linha(user, nome="barbearia_id")
-    if barbearia_id is None:
+    if barbearia_id is None and isinstance(user, dict):
+        barbearia_id = user.get("barbearia_id")
+    elif barbearia_id is None:
         try:
             barbearia_id = user["barbearia_id"]
         except (KeyError, TypeError, IndexError):
@@ -1160,16 +1276,33 @@ def login():
 
         cursor.execute(
             """
-            SELECT id, nome, role, senha, barbearia_id FROM usuarios
+            SELECT id, nome, role, senha, barbearia_id
+            FROM usuarios
             WHERE LOWER(TRIM(email)) = LOWER(?)
             """,
             (email,),
         )
-        user = cursor.fetchone()
+        row = cursor.fetchone()
+        usuario = _linha_usuario_login(row)
 
-        if user and _senha_confere(user.senha, senha):
+        senha_armazenada = (usuario or {}).get("senha")
+        if usuario and _senha_confere(senha_armazenada, senha):
             try:
-                _iniciar_sessao_usuario(cursor, user, email)
+                _iniciar_sessao_usuario(cursor, usuario, email)
+                bid = usuario.get("barbearia_id")
+                if bid is not None:
+                    session["barbearia_id"] = int(bid)
+                elif session.get("barbearia_id"):
+                    session["barbearia_id"] = int(session["barbearia_id"])
+                session["usuario_id"] = int(usuario["id"])
+                session["user_id"] = int(usuario["id"])
+                session.modified = True
+                app.logger.info(
+                    "Login OK user_id=%s barbearia_id=%s (db=%s)",
+                    usuario["id"],
+                    session.get("barbearia_id"),
+                    bid,
+                )
                 safe_commit(conn)
             except ValueError as exc:
                 safe_rollback(conn)
@@ -1350,15 +1483,23 @@ def admin_agenda():
     if bloqueio:
         return bloqueio
 
-    barbearia_id = _barbearia_id_sessao()
-    user_id = session.get("user_id")
-    eh_admin = _eh_admin()
-    filtrar_meus = _eh_profissional_equipe()
-
     conn = get_connection()
     cursor = conn.cursor()
     try:
         ensure_schema_migrations(cursor)
+        bloqueio_vinculo = _sincronizar_barbearia_sessao(cursor)
+        if bloqueio_vinculo:
+            conn.close()
+            return bloqueio_vinculo
+
+        barbearia_id = _barbearia_id_sessao()
+        user_id = session.get("user_id") or session.get("usuario_id")
+        print(
+            f"Acessando agenda. Usuario: {session.get('usuario_id')}, "
+            f"Barbearia: {session.get('barbearia_id')}"
+        )
+        eh_admin = _eh_admin()
+        filtrar_meus = _eh_profissional_equipe()
 
         foto_capa = obter_foto_capa(cursor)
         horarios_negocio = _listar_horarios(cursor, barbearia_id)
@@ -1469,10 +1610,18 @@ def admin_cadastrar_profissional():
                     "Foto inválida. Use JPG, PNG, WEBP ou GIF (máx. recomendado 5 MB)."
                 )
 
-        barbearia_id = _barbearia_id_sessao()
+        barbearia_id = session.get("barbearia_id")
+        if barbearia_id is not None:
+            barbearia_id = int(barbearia_id)
         if not barbearia_id:
             flash(_("Sessão sem negócio vinculado. Faça login novamente."), "error")
             return redirect(url_for("login"))
+
+        app.logger.info(
+            "Cadastro profissional: admin user_id=%s barbearia_id sessão=%s",
+            session.get("user_id"),
+            barbearia_id,
+        )
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -1506,37 +1655,22 @@ def admin_cadastrar_profissional():
             )
 
         senha_hash = generate_password_hash(senha)
-        role = "profissional"
 
-        tem_tel = _coluna_usuarios_existe(cursor, "telefone")
-        tem_esp = _coluna_usuarios_existe(cursor, "especialidade")
-        tem_foto = _coluna_usuarios_existe(cursor, "foto_perfil")
-
-        if not (tem_tel and tem_esp and tem_foto):
-            conn.close()
-            flash(
-                "Execute a migração do banco: python aplicar_migracao_profissional_perfil.py",
-                "error",
-            )
-            return render_template("admin_cadastrar_profissional.html", form={})
-
-        cursor.execute(
-            """
-            INSERT INTO usuarios (
-                nome, email, telefone, senha, role, especialidade, foto_perfil, barbearia_id
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                nome,
-                email,
-                celular or None,
-                senha_hash,
-                role,
-                especialidade or None,
-                foto_nome,
-                barbearia_id,
-            ),
+        _inserir_profissional_usuario(
+            cursor,
+            nome,
+            email,
+            senha_hash,
+            barbearia_id,
+            telefone=celular or None,
+            especialidade=especialidade or None,
+            foto_perfil=foto_nome,
+        )
+        app.logger.info(
+            "Profissional criado nome=%s email=%s barbearia_id=%s",
+            nome,
+            email,
+            barbearia_id,
         )
         conn.commit()
         conn.close()
