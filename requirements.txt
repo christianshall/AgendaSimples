@@ -17,3 +17,4 @@ typing_extensions==4.15.0
 tzdata==2025.2
 urllib3==2.6.1
 wikipedia==1.4.0
+libsql-experimental==0.0.33

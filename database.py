@@ -1,11 +1,11 @@
-"""SQLite — conexão, schema e inicialização (Vercel + local)."""
+"""SQLite local ou Turso (libSQL) na nuvem — conexão, schema e inicialização."""
 import os
 import sqlite3
 from datetime import datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
-# Vercel: filesystem efêmero — use /tmp; local: agenda.db na raiz do projeto
+# Vercel: /tmp; local: agenda.db na raiz do projeto
 _DEFAULT_PATH = (
     os.path.join(os.environ.get("TMPDIR", "/tmp"), "agenda.db")
     if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")
@@ -16,12 +16,147 @@ DATABASE_PATH = os.environ.get("SQLITE_DATABASE_PATH", _DEFAULT_PATH)
 DbError = sqlite3.Error
 
 
-def get_connection():
-    os.makedirs(os.path.dirname(os.path.abspath(DATABASE_PATH)), exist_ok=True)
+def _turso_credentials():
+    database_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
+    auth_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
+    return database_url, auth_token
+
+
+def _use_turso():
+    database_url, auth_token = _turso_credentials()
+    return bool(database_url and auth_token)
+
+
+class _CompatRow:
+    """Linha compatível com sqlite3.Row (índice e atributo por nome de coluna)."""
+
+    __slots__ = ("_values", "_keys")
+
+    def __init__(self, values, keys):
+        self._values = tuple(values)
+        self._keys = list(keys)
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        if key in self._keys:
+            return self._values[self._keys.index(key)]
+        for i, col in enumerate(self._keys):
+            if col.lower() == str(key).lower():
+                return self._values[i]
+        raise KeyError(key)
+
+    def __getattr__(self, name):
+        for i, key in enumerate(self._keys):
+            if key == name or key.lower() == name.lower():
+                return self._values[i]
+        raise AttributeError(name)
+
+    def __len__(self):
+        return len(self._values)
+
+    def __iter__(self):
+        return iter(self._values)
+
+
+class _CompatCursor:
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self.lastrowid = getattr(cursor, "lastrowid", None)
+
+    def execute(self, sql, parameters=()):
+        result = self._cursor.execute(sql, parameters)
+        self.lastrowid = getattr(self._cursor, "lastrowid", None)
+        return result
+
+    def executemany(self, sql, parameters):
+        return self._cursor.executemany(sql, parameters)
+
+    def executescript(self, sql):
+        if hasattr(self._cursor, "executescript"):
+            return self._cursor.executescript(sql)
+        for statement in sql.split(";"):
+            chunk = statement.strip()
+            if chunk:
+                self._cursor.execute(chunk)
+        return None
+
+    def _wrap_row(self, row):
+        if row is None:
+            return None
+        if isinstance(row, sqlite3.Row):
+            return row
+        desc = getattr(self._cursor, "description", None)
+        if desc:
+            keys = [col[0] for col in desc]
+            return _CompatRow(row, keys)
+        return row
+
+    def fetchone(self):
+        return self._wrap_row(self._cursor.fetchone())
+
+    def fetchall(self):
+        rows = self._cursor.fetchall()
+        return [self._wrap_row(row) for row in rows]
+
+
+class _CompatConnection:
+    def __init__(self, conn, is_sqlite=False):
+        self._conn = conn
+        self._is_sqlite = is_sqlite
+
+    def cursor(self):
+        if self._is_sqlite:
+            return self._conn.cursor()
+        return _CompatCursor(self._conn.cursor())
+
+    def execute(self, sql, parameters=()):
+        if hasattr(self._conn, "execute"):
+            return self._conn.execute(sql, parameters)
+        cur = self.cursor()
+        return cur.execute(sql, parameters)
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        if hasattr(self._conn, "rollback"):
+            self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def _connect_turso(database_url, auth_token):
+    import libsql_experimental as libsql
+
+    try:
+        conn = libsql.connect(database_url, auth_token=auth_token)
+    except TypeError:
+        conn = libsql.connect(database=database_url, auth_token=auth_token)
+    conn.execute("PRAGMA foreign_keys = ON")
+    return _CompatConnection(conn, is_sqlite=False)
+
+
+def _connect_sqlite():
+    db_dir = os.path.dirname(os.path.abspath(DATABASE_PATH))
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    return _CompatConnection(conn, is_sqlite=True)
+
+
+def get_connection():
+    """
+    Turso (nuvem): TURSO_DATABASE_URL + TURSO_AUTH_TOKEN via libsql_experimental.
+    Local: arquivo agenda.db com sqlite3 nativo.
+    """
+    database_url, auth_token = _turso_credentials()
+    if database_url and auth_token:
+        return _connect_turso(database_url, auth_token)
+    return _connect_sqlite()
 
 
 def _table_exists(cursor, name):
@@ -130,7 +265,9 @@ def init_database():
     )
 
     cursor.execute("SELECT COUNT(*) FROM barbearias")
-    if cursor.fetchone()[0] == 0:
+    count_row = cursor.fetchone()
+    total = count_row[0] if count_row else 0
+    if total == 0:
         senha_demo = generate_password_hash("admin123")
         cursor.execute(
             """
@@ -178,5 +315,5 @@ def init_database():
 
 
 def sql_now():
-    """Expressão SQL para data/hora atual (SQLite)."""
+    """Expressão SQL para data/hora atual (SQLite / Turso)."""
     return "CURRENT_TIMESTAMP"
