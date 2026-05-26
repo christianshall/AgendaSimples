@@ -1,6 +1,8 @@
 """SQLite local ou Turso via HTTP (serverless) — conexão, schema e inicialização."""
+import json
 import os
 import sqlite3
+import traceback
 from datetime import datetime, timedelta
 
 import requests
@@ -36,35 +38,118 @@ def _turso_pipeline_url(database_url):
     return url
 
 
+def _turso_log_error(response, context, exc=None, payload=None):
+    """Registra resposta completa do Turso nos logs (Vercel / stdout)."""
+    print(f"=== Erro Turso [{context}] ===")
+    if exc is not None:
+        print(f"Exceção: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+    if payload is not None:
+        try:
+            print("Payload enviado:", json.dumps(payload, ensure_ascii=False)[:2000])
+        except Exception:
+            print("Payload enviado: (não serializável)")
+    if response is not None:
+        print("Erro Turso:", getattr(response, "text", str(response)))
+        print("Status HTTP:", getattr(response, "status_code", "?"))
+        print("Headers resposta:", dict(getattr(response, "headers", {})))
+    else:
+        print("Erro Turso: (sem objeto response — falha antes da resposta HTTP)")
+    print("=== fim Erro Turso ===")
+
+
 def _python_to_turso_arg(value):
-    if value is None:
-        return {"type": "null"}
-    if isinstance(value, bool):
-        return {"type": "integer", "value": str(int(value))}
-    if isinstance(value, int):
-        return {"type": "integer", "value": str(value)}
-    if isinstance(value, float):
-        return {"type": "float", "value": str(value)}
-    return {"type": "text", "value": str(value)}
+    try:
+        if value is None:
+            return {"type": "null"}
+        if isinstance(value, bool):
+            return {"type": "integer", "value": str(int(value))}
+        if isinstance(value, int):
+            return {"type": "integer", "value": str(value)}
+        if isinstance(value, float):
+            return {"type": "float", "value": str(value)}
+        return {"type": "text", "value": str(value)}
+    except Exception as exc:
+        raise sqlite3.OperationalError(
+            f"Falha ao converter parâmetro SQL para Turso: {value!r} ({exc})"
+        ) from exc
 
 
 def _parse_turso_cell(cell):
-    if not cell:
+    if not cell or not isinstance(cell, dict):
         return None
     kind = cell.get("type")
     if kind == "null":
         return None
     if kind == "integer":
-        return int(cell["value"])
+        try:
+            return int(cell.get("value", 0))
+        except (TypeError, ValueError) as exc:
+            raise sqlite3.OperationalError(
+                f"Célula integer inválida no Turso: {cell!r} ({exc})"
+            ) from exc
     if kind == "float":
-        return float(cell["value"])
+        try:
+            return float(cell.get("value", 0))
+        except (TypeError, ValueError) as exc:
+            raise sqlite3.OperationalError(
+                f"Célula float inválida no Turso: {cell!r} ({exc})"
+            ) from exc
     if kind == "text":
-        return cell["value"]
+        return cell.get("value")
     if kind == "blob":
         import base64
 
-        return base64.b64decode(cell["base64"])
+        try:
+            return base64.b64decode(cell.get("base64") or "")
+        except Exception as exc:
+            raise sqlite3.OperationalError(
+                f"Célula blob inválida no Turso: {exc}"
+            ) from exc
     return cell.get("value")
+
+
+def _extract_execute_result(data, context="pipeline"):
+    """Extrai o primeiro result de execute do JSON do Turso."""
+    if not isinstance(data, dict):
+        _turso_log_error(None, f"{context}: JSON não é objeto", payload={"data": data})
+        raise sqlite3.OperationalError(
+            f"Resposta Turso inválida (esperado objeto JSON): {type(data).__name__}"
+        )
+
+    results = data.get("results")
+    if not isinstance(results, list):
+        _turso_log_error(None, f"{context}: sem lista results", payload=data)
+        raise sqlite3.OperationalError(
+            "Resposta Turso sem campo 'results' ou formato inesperado."
+        )
+
+    for index, item in enumerate(results):
+        if not isinstance(item, dict):
+            print(f"Erro Turso: item results[{index}] não é dict: {item!r}")
+            continue
+
+        if item.get("type") == "error":
+            _turso_log_error(None, f"{context}: results[{index}] error", payload=data)
+            raise sqlite3.OperationalError(
+                f"Turso retornou erro na operação {index}: {item}"
+            )
+
+        if item.get("type") == "ok":
+            response = item.get("response") or {}
+            if response.get("type") == "execute":
+                result = response.get("result")
+                if isinstance(result, dict):
+                    return result
+                print(
+                    f"Erro Turso: execute sem result dict em results[{index}]:",
+                    json.dumps(item, ensure_ascii=False)[:1500],
+                )
+
+    _turso_log_error(None, f"{context}: nenhum execute encontrado", payload=data)
+    raise sqlite3.OperationalError(
+        "Resposta Turso sem resultado 'execute' utilizável."
+    )
 
 
 class _CompatRow:
@@ -111,47 +196,102 @@ class TursoHttpConnection:
             "Content-Type": "application/json",
         }
 
-    def _pipeline(self, requests_body):
+    def _pipeline(self, requests_body, context="pipeline"):
         payload = {"requests": requests_body}
         if self._baton:
             payload["baton"] = self._baton
 
-        response = requests.post(
-            self._pipeline_url,
-            json=payload,
-            headers=self._headers,
-            timeout=60,
-        )
-        if response.status_code >= 400:
-            raise sqlite3.OperationalError(
-                f"Turso HTTP {response.status_code}: {response.text[:500]}"
+        response = None
+        try:
+            response = requests.post(
+                self._pipeline_url,
+                json=payload,
+                headers=self._headers,
+                timeout=60,
             )
+        except requests.Timeout as exc:
+            _turso_log_error(response, f"{context}: timeout", exc, payload)
+            raise sqlite3.OperationalError(
+                f"Turso HTTP timeout ao chamar {self._pipeline_url}"
+            ) from exc
+        except requests.RequestException as exc:
+            _turso_log_error(response, f"{context}: request", exc, payload)
+            raise sqlite3.OperationalError(
+                f"Falha de rede ao conectar ao Turso: {exc}"
+            ) from exc
 
-        data = response.json()
-        if data.get("baton"):
-            self._baton = data["baton"]
+        try:
+            if response.status_code >= 400:
+                _turso_log_error(response, f"{context}: HTTP {response.status_code}", payload=payload)
+                raise sqlite3.OperationalError(
+                    f"Turso HTTP {response.status_code}"
+                )
 
-        for item in data.get("results", []):
-            if item.get("type") == "error":
-                raise sqlite3.OperationalError(str(item))
+            try:
+                data = response.json()
+            except json.JSONDecodeError as exc:
+                _turso_log_error(response, f"{context}: JSON inválido", exc, payload)
+                raise sqlite3.OperationalError(
+                    "Turso retornou corpo que não é JSON válido."
+                ) from exc
 
-        return data
+            if isinstance(data, dict) and data.get("baton"):
+                self._baton = data["baton"]
+
+            return _extract_execute_result(data, context=context) if self._is_execute_only(
+                requests_body
+            ) else data
+
+        except sqlite3.OperationalError:
+            raise
+        except Exception as exc:
+            _turso_log_error(response, f"{context}: inesperado", exc, payload)
+            raise sqlite3.OperationalError(
+                f"Erro inesperado ao processar resposta Turso: {exc}"
+            ) from exc
+
+    @staticmethod
+    def _is_execute_only(requests_body):
+        """True se o pipeline tem só executes (sem close) — retorna último result."""
+        if not requests_body:
+            return False
+        return all(r.get("type") == "execute" for r in requests_body)
 
     def cursor(self):
         return TursoHttpCursor(self)
 
     def commit(self):
-        self.cursor().execute("COMMIT")
+        try:
+            self.cursor().execute("COMMIT")
+        except Exception as exc:
+            print("Erro Turso commit:", exc)
+            traceback.print_exc()
+            raise
 
     def rollback(self):
-        self.cursor().execute("ROLLBACK")
+        try:
+            self.cursor().execute("ROLLBACK")
+        except Exception as exc:
+            print("Erro Turso rollback:", exc)
+            traceback.print_exc()
+            raise
 
     def close(self):
-        if self._baton:
-            try:
-                self._pipeline([{"type": "close"}])
-            except requests.RequestException:
-                pass
+        if not self._baton:
+            return
+        try:
+            payload = {"requests": [{"type": "close"}], "baton": self._baton}
+            response = requests.post(
+                self._pipeline_url,
+                json=payload,
+                headers=self._headers,
+                timeout=30,
+            )
+            if response.status_code >= 400:
+                _turso_log_error(response, "close", payload=payload)
+        except Exception as exc:
+            print("Erro Turso close (ignorado):", exc)
+        finally:
             self._baton = None
 
 
@@ -164,41 +304,79 @@ class TursoHttpCursor:
         self._row_index = 0
 
     def _apply_result(self, result):
-        self.lastrowid = result.get("last_insert_rowid")
-        if self.lastrowid is not None:
-            try:
-                self.lastrowid = int(self.lastrowid)
-            except (TypeError, ValueError):
-                pass
+        try:
+            if not isinstance(result, dict):
+                raise sqlite3.OperationalError(
+                    f"Resultado Turso não é dict: {type(result).__name__}"
+                )
 
-        cols = result.get("cols") or []
-        self.description = [(col["name"], None, None) for col in cols]
+            self.lastrowid = result.get("last_insert_rowid")
+            if self.lastrowid is not None:
+                try:
+                    self.lastrowid = int(self.lastrowid)
+                except (TypeError, ValueError):
+                    pass
 
-        self._rows = []
-        for row in result.get("rows") or []:
-            self._rows.append(
-                tuple(_parse_turso_cell(cell) for cell in row)
-            )
-        self._row_index = 0
+            cols = result.get("cols") or []
+            self.description = []
+            for col in cols:
+                if isinstance(col, dict):
+                    self.description.append((col.get("name", "?"), None, None))
+                elif isinstance(col, str):
+                    self.description.append((col, None, None))
+                else:
+                    self.description.append(("?", None, None))
+
+            self._rows = []
+            for row_index, row in enumerate(result.get("rows") or []):
+                try:
+                    if not isinstance(row, (list, tuple)):
+                        raise sqlite3.OperationalError(
+                            f"Linha {row_index} inválida: {row!r}"
+                        )
+                    self._rows.append(
+                        tuple(_parse_turso_cell(cell) for cell in row)
+                    )
+                except Exception as exc:
+                    print(f"Erro Turso ao parsear linha {row_index}: {row!r}")
+                    traceback.print_exc()
+                    raise
+            self._row_index = 0
+
+        except sqlite3.OperationalError:
+            raise
+        except Exception as exc:
+            print("Erro Turso _apply_result:", result)
+            traceback.print_exc()
+            raise sqlite3.OperationalError(
+                f"Falha ao interpretar resultado Turso: {exc}"
+            ) from exc
 
     def execute(self, sql, parameters=()):
-        args = [_python_to_turso_arg(p) for p in parameters] if parameters else []
-        stmt = {"sql": sql}
-        if args:
-            stmt["args"] = args
+        try:
+            args = (
+                [_python_to_turso_arg(p) for p in parameters] if parameters else []
+            )
+            stmt = {"sql": sql}
+            if args:
+                stmt["args"] = args
 
-        data = self._conn._pipeline([{"type": "execute", "stmt": stmt}])
+            result = self._conn._pipeline(
+                [{"type": "execute", "stmt": stmt}],
+                context=f"execute: {sql[:80]}",
+            )
+            if isinstance(result, dict):
+                self._apply_result(result)
+            return self
 
-        result = {}
-        for item in data.get("results", []):
-            if item.get("type") == "ok":
-                response = item.get("response") or {}
-                if response.get("type") == "execute":
-                    result = response.get("result") or {}
-                    break
-
-        self._apply_result(result)
-        return self
+        except sqlite3.OperationalError:
+            raise
+        except Exception as exc:
+            print(f"Erro Turso execute SQL: {sql[:200]}")
+            traceback.print_exc()
+            raise sqlite3.OperationalError(
+                f"Falha ao executar SQL no Turso: {exc}"
+            ) from exc
 
     def executemany(self, sql, seq_of_parameters):
         for parameters in seq_of_parameters:
@@ -206,11 +384,77 @@ class TursoHttpCursor:
         return self
 
     def executescript(self, sql):
+        statements = []
         for statement in sql.split(";"):
             chunk = statement.strip()
             if chunk:
-                self.execute(chunk)
-        return self
+                statements.append(chunk)
+
+        if not statements:
+            return self
+
+        try:
+            requests_body = [
+                {"type": "execute", "stmt": {"sql": chunk}} for chunk in statements
+            ]
+            payload = {"requests": requests_body}
+            if self._conn._baton:
+                payload["baton"] = self._conn._baton
+
+            response = None
+            try:
+                response = requests.post(
+                    self._conn._pipeline_url,
+                    json=payload,
+                    headers=self._conn._headers,
+                    timeout=120,
+                )
+            except requests.RequestException as exc:
+                _turso_log_error(response, "executescript: request", exc, payload)
+                raise sqlite3.OperationalError(
+                    f"Falha de rede no executescript Turso: {exc}"
+                ) from exc
+
+            if response.status_code >= 400:
+                _turso_log_error(response, "executescript: HTTP", payload=payload)
+                raise sqlite3.OperationalError(
+                    f"Turso HTTP {response.status_code} no executescript"
+                )
+
+            try:
+                data = response.json()
+            except json.JSONDecodeError as exc:
+                _turso_log_error(response, "executescript: JSON", exc, payload)
+                raise sqlite3.OperationalError(
+                    "Turso executescript: resposta não é JSON."
+                ) from exc
+
+            if isinstance(data, dict) and data.get("baton"):
+                self._conn._baton = data["baton"]
+
+            results = data.get("results") or []
+            last_execute = None
+            for item in results:
+                if (
+                    isinstance(item, dict)
+                    and item.get("type") == "ok"
+                    and (item.get("response") or {}).get("type") == "execute"
+                ):
+                    last_execute = (item.get("response") or {}).get("result") or {}
+
+            if isinstance(last_execute, dict):
+                self._apply_result(last_execute)
+
+            return self
+
+        except sqlite3.OperationalError:
+            raise
+        except Exception as exc:
+            print("Erro Turso executescript")
+            traceback.print_exc()
+            raise sqlite3.OperationalError(
+                f"Falha no executescript Turso: {exc}"
+            ) from exc
 
     def _wrap_row(self, row):
         if row is None:
@@ -221,21 +465,39 @@ class TursoHttpCursor:
         return row
 
     def fetchone(self):
-        if self._row_index >= len(self._rows):
-            return None
-        row = self._rows[self._row_index]
-        self._row_index += 1
-        return self._wrap_row(row)
+        try:
+            if self._row_index >= len(self._rows):
+                return None
+            row = self._rows[self._row_index]
+            self._row_index += 1
+            return self._wrap_row(row)
+        except Exception as exc:
+            print("Erro Turso fetchone:", exc)
+            traceback.print_exc()
+            raise
 
     def fetchall(self):
-        remaining = self._rows[self._row_index :]
-        self._row_index = len(self._rows)
-        return [self._wrap_row(row) for row in remaining]
+        try:
+            remaining = self._rows[self._row_index :]
+            self._row_index = len(self._rows)
+            return [self._wrap_row(row) for row in remaining]
+        except Exception as exc:
+            print("Erro Turso fetchall:", exc)
+            traceback.print_exc()
+            raise
 
 
 def _connect_turso_http(database_url, auth_token):
-    pipeline_url = _turso_pipeline_url(database_url)
-    return TursoHttpConnection(pipeline_url, auth_token)
+    try:
+        pipeline_url = _turso_pipeline_url(database_url)
+        print(f"Turso HTTP: conectando em {pipeline_url[:60]}...")
+        return TursoHttpConnection(pipeline_url, auth_token)
+    except Exception as exc:
+        print("Erro Turso _connect_turso_http:", exc)
+        traceback.print_exc()
+        raise sqlite3.OperationalError(
+            f"Não foi possível configurar cliente Turso HTTP: {exc}"
+        ) from exc
 
 
 def _connect_sqlite():
@@ -261,10 +523,11 @@ def get_connection():
 
 def init_database():
     """Cria tabelas e dados mínimos se o banco ainda não existir."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.executescript(
-        """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.executescript(
+            """
         CREATE TABLE IF NOT EXISTS barbearias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
@@ -354,15 +617,15 @@ def init_database():
         CREATE INDEX IF NOT EXISTS IX_assinaturas_stripe_customer ON assinaturas(stripe_customer_id);
         CREATE INDEX IF NOT EXISTS IX_assinaturas_stripe_subscription ON assinaturas(stripe_subscription_id);
         """
-    )
+        )
 
-    cursor.execute("SELECT COUNT(*) FROM barbearias")
-    count_row = cursor.fetchone()
-    total = count_row[0] if count_row else 0
-    if total == 0:
-        senha_demo = generate_password_hash("admin123")
-        cursor.execute(
-            """
+        cursor.execute("SELECT COUNT(*) FROM barbearias")
+        count_row = cursor.fetchone()
+        total = count_row[0] if count_row else 0
+        if total == 0:
+            senha_demo = generate_password_hash("admin123")
+            cursor.execute(
+                """
             INSERT INTO barbearias (
                 nome, slug, email, senha, plano_ativo,
                 titulo_catalogo1, titulo_catalogo2, titulo_catalogo3, titulo_catalogo4,
@@ -370,40 +633,49 @@ def init_database():
             )
             VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
             """,
-            (
-                "AgendaSimples",
-                "agendasimples",
-                "admin@agendasimples.local",
-                senha_demo,
-                "Catálogo 1",
-                "Catálogo 2",
-                "Catálogo 3",
-                "Catálogo 4",
-                "AgendaSimples",
-            ),
-        )
-        barbearia_id = cursor.lastrowid
-        cursor.execute(
-            """
+                (
+                    "AgendaSimples",
+                    "agendasimples",
+                    "admin@agendasimples.local",
+                    senha_demo,
+                    "Catálogo 1",
+                    "Catálogo 2",
+                    "Catálogo 3",
+                    "Catálogo 4",
+                    "AgendaSimples",
+                ),
+            )
+            barbearia_id = cursor.lastrowid
+            cursor.execute(
+                """
             INSERT INTO usuarios (nome, email, senha, role)
             VALUES (?, ?, ?, 'admin')
             """,
-            ("Administrador", "admin@agendasimples.local", senha_demo),
-        )
-        fim_trial = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
-        agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute(
-            """
+                ("Administrador", "admin@agendasimples.local", senha_demo),
+            )
+            fim_trial = (datetime.utcnow() + timedelta(days=7)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            agora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute(
+                """
             INSERT INTO assinaturas (
                 barbearia_id, plano_status, data_fim_trial, criado_em, atualizado_em
             )
             VALUES (?, 'trialing', ?, ?, ?)
             """,
-            (barbearia_id, fim_trial, agora, agora),
-        )
+                (barbearia_id, fim_trial, agora, agora),
+            )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+        conn.close()
+        print("init_database: OK")
+
+    except Exception as exc:
+        print("=== Erro init_database (app continuará carregando) ===")
+        print(f"init_database: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+        print("=== fim Erro init_database ===")
 
 
 def sql_now():
