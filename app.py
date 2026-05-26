@@ -21,6 +21,7 @@ from database import (
     safe_commit,
     safe_rollback,
     seed_servicos_horarios_padrao,
+    vincular_usuario_barbearia,
 )
 import smtplib
 from email.mime.text import MIMEText
@@ -147,28 +148,110 @@ def _salvar_upload_foto_perfil(arquivo):
     return nome
 
 
-def _definir_sessao_admin(user_id, user_name, barbearia_id, nome_barbearia, barbearia_slug):
-    """Grava sessão Flask com tipos JSON-safe (evita None que quebra cookie/redirect)."""
+ROLES_EQUIPE = frozenset({"admin", "barbeiro", "profissional"})
+
+
+def _definir_sessao_usuario(
+    user_id, user_name, role, barbearia_id, nome_barbearia, barbearia_slug
+):
+    """Grava sessão Flask com tipos JSON-safe (role real: admin, barbeiro, profissional)."""
+    role_norm = (str(role or "profissional").strip().lower())
+    if role_norm not in ROLES_EQUIPE:
+        role_norm = "profissional"
+
     session.clear()
     session["user_id"] = int(user_id)
-    session["user_name"] = str(user_name or "").strip() or "Administrador"
-    session["role"] = "admin"
+    session["user_name"] = str(user_name or "").strip() or "Usuário"
+    session["role"] = role_norm
+    session["tipo_usuario"] = role_norm
     session["barbearia_id"] = int(barbearia_id)
     session["nome_barbearia"] = str(nome_barbearia or "").strip() or "AgendaSimples"
     session["barbearia_slug"] = str(barbearia_slug or "").strip()
     session.modified = True
 
 
+def _definir_sessao_admin(user_id, user_name, barbearia_id, nome_barbearia, barbearia_slug):
+    """Atalho para sessão de administrador do negócio."""
+    _definir_sessao_usuario(
+        user_id, user_name, "admin", barbearia_id, nome_barbearia, barbearia_slug
+    )
+
+
+def _role_sessao():
+    return (session.get("role") or "").strip().lower()
+
+
+def _usuario_autenticado():
+    return bool(session.get("user_id")) and bool(session.get("barbearia_id"))
+
+
+def _eh_admin():
+    return _role_sessao() == "admin"
+
+
+def _eh_profissional_equipe():
+    return _role_sessao() in ("barbeiro", "profissional")
+
+
+def _barbearia_id_sessao():
+    """ID do negócio na sessão (admin ou profissional)."""
+    return session.get("barbearia_id")
+
+
+def _exigir_login_barbearia():
+    """Usuário logado com barbearia vinculada — retorna redirect ou None."""
+    if not session.get("user_id"):
+        flash(_("Faça login para continuar."), "warning")
+        return redirect(url_for("login"))
+    if not session.get("barbearia_id"):
+        flash(_("Sessão inválida. Faça login novamente."), "error")
+        return redirect(url_for("login"))
+    if _role_sessao() not in ROLES_EQUIPE:
+        flash(_("Você não tem permissão para acessar esta área."), "error")
+        return redirect(url_for("acesso_negado"))
+    return None
+
+
+def _exigir_admin():
+    """Somente administrador do negócio."""
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
+    if not _eh_admin():
+        flash(_("Esta página é exclusiva do administrador."), "warning")
+        return redirect(url_for("acesso_negado"))
+    return None
+
+
 def _iniciar_sessao_usuario(cursor, user, email):
     """Preenche session Flask após login ou cadastro bem-sucedido."""
     user_id = _valor_linha(user, 0, "id")
     user_name = _valor_linha(user, 1, "nome")
+    role = _valor_linha(user, nome="role")
+    if role is None:
+        try:
+            role = user["role"]
+        except (KeyError, TypeError, IndexError):
+            role = getattr(user, "role", "profissional")
+    role_norm = (str(role or "profissional").strip().lower())
+
     barbearia_id = _valor_linha(user, nome="barbearia_id")
     if barbearia_id is None:
         try:
             barbearia_id = user["barbearia_id"]
         except (KeyError, TypeError, IndexError):
             barbearia_id = getattr(user, "barbearia_id", None)
+
+    if barbearia_id is None and user_id:
+        barbearia_id = vincular_usuario_barbearia(cursor, int(user_id))
+        if barbearia_id is None:
+            cursor.execute(
+                "SELECT barbearia_id FROM usuarios WHERE id = ?",
+                (int(user_id),),
+            )
+            ref = cursor.fetchone()
+            if ref:
+                barbearia_id = _valor_linha(ref, 0, "barbearia_id")
 
     b_row = None
     if barbearia_id:
@@ -177,7 +260,8 @@ def _iniciar_sessao_usuario(cursor, user, email):
             (barbearia_id,),
         )
         b_row = cursor.fetchone()
-    if not b_row and email:
+    # Só admin pode inferir barbearia pelo e-mail da tabela barbearias (evita vazamento entre tenants)
+    if not b_row and email and role_norm == "admin":
         cursor.execute(
             """
             SELECT id, nome, slug FROM barbearias
@@ -186,17 +270,26 @@ def _iniciar_sessao_usuario(cursor, user, email):
             (email,),
         )
         b_row = cursor.fetchone()
+        if b_row and barbearia_id is None:
+            barbearia_id = _valor_linha(b_row, 0, "id")
+            cursor.execute(
+                "UPDATE usuarios SET barbearia_id = ? WHERE id = ?",
+                (barbearia_id, int(user_id)),
+            )
 
     if b_row:
-        _definir_sessao_admin(
+        _definir_sessao_usuario(
             user_id,
             user_name,
+            role_norm,
             _valor_linha(b_row, 0, "id"),
             _valor_linha(b_row, 1, "nome"),
             _valor_linha(b_row, 2, "slug"),
         )
     elif barbearia_id:
-        _definir_sessao_admin(user_id, user_name, barbearia_id, "AgendaSimples", "")
+        _definir_sessao_usuario(
+            user_id, user_name, role_norm, barbearia_id, "AgendaSimples", ""
+        )
     else:
         raise ValueError("Não foi possível vincular o usuário a um estabelecimento na sessão.")
 
@@ -280,8 +373,8 @@ def _obter_barbearia_por_id(cursor, barbearia_id):
 
 
 def _barbearia_id_admin_obrigatorio():
-    """ID do negócio na sessão do administrador."""
-    return session.get("barbearia_id")
+    """Compat: ID do negócio na sessão."""
+    return _barbearia_id_sessao()
 
 
 def _profissional_pertence_barbearia(cursor, profissional_id, barbearia_id):
@@ -307,14 +400,8 @@ def _url_segura_apos_login(next_url):
 
 
 def _exigir_admin_ou_login():
-    """
-    Garante sessão ativa com role estritamente 'admin'.
-    Retorna redirect para login com flash, ou None se autorizado.
-    """
-    if not session.get("user_id") or session.get("role") != "admin":
-        flash("Acesso negado!", "error")
-        return redirect(url_for("login"))
-    return None
+    """Garante sessão ativa de administrador. Retorna redirect ou None."""
+    return _exigir_admin()
 
 
 def _identificador_e_email(identificador):
@@ -994,7 +1081,7 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
 def registrar():
     """Cadastro SaaS — GET redireciona à landing; POST processa o formulário."""
     if request.method == "GET":
-        if session.get("user_id") and session.get("role") == "admin":
+        if _usuario_autenticado() and _role_sessao() in ROLES_EQUIPE:
             return redirect(url_for("admin_agenda"))
         return redirect(url_for("home") + "#cadastro")
     return _processar_cadastro_saas("home_vendas.html")
@@ -1012,7 +1099,7 @@ def home():
     """Landing Page SaaS — conversão para plano mensal."""
     if request.method == "POST":
         return _processar_cadastro_saas("home_vendas.html")
-    if session.get("user_id") and session.get("role") == "admin":
+    if _usuario_autenticado() and _role_sessao() in ROLES_EQUIPE:
         return redirect(url_for("admin_agenda"))
     return render_template("home_vendas.html", **_ctx_landing_vendas())
 
@@ -1037,8 +1124,9 @@ def barbearia_home(identificador):
 @app.route("/assinatura/bloqueio")
 def bloqueio_assinatura():
     """Tela de bloqueio quando trial expirou e plano não está ativo."""
-    if session.get("role") != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
     barbearia_id = session.get("barbearia_id")
     if not barbearia_id:
         return redirect(url_for("login"))
@@ -1068,7 +1156,8 @@ def login():
         senha = request.form.get("password")
         conn = get_connection()
         cursor = conn.cursor()
-        
+        ensure_schema_migrations(cursor)
+
         cursor.execute(
             """
             SELECT id, nome, role, senha, barbearia_id FROM usuarios
@@ -1079,26 +1168,33 @@ def login():
         user = cursor.fetchone()
 
         if user and _senha_confere(user.senha, senha):
-            _iniciar_sessao_usuario(cursor, user, email)
-            conn.close()
-            destino = _url_segura_apos_login(request.form.get("next") or request.args.get("next"))
-            if user.role == "admin":
-                if destino:
-                    return redirect(destino)
-                return redirect(url_for("admin_agenda"))
-            if destino:
+            try:
+                _iniciar_sessao_usuario(cursor, user, email)
+                safe_commit(conn)
+            except ValueError as exc:
+                safe_rollback(conn)
+                safe_close(conn)
+                app.logger.warning("Login sem barbearia vinculada: %s", exc)
                 flash(
-                    "Esta página é exclusiva do administrador. Você foi redirecionado para sua agenda.",
-                    "warning",
+                    _("Conta sem negócio vinculado. Peça ao administrador para reconfigurar seu cadastro."),
+                    "error",
                 )
-            return redirect(url_for("agenda"))
+                return redirect(url_for("login"))
+            safe_close(conn)
+            destino = _url_segura_apos_login(
+                request.form.get("next") or request.args.get("next")
+            )
+            if destino:
+                return redirect(destino)
+            return redirect(url_for("admin_agenda"))
 
-        conn.close()
+        safe_rollback(conn)
+        safe_close(conn)
         flash("Usuário ou senha incorretos!", "error")
         return redirect(url_for("login", next=request.form.get("next")))
     proxima = request.args.get("next")
     if proxima and _url_segura_apos_login(proxima):
-        flash("Faça login como administrador para acessar esta página.", "warning")
+        flash(_("Faça login para acessar esta página."), "warning")
     return render_template("login.html", next_url=proxima)
 
 
@@ -1224,121 +1320,102 @@ def logout():
         return redirect(url_for("barbearia_home", identificador=identificador))
     return redirect(url_for("home"))
 
-# -------------------------- AGENDA BARBEIRO --------------------------
+# -------------------------- AGENDA BARBEIRO (legado → painel unificado) --------------------------
 @app.route("/agenda")
 def agenda():
-    if session.get("role") not in ("barbeiro", "profissional"):
-        return redirect(url_for("login"))
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
+    return redirect(url_for("admin_agenda"))
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # 🌟 ATUALIZAÇÃO: Busca a foto de capa para exibir no topo do HTML
-    foto_capa = obter_foto_capa(cursor)
 
-    barbearia_id = session.get("barbearia_id")
-    if not barbearia_id:
-        conn.close()
-        return redirect(url_for("login"))
-    horarios_negocio = _listar_horarios(cursor, barbearia_id)
-    cursor.execute(
-        """
-        SELECT Nome, Dia, Hora, Servico, Whatsapp
-        FROM Clientes
-        WHERE barbeiro_id = ? AND barbearia_id = ?
-        ORDER BY Dia, Hora
-        """,
-        (session["user_id"], barbearia_id),
-    )
-    registros = cursor.fetchall()
-    conn.close()
-
-    hoje = datetime.today()
-    agenda_data = {
-        (hoje + timedelta(days=i)).strftime("%Y-%m-%d"): {
-            h: None for h in horarios_negocio
-        }
-        for i in range(28)
-    }
-
-    for r in registros:
-        d_str = r.Dia.strftime("%Y-%m-%d") if isinstance(r.Dia, datetime) else str(r.Dia)
-        h_str = str(r.Hora)[:5]
-        if d_str in agenda_data and h_str in agenda_data[d_str]:
-            agenda_data[d_str][h_str] = {
-                "nome": r.Nome,
-                "servico": r.Servico,
-                "whatsapp": r.Whatsapp,
-            }
-
+@app.route("/acesso-negado")
+def acesso_negado():
+    identificador = (session.get("barbearia_slug") or "").strip()
+    if not identificador and session.get("barbearia_id"):
+        identificador = str(session.get("barbearia_id"))
     return render_template(
-        "agenda.html",
-        agenda=agenda_data,
-        horarios=horarios_negocio,
-        datetime=datetime,
-        dias_pt=DIAS_PT,
-        foto_capa=foto_capa,
+        "acesso_negado.html",
+        identificador=identificador,
+        role=_role_sessao(),
     )
 
-# -------------------------- AGENDA ADMIN --------------------------
+
+# -------------------------- AGENDA DO NEGÓCIO (admin + profissionais) --------------------------
 @app.route("/admin")
 @app.route("/admin_agenda")
 @requer_plano
 def admin_agenda():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
 
-    barbearia_id = _barbearia_id_admin_obrigatorio()
-    if not barbearia_id:
-        flash(_("Sessão inválida. Faça login novamente."), "error")
-        return redirect(url_for("login"))
+    barbearia_id = _barbearia_id_sessao()
+    user_id = session.get("user_id")
+    eh_admin = _eh_admin()
+    filtrar_meus = _eh_profissional_equipe()
 
     conn = get_connection()
     cursor = conn.cursor()
-    ensure_schema_migrations(cursor)
+    try:
+        ensure_schema_migrations(cursor)
 
-    foto_capa = obter_foto_capa(cursor)
-    horarios_negocio = _listar_horarios(cursor, barbearia_id)
+        foto_capa = obter_foto_capa(cursor)
+        horarios_negocio = _listar_horarios(cursor, barbearia_id)
 
-    cursor.execute(
+        sql_agenda = """
+            SELECT c.Nome, c.Dia, c.Hora, c.Servico, c.Whatsapp, u.nome AS barbeiro_nome,
+                   c.barbeiro_id, IFNULL(c.status, 'Agendado') AS status
+            FROM Clientes c
+            INNER JOIN usuarios u ON c.barbeiro_id = u.id
+            WHERE c.barbearia_id = ?
+              AND IFNULL(c.status, 'Agendado') <> 'Concluído'
         """
-        SELECT c.Nome, c.Dia, c.Hora, c.Servico, c.Whatsapp, u.nome AS barbeiro_nome,
-               c.barbeiro_id, IFNULL(c.status, 'Agendado') AS status
-        FROM Clientes c
-        INNER JOIN usuarios u ON c.barbeiro_id = u.id
-        WHERE c.barbearia_id = ?
-          AND IFNULL(c.status, 'Agendado') <> 'Concluído'
-        ORDER BY c.Dia, c.Hora
-        """,
-        (barbearia_id,),
-    )
-    registros = cursor.fetchall()
+        params = [barbearia_id]
+        if filtrar_meus:
+            sql_agenda += " AND c.barbeiro_id = ?"
+            params.append(user_id)
+        sql_agenda += " ORDER BY c.Dia, c.Hora"
 
-    hoje = datetime.today()
-    agenda_data = {
-        (hoje + timedelta(days=i)).strftime("%Y-%m-%d"): {
-            h: None for h in horarios_negocio
+        cursor.execute(sql_agenda, tuple(params))
+        registros = cursor.fetchall()
+
+        hoje = datetime.today()
+        agenda_data = {
+            (hoje + timedelta(days=i)).strftime("%Y-%m-%d"): {
+                h: None for h in horarios_negocio
+            }
+            for i in range(28)
         }
-        for i in range(28)
-    }
 
-    for r in registros:
-        d_str = r.Dia.strftime("%Y-%m-%d") if isinstance(r.Dia, datetime) else str(r.Dia)
-        h_str = str(r.Hora)[:5]
-        if d_str in agenda_data and h_str in agenda_data[d_str]:
-            if agenda_data[d_str][h_str] is None:
-                agenda_data[d_str][h_str] = []
-            agenda_data[d_str][h_str].append({
-                "nome": r.Nome,
-                "servico": r.Servico,
-                "whatsapp": getattr(r, "Whatsapp", ""),
-                "barbeiro_nome": r.barbeiro_nome,
-                "barbeiro_id": r.barbeiro_id,
-            })
+        for r in registros:
+            d_str = (
+                r.Dia.strftime("%Y-%m-%d")
+                if isinstance(r.Dia, datetime)
+                else str(r.Dia)
+            )
+            h_str = str(r.Hora)[:5]
+            if d_str in agenda_data and h_str in agenda_data[d_str]:
+                if agenda_data[d_str][h_str] is None:
+                    agenda_data[d_str][h_str] = []
+                agenda_data[d_str][h_str].append({
+                    "nome": r.Nome,
+                    "servico": r.Servico,
+                    "whatsapp": getattr(r, "Whatsapp", ""),
+                    "barbeiro_nome": r.barbeiro_nome,
+                    "barbeiro_id": r.barbeiro_id,
+                })
 
-    barbeiros = _listar_profissionais(cursor, barbearia_id)
-    barbearia = _obter_barbearia_por_id(cursor, barbearia_id)
-    barbearia_slug = barbearia["slug"] if barbearia else session.get("barbearia_slug", "")
+        barbeiros = _listar_profissionais(cursor, barbearia_id)
+        barbearia = _obter_barbearia_por_id(cursor, barbearia_id)
+        barbearia_slug = (
+            barbearia["slug"] if barbearia else session.get("barbearia_slug", "")
+        )
+    except Exception as exc:
+        conn.close()
+        app.logger.exception("Erro ao carregar admin_agenda: %s", exc)
+        flash(_("Não foi possível carregar a agenda. Tente novamente."), "error")
+        return redirect(url_for("acesso_negado"))
     conn.close()
 
     return render_template(
@@ -1350,6 +1427,8 @@ def admin_agenda():
         barbeiros=barbeiros,
         foto_capa=foto_capa,
         barbearia_slug=barbearia_slug,
+        eh_admin=eh_admin,
+        filtrar_meus=filtrar_meus,
     )
 
 
@@ -1390,12 +1469,24 @@ def admin_cadastrar_profissional():
                     "Foto inválida. Use JPG, PNG, WEBP ou GIF (máx. recomendado 5 MB)."
                 )
 
-        barbearia_id = _barbearia_id_admin_obrigatorio()
+        barbearia_id = _barbearia_id_sessao()
         if not barbearia_id:
+            flash(_("Sessão sem negócio vinculado. Faça login novamente."), "error")
             return redirect(url_for("login"))
 
         conn = get_connection()
         cursor = conn.cursor()
+        ensure_schema_migrations(cursor)
+
+        if not _coluna_existe(cursor, "usuarios", "barbearia_id"):
+            conn.close()
+            flash(
+                _(
+                    "Banco desatualizado. Execute: python aplicar_migracao_barbearia_id_usuarios.py"
+                ),
+                "error",
+            )
+            return render_template("admin_cadastrar_profissional.html", form={})
 
         if email and not erros and _email_ja_cadastrado(cursor, email):
             erros.append("Este e-mail já está cadastrado.")
@@ -1458,8 +1549,9 @@ def admin_cadastrar_profissional():
 @app.route("/admin/agenda/concluir", methods=["POST"])
 @requer_plano
 def admin_agenda_concluir():
-    if session.get("role") != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
 
     data = request.form.get("data")
     hora = request.form.get("hora")
@@ -1484,9 +1576,17 @@ def admin_agenda_concluir():
         flash("O valor não pode ser negativo.", "warning")
         return redirect(url_for("admin_agenda"))
 
-    barbearia_id = _barbearia_id_admin_obrigatorio()
-    if not barbearia_id:
-        return redirect(url_for("login"))
+    try:
+        barbeiro_id_int = int(barbeiro_id)
+    except (TypeError, ValueError):
+        flash("Profissional inválido.", "danger")
+        return redirect(url_for("admin_agenda"))
+
+    if _eh_profissional_equipe() and barbeiro_id_int != int(session["user_id"]):
+        flash(_("Você só pode concluir seus próprios agendamentos."), "error")
+        return redirect(url_for("acesso_negado"))
+
+    barbearia_id = _barbearia_id_sessao()
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -1736,36 +1836,84 @@ def sucesso_agendamento(agendamento_id):
 # -------------------------- WHATSAPP / EDITAR / EXCLUIR --------------------------
 @app.route("/editar/<string:data>/<string:hora>", methods=["GET", "POST"])
 def editar(data, hora):
-    barbeiro_id = request.args.get("barbeiro_id")
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
+    barbearia_id = _barbearia_id_sessao()
+    barbeiro_id = request.args.get("barbeiro_id") or request.form.get("barbeiro_id")
+    if _eh_profissional_equipe() and str(barbeiro_id) != str(session.get("user_id")):
+        flash(_("Você só pode editar seus próprios agendamentos."), "error")
+        return redirect(url_for("acesso_negado"))
     conn = get_connection()
     cursor = conn.cursor()
     if request.method == "POST":
-        cursor.execute("UPDATE Clientes SET Nome=?, Servico=?, Whatsapp=? WHERE Dia=? AND Hora=? AND barbeiro_id=?",
-                       (request.form["nome"], request.form["servico"], request.form.get("whatsapp",""), data, hora, barbeiro_id))
+        cursor.execute(
+            """
+            UPDATE Clientes SET Nome=?, Servico=?, Whatsapp=?
+            WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?
+            """,
+            (
+                request.form["nome"],
+                request.form["servico"],
+                request.form.get("whatsapp", ""),
+                data,
+                hora,
+                barbeiro_id,
+                barbearia_id,
+            ),
+        )
         conn.commit()
         conn.close()
-        return redirect(url_for("admin_agenda" if session["role"]=="admin" else "agenda"))
-    cursor.execute("SELECT Nome, Servico, Whatsapp FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+        return redirect(url_for("admin_agenda"))
+    cursor.execute(
+        """
+        SELECT Nome, Servico, Whatsapp FROM Clientes
+        WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?
+        """,
+        (data, hora, barbeiro_id, barbearia_id),
+    )
     cliente = cursor.fetchone()
     conn.close()
     return render_template("editar.html", cliente=cliente, data=data, hora=hora, barbeiro_id=barbeiro_id)
 
 @app.route("/excluir/<string:data>/<string:hora>")
 def excluir(data, hora):
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
+    barbearia_id = _barbearia_id_sessao()
     barbeiro_id = request.args.get("barbeiro_id")
+    if _eh_profissional_equipe() and str(barbeiro_id) != str(session.get("user_id")):
+        flash(_("Você só pode excluir seus próprios agendamentos."), "error")
+        return redirect(url_for("acesso_negado"))
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cursor.execute(
+        "DELETE FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?",
+        (data, hora, barbeiro_id, barbearia_id),
+    )
     conn.commit()
     conn.close()
-    return redirect(url_for("admin_agenda" if session["role"]=="admin" else "agenda"))
+    return redirect(url_for("admin_agenda"))
 
 @app.route("/whatsapp/<string:data>/<string:hora>")
 def enviar_whatsapp(data, hora):
+    bloqueio = _exigir_login_barbearia()
+    if bloqueio:
+        return bloqueio
+    barbearia_id = _barbearia_id_sessao()
     barbeiro_id = request.args.get("barbeiro_id")
+    if _eh_profissional_equipe() and str(barbeiro_id) != str(session.get("user_id")):
+        return redirect(url_for("acesso_negado"))
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT Nome, Whatsapp FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=?", (data, hora, barbeiro_id))
+    cursor.execute(
+        """
+        SELECT Nome, Whatsapp FROM Clientes
+        WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?
+        """,
+        (data, hora, barbeiro_id, barbearia_id),
+    )
     cliente = cursor.fetchone()
     conn.close()
     if not cliente or not cliente[1]:
@@ -1845,8 +1993,9 @@ def marcar_barbearia(identificador):
 # -------------------------- EXPORTAR PDF / EXCEL --------------------------
 @app.route("/exportar_excel")
 def exportar_excel():
-    if session.get("role") != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
     barbearia_id = _barbearia_id_admin_obrigatorio()
     if not barbearia_id:
         return redirect(url_for("login"))
@@ -1879,31 +2028,21 @@ def pdf_hoje():
 
 @app.route("/pdf_diario/<string:data>")
 def pdf_diario(data):
-    barbearia_id = None
-    if session.get("role") == "admin":
-        barbearia_id = _barbearia_id_admin_obrigatorio()
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
+    barbearia_id = _barbearia_id_sessao()
     conn = get_connection()
     cursor = conn.cursor()
-    if barbearia_id:
-        cursor.execute(
-            """
-            SELECT c.Nome, c.Hora, c.Servico, u.nome
-            FROM Clientes c
-            JOIN usuarios u ON c.barbeiro_id = u.id
-            WHERE c.Dia = ? AND c.barbearia_id = ?
-            """,
-            (data, barbearia_id),
-        )
-    else:
-        cursor.execute(
-            """
-            SELECT c.Nome, c.Hora, c.Servico, u.nome
-            FROM Clientes c
-            JOIN usuarios u ON c.barbeiro_id = u.id
-            WHERE c.Dia = ?
-            """,
-            (data,),
-        )
+    cursor.execute(
+        """
+        SELECT c.Nome, c.Hora, c.Servico, u.nome
+        FROM Clientes c
+        JOIN usuarios u ON c.barbeiro_id = u.id
+        WHERE c.Dia = ? AND c.barbearia_id = ?
+        """,
+        (data, barbearia_id),
+    )
     clientes = cursor.fetchall()
     conn.close()
 
@@ -2129,8 +2268,9 @@ def _gerar_pdf_financeiro(transacoes, saldo, titulo_estabelecimento, faturamento
 @app.route("/admin_financeiro")
 @requer_plano
 def admin_financeiro():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
 
     barbearia_id = _barbearia_id_admin_obrigatorio()
     if not barbearia_id:
@@ -2160,8 +2300,9 @@ def admin_financeiro():
 @app.route("/lancar_transacao", methods=["POST"])
 @requer_plano
 def lancar_transacao():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
 
     barbearia_id = _barbearia_id_admin_obrigatorio()
     if not barbearia_id:
@@ -2197,8 +2338,9 @@ def lancar_transacao():
 @app.route("/financeiro/exportar/excel")
 @requer_plano
 def financeiro_exportar_excel():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
 
     barbearia_id = _barbearia_id_admin_obrigatorio()
     if not barbearia_id:
@@ -2226,8 +2368,9 @@ def financeiro_exportar_excel():
 @app.route("/financeiro/exportar/pdf")
 @requer_plano
 def financeiro_exportar_pdf():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
 
     barbearia_id = _barbearia_id_admin_obrigatorio()
     if not barbearia_id:
@@ -2259,8 +2402,9 @@ def financeiro_exportar_pdf():
 @app.route("/admin/galeria", methods=["GET", "POST"])
 @requer_plano
 def admin_galeria():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
 
     barbearia_id = _barbearia_id_admin_obrigatorio()
     if not barbearia_id:
@@ -2307,8 +2451,9 @@ def admin_galeria():
 @app.route("/eliminar_foto/<int:foto_id>", methods=["POST", "GET"])
 @requer_plano
 def eliminar_foto(foto_id):
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
 
     barbearia_id = _barbearia_id_admin_obrigatorio()
     if not barbearia_id:
@@ -2346,8 +2491,9 @@ def eliminar_foto(foto_id):
 @app.route("/admin/configuracoes", methods=["GET", "POST"])
 @requer_plano
 def admin_configuracoes():
-    if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
         
     conn = get_connection()
     cursor = conn.cursor()

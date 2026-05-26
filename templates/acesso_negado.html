@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Acesso negado') }} — AgendaSimples</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
+</head>
+<body class="page-login">
+    <div class="login-card login-card--wide">
+        <div class="login-header">
+            <h2>{{ _('Acesso negado') }}</h2>
+            <p class="registrar-subtitle">
+                {{ _('Você não tem permissão para acessar esta página.') }}
+            </p>
+        </div>
+        <div class="login-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endwith %}
+            <div class="login-links" style="margin-top:1.5rem; display:flex; flex-direction:column; gap:0.75rem;">
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('admin_agenda') }}">{{ _('Voltar para minha agenda') }}</a>
+                {% endif %}
+                {% if identificador %}
+                <a href="{{ url_for('barbearia_home', identificador=identificador) }}">{{ _('Página pública do negócio') }}</a>
+                {% else %}
+                <a href="{{ url_for('home') }}">{{ _('Página inicial') }}</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}">{{ _('Sair da conta') }}</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

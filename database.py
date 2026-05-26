@@ -674,12 +674,100 @@ def _barbearia_id_padrao(cursor):
 
 def backfill_barbearia_id(cursor):
     """Preenche barbearia_id em registros antigos (pré multi-tenant)."""
+    if not _coluna_existe(cursor, "usuarios", "barbearia_id"):
+        return
+
     padrao = _barbearia_id_padrao(cursor)
     try:
+        # Profissionais: inferir pelo tenant dos agendamentos já existentes
+        cursor.execute(
+            """
+            UPDATE usuarios
+            SET barbearia_id = (
+                SELECT c.barbearia_id FROM Clientes c
+                WHERE c.barbeiro_id = usuarios.id
+                  AND c.barbearia_id IS NOT NULL
+                LIMIT 1
+            )
+            WHERE barbearia_id IS NULL
+              AND role IN ('barbeiro', 'profissional')
+            """
+        )
+
+        # Admins sem vínculo: barbearia com mesmo e-mail
+        if _coluna_existe(cursor, "barbearias", "email"):
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET barbearia_id = (
+                    SELECT b.id FROM barbearias b
+                    WHERE LOWER(TRIM(b.email)) = LOWER(TRIM(usuarios.email))
+                    LIMIT 1
+                )
+                WHERE barbearia_id IS NULL AND role = 'admin'
+                  AND email IS NOT NULL AND TRIM(email) <> ''
+                """
+            )
+
+        # Por barbearia: profissionais órfãos herdam o admin do mesmo negócio
+        cursor.execute(
+            """
+            SELECT DISTINCT barbearia_id FROM usuarios
+            WHERE role = 'admin' AND barbearia_id IS NOT NULL
+            """
+        )
+        for row in cursor.fetchall() or []:
+            bid = _valor_linha(row, 0)
+            if bid is None:
+                continue
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET barbearia_id = ?
+                WHERE barbearia_id IS NULL
+                  AND role IN ('barbeiro', 'profissional')
+                  AND id IN (
+                    SELECT DISTINCT barbeiro_id FROM Clientes
+                    WHERE barbearia_id = ? AND barbeiro_id IS NOT NULL
+                  )
+                """,
+                (bid, bid),
+            )
+
+        # Único tenant: profissionais restantes recebem a barbearia do admin
+        cursor.execute(
+            """
+            SELECT COUNT(DISTINCT barbearia_id) FROM usuarios
+            WHERE role = 'admin' AND barbearia_id IS NOT NULL
+            """
+        )
+        n_tenants = (_valor_linha(cursor.fetchone(), 0) or 0) or 0
+        if n_tenants == 1:
+            cursor.execute(
+                """
+                SELECT barbearia_id FROM usuarios
+                WHERE role = 'admin' AND barbearia_id IS NOT NULL
+                LIMIT 1
+                """
+            )
+            admin_row = cursor.fetchone()
+            admin_bid = _valor_linha(admin_row, 0) if admin_row else padrao
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET barbearia_id = ?
+                WHERE barbearia_id IS NULL
+                  AND role IN ('barbeiro', 'profissional')
+                """,
+                (admin_bid,),
+            )
+
+        # Demais usuários (admin antigo sem match): primeira barbearia
         cursor.execute(
             "UPDATE usuarios SET barbearia_id = ? WHERE barbearia_id IS NULL",
             (padrao,),
         )
+
         cursor.execute(
             """
             UPDATE Clientes
@@ -710,6 +798,72 @@ def backfill_barbearia_id(cursor):
         )
     except Exception as exc:
         print(f"backfill_barbearia_id: {exc}")
+
+
+def vincular_usuario_barbearia(cursor, user_id):
+    """
+    Tenta preencher barbearia_id de um usuário (ex.: profissional órfão).
+    Retorna barbearia_id ou None.
+    """
+    if not _coluna_existe(cursor, "usuarios", "barbearia_id"):
+        return None
+
+    cursor.execute(
+        "SELECT barbearia_id, role, email FROM usuarios WHERE id = ?",
+        (user_id,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return None
+
+    atual = _valor_linha(row, 0, "barbearia_id")
+    if atual is not None:
+        return int(atual)
+
+    role = (_valor_linha(row, 1, "role") or "").strip().lower()
+    email = (_valor_linha(row, 2, "email") or "").strip()
+
+    if role in ("barbeiro", "profissional"):
+        cursor.execute(
+            """
+            SELECT c.barbearia_id FROM Clientes c
+            WHERE c.barbeiro_id = ? AND c.barbearia_id IS NOT NULL
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+        ag = cursor.fetchone()
+        if ag and _valor_linha(ag, 0) is not None:
+            bid = int(_valor_linha(ag, 0))
+            cursor.execute(
+                "UPDATE usuarios SET barbearia_id = ? WHERE id = ?",
+                (bid, user_id),
+            )
+            return bid
+
+    if role == "admin" and email and _coluna_existe(cursor, "barbearias", "email"):
+        cursor.execute(
+            """
+            SELECT id FROM barbearias
+            WHERE LOWER(TRIM(email)) = LOWER(?) LIMIT 1
+            """,
+            (email,),
+        )
+        b = cursor.fetchone()
+        if b and _valor_linha(b, 0) is not None:
+            bid = int(_valor_linha(b, 0))
+            cursor.execute(
+                "UPDATE usuarios SET barbearia_id = ? WHERE id = ?",
+                (bid, user_id),
+            )
+            return bid
+
+    backfill_barbearia_id(cursor)
+    cursor.execute("SELECT barbearia_id FROM usuarios WHERE id = ?", (user_id,))
+    row2 = cursor.fetchone()
+    if row2 and _valor_linha(row2, 0) is not None:
+        return int(_valor_linha(row2, 0))
+    return None
 
 
 def ensure_schema_migrations(cursor):

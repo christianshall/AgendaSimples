@@ -178,9 +178,14 @@ def requer_assinatura_ativa(get_connection):
     def decorator(view):
         @wraps(view)
         def wrapped(*args, **kwargs):
-            if session.get("role") != "admin":
-                flash("Acesso negado!", "error")
+            if not session.get("user_id"):
+                flash("Faça login para continuar.", "warning")
                 return redirect(url_for("login"))
+
+            role = (session.get("role") or "").lower()
+            if role not in ("admin", "barbeiro", "profissional"):
+                flash("Acesso negado!", "error")
+                return redirect(url_for("acesso_negado"))
 
             barbearia_id = session.get("barbearia_id")
             if not barbearia_id:

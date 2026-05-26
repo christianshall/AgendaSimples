@@ -255,7 +255,7 @@
     <div class="container-fluid px-4">
 
         <span class="navbar-brand">
-            {{ session.get('nome_barbearia', 'AgendaSimples') }} — {{ _('Admin') }}
+            {{ session.get('nome_barbearia', 'AgendaSimples') }} — {% if eh_admin|default(false) %}{{ _('Painel Admin') }}{% else %}{{ _('Minha agenda') }}{% endif %}
         </span>
 
         <div class="ms-auto d-flex align-items-center gap-2">
@@ -264,31 +264,26 @@
                 {% include '_lang_selector.html' %}
             </div>
 
-            {% if session.get('role') == 'admin' %}
+            {% if eh_admin|default(false) %}
             <a href="{{ url_for('admin_cadastrar_profissional') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Cadastrar profissional') }}">
                 <i class="fas fa-user-plus"></i>
             </a>
-            {% endif %}
-
             <a href="{{ url_for('admin_configuracoes') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Configurações') }}">
                 <i class="fas fa-cog"></i>
             </a>
-
             <a href="{{ url_for('admin_galeria') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Gerenciar Galeria') }}">
                 <i class="fas fa-images"></i>
             </a>
-
             <a href="{{ url_for('exportar_excel') }}" class="btn btn-nav-tool btn-sm" title="{{ _('Exportar Excel') }}">
                 <i class="fas fa-file-excel"></i>
             </a>
-
             <a href="{{ url_for('pdf_hoje') }}" class="btn btn-nav-tool btn-sm" title="{{ _('PDF Hoje') }}">
                 <i class="fas fa-file-pdf"></i>
             </a>
-
             <a href="{{ url_for('admin_financeiro') }}" class="btn btn-warning btn-sm" title="{{ _('Financeiro') }}">
                 <i class="fas fa-dollar-sign"></i>
             </a>
+            {% endif %}
 
             <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm" title="{{ _('Sair') }}">
                 <i class="fas fa-sign-out-alt"></i>
