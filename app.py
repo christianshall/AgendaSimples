@@ -7,7 +7,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from urllib.parse import quote
 from datetime import datetime, timedelta
 
-# Conexão: Turso (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN) ou SQLite local (agenda.db)
+# Conexão: Turso HTTP (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN) ou SQLite local (agenda.db)
 from database import DbError, get_connection, init_database
 import smtplib
 from email.mime.text import MIMEText

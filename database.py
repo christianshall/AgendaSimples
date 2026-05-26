@@ -1,8 +1,9 @@
-"""SQLite local ou Turso (libSQL) na nuvem — conexão, schema e inicialização."""
+"""SQLite local ou Turso via HTTP (serverless) — conexão, schema e inicialização."""
 import os
 import sqlite3
 from datetime import datetime, timedelta
 
+import requests
 from werkzeug.security import generate_password_hash
 
 # Vercel: /tmp; local: agenda.db na raiz do projeto
@@ -22,9 +23,48 @@ def _turso_credentials():
     return database_url, auth_token
 
 
-def _use_turso():
-    database_url, auth_token = _turso_credentials()
-    return bool(database_url and auth_token)
+def _turso_pipeline_url(database_url):
+    """Converte libsql://... em https://.../v2/pipeline."""
+    url = database_url.strip()
+    if url.startswith("libsql://"):
+        url = "https://" + url[len("libsql://") :]
+    elif url.startswith("http://"):
+        url = "https://" + url[len("http://") :]
+    url = url.rstrip("/")
+    if not url.endswith("/v2/pipeline"):
+        url = f"{url}/v2/pipeline"
+    return url
+
+
+def _python_to_turso_arg(value):
+    if value is None:
+        return {"type": "null"}
+    if isinstance(value, bool):
+        return {"type": "integer", "value": str(int(value))}
+    if isinstance(value, int):
+        return {"type": "integer", "value": str(value)}
+    if isinstance(value, float):
+        return {"type": "float", "value": str(value)}
+    return {"type": "text", "value": str(value)}
+
+
+def _parse_turso_cell(cell):
+    if not cell:
+        return None
+    kind = cell.get("type")
+    if kind == "null":
+        return None
+    if kind == "integer":
+        return int(cell["value"])
+    if kind == "float":
+        return float(cell["value"])
+    if kind == "text":
+        return cell["value"]
+    if kind == "blob":
+        import base64
+
+        return base64.b64decode(cell["base64"])
+    return cell.get("value")
 
 
 class _CompatRow:
@@ -59,83 +99,143 @@ class _CompatRow:
         return iter(self._values)
 
 
-class _CompatCursor:
-    def __init__(self, cursor):
-        self._cursor = cursor
-        self.lastrowid = getattr(cursor, "lastrowid", None)
+class TursoHttpConnection:
+    """Cliente Turso SQL-over-HTTP (sem drivers nativos — compatível com Vercel)."""
+
+    def __init__(self, pipeline_url, auth_token):
+        self._pipeline_url = pipeline_url
+        self._auth_token = auth_token
+        self._baton = None
+        self._headers = {
+            "Authorization": f"Bearer {auth_token}",
+            "Content-Type": "application/json",
+        }
+
+    def _pipeline(self, requests_body):
+        payload = {"requests": requests_body}
+        if self._baton:
+            payload["baton"] = self._baton
+
+        response = requests.post(
+            self._pipeline_url,
+            json=payload,
+            headers=self._headers,
+            timeout=60,
+        )
+        if response.status_code >= 400:
+            raise sqlite3.OperationalError(
+                f"Turso HTTP {response.status_code}: {response.text[:500]}"
+            )
+
+        data = response.json()
+        if data.get("baton"):
+            self._baton = data["baton"]
+
+        for item in data.get("results", []):
+            if item.get("type") == "error":
+                raise sqlite3.OperationalError(str(item))
+
+        return data
+
+    def cursor(self):
+        return TursoHttpCursor(self)
+
+    def commit(self):
+        self.cursor().execute("COMMIT")
+
+    def rollback(self):
+        self.cursor().execute("ROLLBACK")
+
+    def close(self):
+        if self._baton:
+            try:
+                self._pipeline([{"type": "close"}])
+            except requests.RequestException:
+                pass
+            self._baton = None
+
+
+class TursoHttpCursor:
+    def __init__(self, connection):
+        self._conn = connection
+        self.lastrowid = None
+        self.description = None
+        self._rows = []
+        self._row_index = 0
+
+    def _apply_result(self, result):
+        self.lastrowid = result.get("last_insert_rowid")
+        if self.lastrowid is not None:
+            try:
+                self.lastrowid = int(self.lastrowid)
+            except (TypeError, ValueError):
+                pass
+
+        cols = result.get("cols") or []
+        self.description = [(col["name"], None, None) for col in cols]
+
+        self._rows = []
+        for row in result.get("rows") or []:
+            self._rows.append(
+                tuple(_parse_turso_cell(cell) for cell in row)
+            )
+        self._row_index = 0
 
     def execute(self, sql, parameters=()):
-        result = self._cursor.execute(sql, parameters)
-        self.lastrowid = getattr(self._cursor, "lastrowid", None)
-        return result
+        args = [_python_to_turso_arg(p) for p in parameters] if parameters else []
+        stmt = {"sql": sql}
+        if args:
+            stmt["args"] = args
 
-    def executemany(self, sql, parameters):
-        return self._cursor.executemany(sql, parameters)
+        data = self._conn._pipeline([{"type": "execute", "stmt": stmt}])
+
+        result = {}
+        for item in data.get("results", []):
+            if item.get("type") == "ok":
+                response = item.get("response") or {}
+                if response.get("type") == "execute":
+                    result = response.get("result") or {}
+                    break
+
+        self._apply_result(result)
+        return self
+
+    def executemany(self, sql, seq_of_parameters):
+        for parameters in seq_of_parameters:
+            self.execute(sql, parameters)
+        return self
 
     def executescript(self, sql):
-        if hasattr(self._cursor, "executescript"):
-            return self._cursor.executescript(sql)
         for statement in sql.split(";"):
             chunk = statement.strip()
             if chunk:
-                self._cursor.execute(chunk)
-        return None
+                self.execute(chunk)
+        return self
 
     def _wrap_row(self, row):
         if row is None:
             return None
-        if isinstance(row, sqlite3.Row):
-            return row
-        desc = getattr(self._cursor, "description", None)
-        if desc:
-            keys = [col[0] for col in desc]
+        if self.description:
+            keys = [col[0] for col in self.description]
             return _CompatRow(row, keys)
         return row
 
     def fetchone(self):
-        return self._wrap_row(self._cursor.fetchone())
+        if self._row_index >= len(self._rows):
+            return None
+        row = self._rows[self._row_index]
+        self._row_index += 1
+        return self._wrap_row(row)
 
     def fetchall(self):
-        rows = self._cursor.fetchall()
-        return [self._wrap_row(row) for row in rows]
+        remaining = self._rows[self._row_index :]
+        self._row_index = len(self._rows)
+        return [self._wrap_row(row) for row in remaining]
 
 
-class _CompatConnection:
-    def __init__(self, conn, is_sqlite=False):
-        self._conn = conn
-        self._is_sqlite = is_sqlite
-
-    def cursor(self):
-        if self._is_sqlite:
-            return self._conn.cursor()
-        return _CompatCursor(self._conn.cursor())
-
-    def execute(self, sql, parameters=()):
-        if hasattr(self._conn, "execute"):
-            return self._conn.execute(sql, parameters)
-        cur = self.cursor()
-        return cur.execute(sql, parameters)
-
-    def commit(self):
-        self._conn.commit()
-
-    def rollback(self):
-        if hasattr(self._conn, "rollback"):
-            self._conn.rollback()
-
-    def close(self):
-        self._conn.close()
-
-
-def _connect_turso(database_url, auth_token):
-    import libsql_experimental as libsql
-
-    try:
-        conn = libsql.connect(database_url, auth_token=auth_token)
-    except TypeError:
-        conn = libsql.connect(database=database_url, auth_token=auth_token)
-    conn.execute("PRAGMA foreign_keys = ON")
-    return _CompatConnection(conn, is_sqlite=False)
+def _connect_turso_http(database_url, auth_token):
+    pipeline_url = _turso_pipeline_url(database_url)
+    return TursoHttpConnection(pipeline_url, auth_token)
 
 
 def _connect_sqlite():
@@ -145,26 +245,18 @@ def _connect_sqlite():
     conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    return _CompatConnection(conn, is_sqlite=True)
+    return conn
 
 
 def get_connection():
     """
-    Turso (nuvem): TURSO_DATABASE_URL + TURSO_AUTH_TOKEN via libsql_experimental.
-    Local: arquivo agenda.db com sqlite3 nativo.
+    Turso (nuvem): TURSO_DATABASE_URL + TURSO_AUTH_TOKEN via SQL over HTTP (requests).
+    Local: arquivo agenda.db com sqlite3 nativo quando as variáveis não existem.
     """
     database_url, auth_token = _turso_credentials()
     if database_url and auth_token:
-        return _connect_turso(database_url, auth_token)
+        return _connect_turso_http(database_url, auth_token)
     return _connect_sqlite()
-
-
-def _table_exists(cursor, name):
-    cursor.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-        (name,),
-    )
-    return cursor.fetchone() is not None
 
 
 def init_database():
