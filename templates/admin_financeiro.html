@@ -1,410 +1,207 @@
 <!DOCTYPE html>
-
-<html lang="pt-br">
-
+<html lang="{{ current_locale }}">
 <head>
-
     <meta charset="UTF-8">
-
-    <title>{{ _('Financeiro - Christian Shall') }}</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Financeiro') }} — {{ session.get('nome_barbearia', 'AgendaSimples') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <style>
-
-        body { background: #0f0f0f; color: #fff; }
-
-        .card-stat { background: #1a1a1a; border-radius: 15px; border-left: 5px solid #d4af37; padding: 20px; }
-
-        .text-gold { color: #d4af37; }
-
-        .table { color: #fff; }
-
-        .btn-gold {
-
-            background-color: #d4af37;
-
-            color: #0f0f0f;
-
-            font-weight: bold;
-
-        }
-
-        .btn-gold:hover {
-
-            background-color: #b8952e;
-
-            color: #0f0f0f;
-
-        }
-
-        .btn-export {
-
-            border: 1px solid #d4af37;
-
-            color: #d4af37;
-
-            font-size: 0.85rem;
-
-        }
-
-        .btn-export:hover {
-
-            background: #d4af37;
-
-            color: #0f0f0f;
-
-        }
-
-        .lang-picker-financeiro a {
-
-            text-decoration: none;
-
-            font-size: 1.3rem;
-
-            margin-right: 10px;
-
-            display: inline-block;
-
-            transition: transform 0.2s;
-
-        }
-
-        .lang-picker-financeiro a:hover {
-
-            transform: scale(1.2);
-
-        }
-
-        .faturamento-card {
-            background: #1a1a1a;
-            border-radius: 15px;
-            border: 1px solid #333;
-            border-top: 3px solid #d4af37;
-            padding: 16px 20px;
-        }
-
-        .faturamento-card .table {
-            margin-bottom: 0;
-            font-size: 0.95rem;
-        }
-
-        .faturamento-card .table td,
-        .faturamento-card .table th {
-            border-color: #333;
-            vertical-align: middle;
-        }
-
-        .faturamento-total {
-            border-top: 1px solid #d4af37;
-            font-weight: 600;
-        }
-
-    </style>
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_financeiro.css') }}">
 </head>
+<body class="page-financeiro p-4 p-md-5">
 
-<body class="p-5">
+<div class="container-fluid" style="max-width: 1200px;">
 
-    <div class="container">
-
-        <div class="d-flex justify-content-between mb-5 align-items-center">
-
-            <div>
-
-                <h2 class="text-gold mb-1">{{ _('RESUMO FINANCEIRO') }}</h2>
-
-                <div class="lang-picker-financeiro lang-selector-admin">
-                    {% include '_lang_selector.html' %}
-                </div>
-
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4 fin-header">
+        <div>
+            <h2 class="mb-1">{{ _('Resumo financeiro') }}</h2>
+            <p class="text-muted mb-2 small">{{ session.get('nome_barbearia', '') }}</p>
+            <div class="lang-picker-financeiro lang-selector-admin">
+                {% include '_lang_selector.html' %}
             </div>
-
-            <a href="{{ url_for('admin_agenda') }}" class="btn btn-gold">{{ _('Voltar Agenda') }}</a>
-
         </div>
-
-
-
-        <div class="row mb-4">
-
-            <div class="col-md-4">
-
-                <div class="card-stat">
-
-                    <h6>{{ _('SALDO EM CAIXA') }}</h6>
-
-                    <h2 class="text-gold mb-3">R$ {{ "%.2f"|format(saldo) }}</h2>
-
-                    <div class="btn-group w-100" role="group">
-
-                        <a href="{{ url_for('financeiro_exportar_pdf') }}" class="btn btn-export flex-fill">
-
-                            <i class="fas fa-file-pdf"></i> {{ _('Exportar PDF') }}
-
-                        </a>
-
-                        <a href="{{ url_for('financeiro_exportar_excel') }}" class="btn btn-export flex-fill">
-
-                            <i class="fas fa-file-excel"></i> {{ _('Exportar Excel') }}
-
-                        </a>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-8">
-
-                <div class="card-stat h-100">
-
-                    <h6>{{ _('NOVO LANÇAMENTO') }}</h6>
-
-                    <form action="{{ url_for('lancar_transacao') }}" method="POST" class="row g-2 align-items-end">
-
-                        <div class="col-md-3">
-
-                            <label class="form-label small text-muted mb-0">{{ _('Descrição') }}</label>
-
-                            <input type="text" name="descricao" class="form-control" placeholder="{{ _('Descrição') }}" required>
-
-                        </div>
-
-                        <div class="col-md-2">
-
-                            <label class="form-label small text-muted mb-0">{{ _('Valor') }}</label>
-
-                            <input type="text" name="valor" class="form-control" placeholder="0,00" required>
-
-                        </div>
-
-                        <div class="col-md-3">
-
-                            <label class="form-label small text-muted mb-0">{{ _('Profissional') }}</label>
-
-                            <select name="profissional_id" class="form-select">
-
-                                <option value="">{{ _('Geral / Estabelecimento') }}</option>
-
-                                {% for p in profissionais %}
-
-                                <option value="{{ p[0] }}">{{ p[1] }}</option>
-
-                                {% endfor %}
-
-                            </select>
-
-                        </div>
-
-                        <div class="col-md-2">
-
-                            <label class="form-label small text-muted mb-0">{{ _('Tipo') }}</label>
-
-                            <select name="tipo_transacao" class="form-select">
-
-                                <option value="Receita">{{ _('Receita') }}</option>
-
-                                <option value="Despesa">{{ _('Despesa') }}</option>
-
-                            </select>
-
-                        </div>
-
-                        <div class="col-md-2">
-
-                            <button type="submit" class="btn btn-gold w-100">{{ _('OK') }}</button>
-
-                        </div>
-
-                    </form>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <div class="row mb-4">
-
-            <div class="col-12 col-lg-5">
-
-                <div class="faturamento-card h-100">
-
-                    <h6 class="text-gold mb-3">
-
-                        <i class="fas fa-users me-2"></i>{{ _('Faturamento por Profissional') }}
-
-                    </h6>
-
-                    <p class="small text-muted mb-2">{{ _('Total de receitas vinculadas a cada profissional (base para comissões).') }}</p>
-
-                    <table class="table table-sm">
-
-                        <thead>
-
-                            <tr>
-
-                                <th class="text-gold">{{ _('Profissional') }}</th>
-
-                                <th class="text-gold text-end">{{ _('Total') }}</th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                            {% for nome, total in faturamento_profissionais %}
-
-                            <tr>
-
-                                <td>{{ nome }}</td>
-
-                                <td class="text-end text-gold">R$ {{ "%.2f"|format(total|float) }}</td>
-
-                            </tr>
-
-                            {% else %}
-
-                            <tr>
-
-                                <td colspan="2" class="text-muted text-center">{{ _('Nenhuma receita por profissional ainda.') }}</td>
-
-                            </tr>
-
-                            {% endfor %}
-
-                        </tbody>
-
-                        {% if faturamento_profissionais %}
-
-                        <tfoot>
-
-                            <tr class="faturamento-total">
-
-                                <td>{{ _('Soma das receitas por profissional') }}</td>
-
-                                <td class="text-end text-gold">
-
-                                    R$ {{ "%.2f"|format(total_faturamento_equipe) }}
-
-                                </td>
-
-                            </tr>
-
-                        </tfoot>
-
-                        {% endif %}
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <div class="card-stat">
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
-
-                <h6 class="mb-0 text-gold">{{ _('Transações') }}</h6>
-
-                <div class="btn-group btn-group-sm">
-
-                    <a href="{{ url_for('financeiro_exportar_pdf') }}" class="btn btn-export">
-
-                        <i class="fas fa-file-pdf"></i> PDF
-
-                    </a>
-
-                    <a href="{{ url_for('financeiro_exportar_excel') }}" class="btn btn-export">
-
-                        <i class="fas fa-file-excel"></i> Excel
-
-                    </a>
-
-                </div>
-
-            </div>
-
-            <table class="table table-hover mb-0">
-
-                <thead>
-
-                    <tr>
-
-                        <th>{{ _('Data') }}</th>
-
-                        <th>{{ _('Descrição') }}</th>
-
-                        <th>{{ _('Profissional') }}</th>
-
-                        <th>{{ _('Tipo') }}</th>
-
-                        <th>{{ _('Valor') }}</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    {% for t in transacoes %}
-
-                    <tr>
-
-                        <td>
-
-                            {% if t[4].strftime %}
-
-                                {{ t[4].strftime('%d/%m/%Y') }}
-
-                            {% else %}
-
-                                {{ t[4][:10] if t[4]|length > 10 else t[4] }}
-
-                            {% endif %}
-
-                        </td>
-
-                        <td>{{ t[0] }}</td>
-
-                        <td>{{ t[3] }}</td>
-
-                        <td>{{ _(t[2]) }}</td>
-
-                        <td class="{{ 'text-success' if t[2] == 'Receita' else 'text-danger' }}">R$ {{ "%.2f"|format(t[1]|float) }}</td>
-
-                    </tr>
-
-                    {% else %}
-
-                    <tr>
-
-                        <td colspan="5" class="text-center text-muted">{{ _('Nenhuma transação registrada.') }}</td>
-
-                    </tr>
-
-                    {% endfor %}
-
-                </tbody>
-
-            </table>
-
-        </div>
-
+        <a href="{{ url_for('admin_agenda') }}" class="btn btn-fin-primary">
+            <i class="fas fa-calendar-alt me-1"></i> {{ _('Voltar à agenda') }}
+        </a>
     </div>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="fin-filter-card mb-4">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="fin-label">{{ _('Filtrar por profissional') }}</label>
+                <select name="profissional_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">{{ _('Todos os profissionais') }}</option>
+                    {% for p in profissionais %}
+                    <option value="{{ p[0] }}" {% if filtro_profissional_id == p[0] %}selected{% endif %}>
+                        {{ p[1] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-auto">
+                {% if filtro_profissional_id %}
+                <a href="{{ url_for('admin_financeiro') }}" class="btn btn-fin-outline">{{ _('Limpar filtro') }}</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card-stat h-100">
+                <span class="fin-label">{{ _('Saldo em caixa') }}</span>
+                <h2 class="fin-saldo mb-3">R$ {{ "%.2f"|format(saldo) }}</h2>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ url_for('financeiro_exportar_pdf', profissional_id=filtro_profissional_id) if filtro_profissional_id else url_for('financeiro_exportar_pdf') }}" class="btn btn-fin-outline btn-sm flex-fill">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
+                    <a href="{{ url_for('financeiro_exportar_excel', profissional_id=filtro_profissional_id) if filtro_profissional_id else url_for('financeiro_exportar_excel') }}" class="btn btn-fin-outline btn-sm flex-fill">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card-stat h-100">
+                <span class="fin-label">{{ _('Novo lançamento') }}</span>
+                <form action="{{ url_for('lancar_transacao') }}" method="POST" class="row g-2 align-items-end mt-1">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-0">{{ _('Descrição') }}</label>
+                        <input type="text" name="descricao" class="form-control" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">{{ _('Valor') }}</label>
+                        <input type="text" name="valor" class="form-control" placeholder="0,00" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-0">{{ _('Profissional') }}</label>
+                        <select name="profissional_id" class="form-select">
+                            <option value="">{{ _('Geral / Estabelecimento') }}</option>
+                            {% for p in profissionais %}
+                            <option value="{{ p[0] }}">{{ p[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">{{ _('Tipo') }}</label>
+                        <select name="tipo_transacao" class="form-select">
+                            <option value="Receita">{{ _('Receita') }}</option>
+                            <option value="Despesa">{{ _('Despesa') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-fin-primary w-100">{{ _('Lançar') }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-5">
+            <div class="faturamento-card h-100">
+                <h6 class="mb-2" style="color: var(--fin-blue-dark); font-weight: 700;">
+                    <i class="fas fa-users me-2"></i>{{ _('Faturamento por profissional') }}
+                </h6>
+                <p class="small text-muted mb-3">{{ _('Base para fechamento de caixa e comissões.') }}</p>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>{{ _('Profissional') }}</th>
+                            <th class="text-end">{{ _('Total receitas') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nome, total in faturamento_profissionais %}
+                        <tr>
+                            <td>
+                                {% if profissionais_por_nome.get(nome) %}
+                                <a href="{{ url_for('admin_financeiro', profissional_id=profissionais_por_nome[nome]) }}" class="text-decoration-none" style="color: var(--fin-accent); font-weight: 600;">
+                                    {{ nome }}
+                                </a>
+                                {% else %}
+                                {{ nome }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end text-receita">R$ {{ "%.2f"|format(total|float) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted">{{ _('Nenhuma receita por profissional ainda.') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if faturamento_profissionais %}
+                    <tfoot>
+                        <tr class="faturamento-total">
+                            <td>{{ _('Soma das receitas') }}</td>
+                            <td class="text-end fin-saldo">R$ {{ "%.2f"|format(total_faturamento_equipe) }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-stat">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h6 class="mb-0" style="color: var(--fin-blue-dark); font-weight: 700;">{{ _('Transações') }}</h6>
+            {% if filtro_profissional_id %}
+            <span class="prof-chip">{{ _('Filtro ativo por profissional') }}</span>
+            {% endif %}
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{{ _('Data') }}</th>
+                        <th>{{ _('Descrição') }}</th>
+                        <th>{{ _('Profissional') }}</th>
+                        <th>{{ _('Tipo') }}</th>
+                        <th class="text-end">{{ _('Valor') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transacoes %}
+                    <tr>
+                        <td>
+                            {% if t[4] and t[4].strftime is defined %}
+                                {{ t[4].strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}
+                                {{ (t[4]|string)[:16] if t[4] else '—' }}
+                            {% endif %}
+                        </td>
+                        <td>{{ t[0] }}</td>
+                        <td><span class="prof-chip">{{ t[3] }}</span></td>
+                        <td>{{ _(t[2]) }}</td>
+                        <td class="text-end {{ 'text-receita' if t[2] == 'Receita' else 'text-despesa' }}">
+                            R$ {{ "%.2f"|format(t[1]|float) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">{{ _('Nenhuma transação registrada.') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
 </body>
-
 </html>
-

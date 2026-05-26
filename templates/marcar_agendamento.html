@@ -72,12 +72,31 @@
             <label for="servico">{{ _('Serviço') }}</label>
             <select id="servico" name="servico" required>
                 <option value="">{{ _('Selecione o serviço') }}</option>
+                {% for s in servicos_detalhados|default([]) %}
+                <option value="{{ s.nome }}" data-preco="{{ s.preco }}">{{ _(s.nome) }}{% if s.preco > 0 %} — R$ {{ "%.2f"|format(s.preco) }}{% endif %}</option>
+                {% else %}
                 {% for servico in servicos %}
                 <option value="{{ servico }}">{{ _(servico) }}</option>
                 {% endfor %}
+                {% endfor %}
             </select>
+            <input type="hidden" name="valor" id="valor_servico" value="0">
 
             <button type="submit">{{ _('Confirmar agendamento') }}</button>
+            <script>
+            (function () {
+                var sel = document.getElementById('servico');
+                var hid = document.getElementById('valor_servico');
+                if (!sel || !hid) return;
+                function syncPreco() {
+                    var opt = sel.options[sel.selectedIndex];
+                    var p = opt && opt.getAttribute('data-preco');
+                    hid.value = p ? p : '0';
+                }
+                sel.addEventListener('change', syncPreco);
+                syncPreco();
+            })();
+            </script>
         </form>
 
         <a href="{{ url_for('barbearia_home', identificador=barbearia_slug) }}" class="link-voltar">{{ _('Voltar para a página inicial') }}</a>

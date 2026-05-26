@@ -105,13 +105,12 @@
     </div>
 
     {% if voltar_para_agenda %}
-        {% if session.role == 'admin' %}
         <a href="{{ url_for('admin_agenda') }}" class="btn">⬅ Voltar para a Agenda</a>
-        {% else %}
-        <a href="{{ url_for('agenda') }}" class="btn">⬅ Voltar para a Agenda</a>
+        {% if barbearia_slug %}
+        <a href="{{ url_for('barbearia_home', identificador=barbearia_slug) }}" class="btn" style="margin-top:12px;background:#333;color:#d4af37;">🏠 Página inicial do negócio</a>
         {% endif %}
     {% else %}
-        <a href="{{ url_for('barbearia_home', identificador=barbearia_slug) if barbearia_slug else url_for('home') }}" class="btn">⬅ Voltar para o Início</a>
+        <a href="{{ url_home if url_home is defined else (url_for('barbearia_home', identificador=barbearia_slug) if barbearia_slug else url_for('home')) }}" class="btn">⬅ Voltar para o Início</a>
     {% endif %}
 
     <div class="brand">AgendaSimples</div>

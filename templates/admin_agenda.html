@@ -429,9 +429,12 @@
                 </div>
 
                 <div class="modal-body">
+                    <input type="hidden" name="barbearia_id" value="{{ session.get('barbearia_id', '') }}">
+                    <input type="hidden" name="barbearia_slug" value="{{ barbearia_slug }}">
                     <input type="hidden" name="data" id="modalData">
                     <input type="hidden" name="hora" id="modalHora">
                     <input type="hidden" name="barbeiro_id" id="modalBarbeiro">
+                    <input type="hidden" name="valor" id="modalValorServico" value="0">
 
                     <div class="mb-3">
                         <label class="form-label">{{ _('Cliente') }}</label>

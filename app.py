@@ -460,18 +460,101 @@ def _listar_profissionais(cursor, barbearia_id):
 
 
 def _listar_servicos(cursor, barbearia_id):
+    """Lista nomes dos serviços (compatível com templates antigos)."""
+    return [s["nome"] for s in _listar_servicos_detalhados(cursor, barbearia_id)]
+
+
+def _listar_servicos_detalhados(cursor, barbearia_id):
+    """Serviços com preço para agendamento e financeiro."""
+    tem_preco = _coluna_existe(cursor, "servicos", "preco")
+    if tem_preco:
+        cursor.execute(
+            """
+            SELECT nome, IFNULL(preco, 0) FROM servicos
+            WHERE barbearia_id = ? AND IFNULL(ativo, 1) = 1
+            ORDER BY ordem, nome
+            """,
+            (barbearia_id,),
+        )
+        rows = cursor.fetchall()
+        if rows:
+            return [{"nome": r[0], "preco": float(r[1] or 0)} for r in rows]
+    else:
+        cursor.execute(
+            """
+            SELECT nome FROM servicos
+            WHERE barbearia_id = ? AND IFNULL(ativo, 1) = 1
+            ORDER BY ordem, nome
+            """,
+            (barbearia_id,),
+        )
+        rows = cursor.fetchall()
+        if rows:
+            return [
+                {"nome": r[0], "preco": _preco_padrao_servico(r[0])} for r in rows
+            ]
+    return [
+        {"nome": n, "preco": _preco_padrao_servico(n)} for n in SERVICOS_PADRAO
+    ]
+
+
+def _preco_padrao_servico(nome_servico):
+    """Preço sugerido quando a coluna servicos.preco não existe ou é zero."""
+    padroes = {
+        "Corte": 50.0,
+        "Corte e Barba": 70.0,
+        "Corte + Sobrancelha": 55.0,
+        "Barba": 35.0,
+        "Outro": 0.0,
+    }
+    return float(padroes.get((nome_servico or "").strip(), 0.0))
+
+
+def _parse_valor_monetario(valor_raw):
+    if valor_raw is None or str(valor_raw).strip() == "":
+        return None
+    try:
+        return float(str(valor_raw).strip().replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+
+def _obter_preco_servico(cursor, barbearia_id, nome_servico):
+    nome = (nome_servico or "").strip()
+    if not nome:
+        return 0.0
+    if _coluna_existe(cursor, "servicos", "preco"):
+        cursor.execute(
+            """
+            SELECT IFNULL(preco, 0) FROM servicos
+            WHERE barbearia_id = ? AND nome = ? AND IFNULL(ativo, 1) = 1
+            LIMIT 1
+            """,
+            (barbearia_id, nome),
+        )
+        row = cursor.fetchone()
+        if row and float(row[0] or 0) > 0:
+            return float(row[0])
+    return _preco_padrao_servico(nome)
+
+
+def _descricao_financeiro_agendamento(servico, nome_cliente):
+    servico = (servico or "Atendimento").strip()
+    nome = (nome_cliente or "Cliente").strip()
+    return f"Serviço de {servico} — {nome}"
+
+
+def _id_agendamento_slot(cursor, dia, hora, barbeiro_id, barbearia_id):
     cursor.execute(
         """
-        SELECT nome FROM servicos
-        WHERE barbearia_id = ? AND IFNULL(ativo, 1) = 1
-        ORDER BY ordem, nome
+        SELECT id FROM Clientes
+        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
+        ORDER BY id DESC LIMIT 1
         """,
-        (barbearia_id,),
+        (dia, hora, barbeiro_id, barbearia_id),
     )
-    rows = cursor.fetchall()
-    if rows:
-        return [r[0] for r in rows]
-    return list(SERVICOS_PADRAO)
+    row = cursor.fetchone()
+    return int(row[0]) if row else None
 
 
 def _listar_horarios(cursor, barbearia_id):
@@ -716,6 +799,30 @@ DEFAULT_TITULOS_CATALOGO = (
     "Catálogo 3",
     "Catálogo 4",
 )
+
+
+def _usuario_equipe_logado():
+    return _role_sessao() in ROLES_EQUIPE and bool(session.get("user_id"))
+
+
+def _identificador_publico_barbearia(cursor, barbearia_id=None, slug=None):
+    """Slug ou ID numérico para url_for('barbearia_home', identificador=...)."""
+    ident = (slug or "").strip()
+    if ident:
+        return ident
+    if barbearia_id:
+        barbearia = _obter_barbearia_por_id(cursor, barbearia_id)
+        if barbearia:
+            return (barbearia.get("slug") or "").strip() or str(barbearia["id"])
+    return None
+
+
+def _redirect_home_barbearia(cursor, barbearia_id=None, slug=None):
+    """Redireciona para home.html do estabelecimento (/b/<identificador>)."""
+    ident = _identificador_publico_barbearia(cursor, barbearia_id, slug)
+    if ident:
+        return redirect(url_for("barbearia_home", identificador=ident))
+    return redirect(url_for("home"))
 
 
 def _render_home_estabelecimento(cursor, barbearia_id, barbearia_slug):
@@ -1824,18 +1931,37 @@ def admin_agenda_concluir():
             """,
             (data, hora, barbeiro_id, barbearia_id),
         )
+        agendamento_id = _id_agendamento_slot(
+            cursor, data, hora, int(barbeiro_id), barbearia_id
+        )
+        descricao_fin = _montar_descricao_atendimento(
+            tipo_feito, detalhe, servico_agendado, nome_cliente
+        )
         if valor > 0:
-            descricao_fin = _montar_descricao_atendimento(
-                tipo_feito, detalhe, servico_agendado, nome_cliente
-            )
-            _inserir_receita_financeiro(
-                cursor, descricao_fin, valor, int(barbeiro_id), barbearia_id
+            _registrar_receita_agendamento(
+                cursor,
+                descricao_fin,
+                valor,
+                int(barbeiro_id),
+                barbearia_id,
+                agendamento_id=agendamento_id,
+                substituir_existente=True,
             )
             flash(
                 f"Atendimento concluído. Receita de R$ {valor:.2f} registrada no financeiro.",
                 "success",
             )
         else:
+            if agendamento_id:
+                _registrar_receita_agendamento(
+                    cursor,
+                    descricao_fin,
+                    0.0,
+                    int(barbeiro_id),
+                    barbearia_id,
+                    agendamento_id=agendamento_id,
+                    substituir_existente=True,
+                )
             flash(
                 "Atendimento concluído sem lançamento financeiro (valor R$ 0,00).",
                 "success",
@@ -1885,9 +2011,11 @@ def _buscar_agendamento_por_id(cursor, agendamento_id):
     cursor.execute(
         """
         SELECT c.id, c.Nome, c.Dia, c.Hora, c.Servico, c.Whatsapp,
-               c.barbeiro_id, u.nome AS profissional_nome
+               c.barbeiro_id, u.nome AS profissional_nome,
+               c.barbearia_id, b.slug AS barbearia_slug
         FROM Clientes c
         LEFT JOIN usuarios u ON c.barbeiro_id = u.id
+        LEFT JOIN barbearias b ON c.barbearia_id = b.id
         WHERE c.id = ?
         """,
         (agendamento_id,),
@@ -1916,6 +2044,8 @@ def _buscar_agendamento_por_id(cursor, agendamento_id):
         "whatsapp": row[5] or "",
         "barbeiro_id": row[6],
         "profissional": row[7] or "—",
+        "barbearia_id": row[8],
+        "barbearia_slug": (row[9] or "").strip() if len(row) > 9 else "",
     }
 
 
@@ -1929,10 +2059,15 @@ def agendar():
     barbeiro_id = request.form["barbeiro_id"]
     barbearia_id = request.form.get("barbearia_id", type=int)
     slug_volta = (request.form.get("barbearia_slug") or "").strip()
+    if not barbearia_id and session.get("barbearia_id"):
+        barbearia_id = int(session["barbearia_id"])
+    if not slug_volta and session.get("barbearia_slug"):
+        slug_volta = str(session["barbearia_slug"]).strip()
 
     conn = get_connection()
     cursor = conn.cursor()
     ensure_schema_migrations(cursor)
+    equipe = _usuario_equipe_logado()
 
     if not barbearia_id and slug_volta:
         barbearia = _obter_barbearia_por_slug(cursor, slug_volta)
@@ -1947,9 +2082,9 @@ def agendar():
     if not _profissional_pertence_barbearia(cursor, int(barbeiro_id), barbearia_id):
         conn.close()
         flash(_("Profissional inválido para este estabelecimento."), "error")
-        if slug_volta:
-            return redirect(url_for("marcar_barbearia", identificador=slug_volta))
-        return redirect(url_for("home"))
+        if equipe:
+            return redirect(url_for("admin_agenda"))
+        return _redirect_home_barbearia(cursor, barbearia_id, slug_volta)
 
     cursor.execute(
         """
@@ -1966,18 +2101,32 @@ def agendar():
             "Este horário já está ocupado com este profissional. Por favor, escolha outra opção!",
             "warning",
         )
-        role = session.get("role")
-        if role == "admin":
+        if equipe:
             return redirect(url_for("admin_agenda"))
-        if role in ("barbeiro", "profissional"):
-            return redirect(url_for("agenda"))
-        if slug_volta:
-            return redirect(url_for("marcar_barbearia", identificador=slug_volta))
-        return redirect(url_for("home"))
+        return _redirect_home_barbearia(cursor, barbearia_id, slug_volta)
 
     novo_id = _inserir_agendamento_retornar_id(
         cursor, nome, data, hora, servico, whatsapp, barbeiro_id, barbearia_id
     )
+
+    if novo_id:
+        valor_form = _parse_valor_monetario(request.form.get("valor"))
+        valor_lanc = (
+            valor_form
+            if valor_form is not None
+            else _obter_preco_servico(cursor, barbearia_id, servico)
+        )
+        _registrar_receita_agendamento(
+            cursor,
+            _descricao_financeiro_agendamento(servico, nome),
+            valor_lanc,
+            int(barbeiro_id),
+            barbearia_id,
+            agendamento_id=novo_id,
+            substituir_existente=True,
+        )
+
+    ident_home = _identificador_publico_barbearia(cursor, barbearia_id, slug_volta)
     conn.commit()
     conn.close()
 
@@ -1987,22 +2136,34 @@ def agendar():
             "Verifique se a coluna id existe em Clientes (migracao_clientes_id).",
             "warning",
         )
-        role = session.get("role")
-        if role == "admin":
+        if equipe:
             return redirect(url_for("admin_agenda"))
-        if role in ("barbeiro", "profissional"):
-            return redirect(url_for("agenda"))
-        if slug_volta:
-            return redirect(url_for("marcar_barbearia", identificador=slug_volta))
+        if ident_home:
+            return redirect(url_for("barbearia_home", identificador=ident_home))
         return redirect(url_for("home"))
 
-    return redirect(
-        url_for(
-            "sucesso_agendamento",
-            agendamento_id=novo_id,
-            slug=slug_volta or None,
+    if equipe:
+        return redirect(
+            url_for(
+                "sucesso_agendamento",
+                agendamento_id=novo_id,
+                slug=ident_home,
+            )
         )
+
+    flash(
+        _(
+            "Agendamento confirmado! %(nome)s — %(data)s às %(hora)s (%(servico)s).",
+            nome=nome,
+            data=data,
+            hora=hora,
+            servico=servico,
+        ),
+        "success",
     )
+    if ident_home:
+        return redirect(url_for("barbearia_home", identificador=ident_home))
+    return redirect(url_for("home"))
 
 
 @app.route("/sucesso/<int:agendamento_id>")
@@ -2029,15 +2190,35 @@ def sucesso_agendamento(agendamento_id):
             return redirect(url_for("barbearia_home", identificador=slug))
         return redirect(url_for("home"))
 
-    is_admin_or_staff = (
-        "role" in session and session["role"] in ("admin", "barbeiro", "profissional")
+    ident_home = slug or ag.get("barbearia_slug") or ""
+    if not ident_home and ag.get("barbearia_id"):
+        conn2 = get_connection()
+        cur2 = conn2.cursor()
+        try:
+            ident_home = _identificador_publico_barbearia(
+                cur2, ag.get("barbearia_id")
+            ) or ""
+        finally:
+            conn2.close()
+
+    if not _usuario_equipe_logado():
+        if ident_home:
+            flash(_("Seu horário foi marcado com sucesso!"), "success")
+            return redirect(url_for("barbearia_home", identificador=ident_home))
+        return redirect(url_for("home"))
+
+    url_home = (
+        url_for("barbearia_home", identificador=ident_home)
+        if ident_home
+        else url_for("home")
     )
 
     return render_template(
         "sucesso_agendamento.html",
         ag=ag,
-        voltar_para_agenda=is_admin_or_staff,
-        barbearia_slug=slug,
+        voltar_para_agenda=True,
+        barbearia_slug=ident_home,
+        url_home=url_home,
     )
 
 # -------------------------- WHATSAPP / EDITAR / EXCLUIR --------------------------
@@ -2173,6 +2354,7 @@ def marcar_barbearia(identificador):
     barbeiros = _listar_profissionais(cursor, barbearia_id)
     horarios = _listar_horarios(cursor, barbearia_id)
     servicos = _listar_servicos(cursor, barbearia_id)
+    servicos_detalhados = _listar_servicos_detalhados(cursor, barbearia_id)
     conn.close()
 
     profissional_sugerido = None
@@ -2191,6 +2373,7 @@ def marcar_barbearia(identificador):
         barbeiros=barbeiros,
         horarios=horarios,
         servicos=servicos,
+        servicos_detalhados=servicos_detalhados,
         profissional_sugerido=profissional_sugerido,
         configs=configs,
         barbearia_id=barbearia_id,
@@ -2265,20 +2448,22 @@ def pdf_diario(data):
     return send_file(output, download_name=f"agenda_{data}.pdf", as_attachment=True)
 
 # -------------------------- FINANCEIRO ADMIN --------------------------
-def _buscar_transacoes_financeiro(cursor, barbearia_id):
-    """Mesma consulta da tela financeira (com nome do profissional)."""
-    cursor.execute(
-        """
+def _buscar_transacoes_financeiro(cursor, barbearia_id, profissional_id=None):
+    """Lançamentos do tenant, opcionalmente filtrados por profissional."""
+    sql = """
         SELECT f.descricao, f.valor, f.tipo_transacao,
                COALESCE(u.nome, f.barbeiro, 'Geral / Estabelecimento') AS profissional,
-               f.data
+               f.data, f.profissional_id
         FROM financeiro f
         LEFT JOIN usuarios u ON f.profissional_id = u.id
         WHERE f.barbearia_id = ?
-        ORDER BY f.data DESC
-        """,
-        (barbearia_id,),
-    )
+    """
+    params = [barbearia_id]
+    if profissional_id:
+        sql += " AND f.profissional_id = ?"
+        params.append(int(profissional_id))
+    sql += " ORDER BY f.data DESC"
+    cursor.execute(sql, tuple(params))
     return cursor.fetchall()
 
 
@@ -2309,21 +2494,104 @@ def _buscar_faturamento_profissionais(cursor, barbearia_id):
 
 
 def _inserir_receita_financeiro(
-    cursor, descricao, valor, profissional_id, barbearia_id
+    cursor,
+    descricao,
+    valor,
+    profissional_id,
+    barbearia_id,
+    agendamento_id=None,
 ):
     """Registra receita na tabela financeiro (uso pela agenda e lançamentos manuais)."""
     nome_prof, pid = _nome_profissional_lancamento(
         cursor, profissional_id, barbearia_id
     )
+    cols = [
+        "descricao",
+        "valor",
+        "tipo_transacao",
+        "barbeiro",
+        "profissional_id",
+        "barbearia_id",
+        "data",
+    ]
+    vals = [
+        descricao,
+        float(valor),
+        "Receita",
+        nome_prof,
+        pid,
+        int(barbearia_id),
+        datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+    ]
+    if agendamento_id and _coluna_existe(cursor, "financeiro", "agendamento_id"):
+        cols.append("agendamento_id")
+        vals.append(int(agendamento_id))
+    placeholders = ", ".join("?" for _ in vals)
+    colunas_sql = ", ".join(cols)
     cursor.execute(
-        """
-        INSERT INTO financeiro (
-            descricao, valor, tipo_transacao, barbeiro, profissional_id,
-            barbearia_id, data
+        f"INSERT INTO financeiro ({colunas_sql}) VALUES ({placeholders})",
+        tuple(vals),
+    )
+
+
+def _registrar_receita_agendamento(
+    cursor,
+    descricao,
+    valor,
+    profissional_id,
+    barbearia_id,
+    agendamento_id=None,
+    substituir_existente=False,
+):
+    """
+    Lança ou atualiza receita vinculada a um agendamento (evita duplicata ao concluir).
+    """
+    valor = float(valor or 0)
+    if (
+        substituir_existente
+        and agendamento_id
+        and _coluna_existe(cursor, "financeiro", "agendamento_id")
+    ):
+        cursor.execute(
+            """
+            SELECT id FROM financeiro
+            WHERE agendamento_id = ? AND barbearia_id = ?
+            LIMIT 1
+            """,
+            (int(agendamento_id), int(barbearia_id)),
         )
-        VALUES (?, ?, 'Receita', ?, ?, ?, CURRENT_TIMESTAMP)
-        """,
-        (descricao, valor, nome_prof, pid, barbearia_id),
+        existente = cursor.fetchone()
+        if existente:
+            fin_id = _valor_linha(existente, 0, "id")
+            nome_prof, pid = _nome_profissional_lancamento(
+                cursor, profissional_id, barbearia_id
+            )
+            cursor.execute(
+                """
+                UPDATE financeiro
+                SET descricao = ?, valor = ?, barbeiro = ?, profissional_id = ?,
+                    tipo_transacao = 'Receita',
+                    data = ?
+                WHERE id = ? AND barbearia_id = ?
+                """,
+                (
+                    descricao,
+                    valor,
+                    nome_prof,
+                    pid,
+                    datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                    fin_id,
+                    int(barbearia_id),
+                ),
+            )
+            return
+    _inserir_receita_financeiro(
+        cursor,
+        descricao,
+        valor,
+        profissional_id,
+        barbearia_id,
+        agendamento_id=agendamento_id,
     )
 
 
@@ -2483,15 +2751,34 @@ def admin_financeiro():
     if not barbearia_id:
         return redirect(url_for("login"))
 
+    filtro_prof_raw = request.args.get("profissional_id", "").strip()
+    filtro_profissional_id = None
+    if filtro_prof_raw:
+        try:
+            filtro_profissional_id = int(filtro_prof_raw)
+        except (TypeError, ValueError):
+            filtro_profissional_id = None
+
     conn = get_connection()
     cursor = conn.cursor()
+    ensure_schema_migrations(cursor)
     profissionais = _listar_profissionais(cursor, barbearia_id)
-    transacoes = _buscar_transacoes_financeiro(cursor, barbearia_id)
+
+    if filtro_profissional_id and not _profissional_pertence_barbearia(
+        cursor, filtro_profissional_id, barbearia_id
+    ):
+        filtro_profissional_id = None
+        flash(_("Profissional inválido para este negócio."), "warning")
+
+    transacoes = _buscar_transacoes_financeiro(
+        cursor, barbearia_id, filtro_profissional_id
+    )
     saldo = _calcular_saldo_financeiro(transacoes)
     faturamento_profissionais = _buscar_faturamento_profissionais(
         cursor, barbearia_id
     )
     total_faturamento_equipe = sum(float(r[1]) for r in faturamento_profissionais)
+    profissionais_por_nome = {p[1]: p[0] for p in profissionais}
     conn.close()
 
     return render_template(
@@ -2499,8 +2786,10 @@ def admin_financeiro():
         transacoes=transacoes,
         saldo=saldo,
         profissionais=profissionais,
+        profissionais_por_nome=profissionais_por_nome,
         faturamento_profissionais=faturamento_profissionais,
         total_faturamento_equipe=total_faturamento_equipe,
+        filtro_profissional_id=filtro_profissional_id,
     )
 
 
@@ -2521,20 +2810,35 @@ def lancar_transacao():
     profissional_id_raw = request.form.get("profissional_id", "").strip()
     profissional_id = int(profissional_id_raw) if profissional_id_raw else None
 
+    try:
+        valor_num = float(str(valor).strip().replace(",", "."))
+    except (TypeError, ValueError):
+        flash(_("Valor inválido."), "error")
+        return redirect(url_for("admin_financeiro"))
+
     conn = get_connection()
     cursor = conn.cursor()
     nome_profissional, profissional_id = _nome_profissional_lancamento(
         cursor, profissional_id, barbearia_id
     )
+    data_lanc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute(
         """
         INSERT INTO financeiro (
             descricao, valor, tipo_transacao, barbeiro, profissional_id,
             barbearia_id, data
         )
-        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (descricao, valor, tipo, nome_profissional, profissional_id, barbearia_id),
+        (
+            descricao,
+            valor_num,
+            tipo,
+            nome_profissional,
+            profissional_id,
+            int(barbearia_id),
+            data_lanc,
+        ),
     )
     conn.commit()
     conn.close()
@@ -2553,9 +2857,17 @@ def financeiro_exportar_excel():
     if not barbearia_id:
         return redirect(url_for("login"))
 
+    filtro_prof = request.args.get("profissional_id", type=int)
+
     conn = get_connection()
     cursor = conn.cursor()
-    transacoes = _buscar_transacoes_financeiro(cursor, barbearia_id)
+    if filtro_prof and not _profissional_pertence_barbearia(
+        cursor, filtro_prof, barbearia_id
+    ):
+        filtro_prof = None
+    transacoes = _buscar_transacoes_financeiro(
+        cursor, barbearia_id, filtro_prof
+    )
     saldo = _calcular_saldo_financeiro(transacoes)
     faturamento_profissionais = _buscar_faturamento_profissionais(
         cursor, barbearia_id
@@ -2584,10 +2896,17 @@ def financeiro_exportar_pdf():
         return redirect(url_for("login"))
 
     titulo = session.get("nome_barbearia", "AgendaSimples")
+    filtro_prof = request.args.get("profissional_id", type=int)
 
     conn = get_connection()
     cursor = conn.cursor()
-    transacoes = _buscar_transacoes_financeiro(cursor, barbearia_id)
+    if filtro_prof and not _profissional_pertence_barbearia(
+        cursor, filtro_prof, barbearia_id
+    ):
+        filtro_prof = None
+    transacoes = _buscar_transacoes_financeiro(
+        cursor, barbearia_id, filtro_prof
+    )
     saldo = _calcular_saldo_financeiro(transacoes)
     faturamento_profissionais = _buscar_faturamento_profissionais(
         cursor, barbearia_id

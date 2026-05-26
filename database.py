@@ -965,6 +965,8 @@ def ensure_schema_migrations(cursor):
         ("usuarios", "barbearia_id", "INTEGER"),
         ("Clientes", "barbearia_id", "INTEGER"),
         ("financeiro", "barbearia_id", "INTEGER"),
+        ("financeiro", "agendamento_id", "INTEGER"),
+        ("servicos", "preco", "REAL"),
         ("barbearias", "ramo_atividade", "TEXT"),
     ]
     for tabela, coluna, tipo_sql in alteracoes:

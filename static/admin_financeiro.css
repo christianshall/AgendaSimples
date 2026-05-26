@@ -1,0 +1,145 @@
+:root {
+    --fin-bg: #f0f7fc;
+    --fin-surface: #ffffff;
+    --fin-blue-light: #cee5f2;
+    --fin-blue-soft: #dbeafe;
+    --fin-blue-mid: #60a5fa;
+    --fin-blue-dark: #1b365d;
+    --fin-accent: #2563eb;
+    --fin-text: #1e293b;
+    --fin-muted: #64748b;
+    --fin-border: #bfdbfe;
+    --fin-success: #059669;
+    --fin-danger: #dc2626;
+}
+
+body.page-financeiro {
+    background: var(--fin-bg);
+    color: var(--fin-text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.page-financeiro .fin-header h2 {
+    color: var(--fin-blue-dark);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.page-financeiro .card-stat,
+.page-financeiro .faturamento-card,
+.page-financeiro .fin-filter-card {
+    background: var(--fin-surface);
+    border-radius: 14px;
+    border: 1px solid var(--fin-border);
+    box-shadow: 0 4px 18px rgba(27, 54, 93, 0.06);
+    padding: 1.25rem 1.5rem;
+}
+
+.page-financeiro .card-stat {
+    border-left: 4px solid var(--fin-accent);
+}
+
+.page-financeiro .faturamento-card {
+    border-top: 3px solid var(--fin-blue-mid);
+}
+
+.page-financeiro .fin-saldo {
+    color: var(--fin-accent);
+    font-weight: 700;
+}
+
+.page-financeiro .fin-label {
+    color: var(--fin-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.page-financeiro .btn-fin-primary {
+    background: var(--fin-accent);
+    color: #fff;
+    font-weight: 600;
+    border: none;
+}
+
+.page-financeiro .btn-fin-primary:hover {
+    background: #1d4ed8;
+    color: #fff;
+}
+
+.page-financeiro .btn-fin-outline {
+    border: 1px solid var(--fin-accent);
+    color: var(--fin-accent);
+    background: transparent;
+}
+
+.page-financeiro .btn-fin-outline:hover {
+    background: var(--fin-blue-soft);
+    color: var(--fin-blue-dark);
+}
+
+.page-financeiro .table {
+    color: var(--fin-text);
+    margin-bottom: 0;
+}
+
+.page-financeiro .table thead th {
+    background: var(--fin-blue-light);
+    color: var(--fin-blue-dark);
+    border-color: var(--fin-border);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.page-financeiro .table td,
+.page-financeiro .table th {
+    border-color: var(--fin-border);
+    vertical-align: middle;
+}
+
+.page-financeiro .table-hover tbody tr:hover {
+    background: var(--fin-blue-soft);
+}
+
+.page-financeiro .text-receita {
+    color: var(--fin-success);
+    font-weight: 600;
+}
+
+.page-financeiro .text-despesa {
+    color: var(--fin-danger);
+    font-weight: 600;
+}
+
+.page-financeiro .faturamento-total {
+    border-top: 2px solid var(--fin-border);
+    font-weight: 700;
+    color: var(--fin-blue-dark);
+}
+
+.page-financeiro .form-control,
+.page-financeiro .form-select {
+    border-color: var(--fin-border);
+    color: var(--fin-text);
+}
+
+.page-financeiro .form-control:focus,
+.page-financeiro .form-select:focus {
+    border-color: var(--fin-accent);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+.page-financeiro .lang-picker-financeiro a {
+    text-decoration: none;
+    font-size: 1.2rem;
+    margin-right: 8px;
+}
+
+.page-financeiro .prof-chip {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: var(--fin-blue-soft);
+    color: var(--fin-blue-dark);
+    font-size: 0.8rem;
+}
