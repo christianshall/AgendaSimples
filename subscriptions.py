@@ -4,6 +4,8 @@ from functools import wraps
 
 from flask import flash, redirect, request, session, url_for
 
+import config_saas as cfg
+
 
 PLANOS_ATIVOS = ("active", "trialing")
 
@@ -87,6 +89,45 @@ def assinatura_permite_acesso(assinatura):
     return False
 
 
+def sincronizar_status_trial_usuario(cursor, barbearia_id):
+    """
+    Atualiza status_trial dos admins do estabelecimento conforme assinatura.
+    Retorna 'trialing', 'active' (via assinatura) ou 'expired'.
+    """
+    assinatura = obter_assinatura(cursor, barbearia_id)
+    if assinatura_permite_acesso(assinatura):
+        status = (assinatura.get("plano_status") or "trialing").lower()
+        trial_status = "trialing" if status == "trialing" else "active"
+        cursor.execute(
+            """
+            UPDATE usuarios
+            SET status_trial = ?
+            WHERE barbearia_id = ? AND role = 'admin'
+            """,
+            (trial_status, barbearia_id),
+        )
+        return trial_status
+
+    cursor.execute(
+        """
+        UPDATE usuarios
+        SET status_trial = 'expired'
+        WHERE barbearia_id = ? AND role = 'admin'
+        """,
+        (barbearia_id,),
+    )
+    return "expired"
+
+
+def admin_tem_acesso_painel(cursor, barbearia_id):
+    """Verifica assinatura e status_trial do administrador do negócio."""
+    trial_status = sincronizar_status_trial_usuario(cursor, barbearia_id)
+    if trial_status != "expired":
+        return True
+    assinatura = obter_assinatura(cursor, barbearia_id)
+    return assinatura_permite_acesso(assinatura)
+
+
 def atualizar_assinatura_por_stripe(cursor, barbearia_id, **kwargs):
     """Atualiza campos da assinatura (kwargs: stripe_customer_id, stripe_subscription_id, etc.)."""
     campos = []
@@ -141,27 +182,23 @@ def requer_assinatura_ativa(get_connection):
                 flash("Acesso negado!", "error")
                 return redirect(url_for("login"))
 
-            barbearia_id = session.get("barbearia_id") or session.get("user_id")
+            barbearia_id = session.get("barbearia_id")
             if not barbearia_id:
-                flash("Acesso negado!", "error")
+                flash("Sessão inválida. Faça login novamente.", "error")
                 return redirect(url_for("login"))
 
             conn = get_connection()
             cursor = conn.cursor()
             try:
-                assinatura = obter_assinatura(cursor, barbearia_id)
+                liberado = admin_tem_acesso_painel(cursor, barbearia_id)
+                conn.commit()
             finally:
                 conn.close()
 
-            if assinatura_permite_acesso(assinatura):
+            if liberado:
                 return view(*args, **kwargs)
 
-            flash(
-                "Seu período de teste expirou ou a assinatura está inativa. "
-                "Assine o plano para continuar usando o sistema.",
-                "warning",
-            )
-            return redirect(url_for("checkout"))
+            return redirect(url_for("bloqueio_assinatura"))
 
         return wrapped
 

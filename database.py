@@ -526,11 +526,106 @@ def _coluna_existe(cursor, tabela, coluna):
     return any(row[1] == coluna for row in cursor.fetchall())
 
 
+SERVICOS_PADRAO = (
+    "Corte",
+    "Corte e Barba",
+    "Corte + Sobrancelha",
+    "Barba",
+    "Outro",
+)
+
+HORARIOS_PADRAO = (
+    "08:00", "09:00", "10:00", "11:00",
+    "12:00", "13:00", "14:00", "15:00",
+    "16:00", "17:00", "18:00", "19:00", "20:00",
+)
+
+
+def seed_servicos_horarios_padrao(cursor, barbearia_id):
+    """Cria serviços e horários padrão para um estabelecimento novo."""
+    cursor.execute(
+        "SELECT COUNT(*) FROM servicos WHERE barbearia_id = ?",
+        (barbearia_id,),
+    )
+    if (cursor.fetchone() or [0])[0] == 0:
+        for ordem, nome in enumerate(SERVICOS_PADRAO):
+            cursor.execute(
+                """
+                INSERT INTO servicos (barbearia_id, nome, ativo, ordem)
+                VALUES (?, ?, 1, ?)
+                """,
+                (barbearia_id, nome, ordem),
+            )
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM horarios WHERE barbearia_id = ?",
+        (barbearia_id,),
+    )
+    if (cursor.fetchone() or [0])[0] == 0:
+        for ordem, hora in enumerate(HORARIOS_PADRAO):
+            cursor.execute(
+                """
+                INSERT INTO horarios (barbearia_id, hora, ativo, ordem)
+                VALUES (?, ?, 1, ?)
+                """,
+                (barbearia_id, hora, ordem),
+            )
+
+
+def _barbearia_id_padrao(cursor):
+    cursor.execute("SELECT id FROM barbearias ORDER BY id LIMIT 1")
+    row = cursor.fetchone()
+    return row[0] if row else 1
+
+
+def backfill_barbearia_id(cursor):
+    """Preenche barbearia_id em registros antigos (pré multi-tenant)."""
+    padrao = _barbearia_id_padrao(cursor)
+    try:
+        cursor.execute(
+            "UPDATE usuarios SET barbearia_id = ? WHERE barbearia_id IS NULL",
+            (padrao,),
+        )
+        cursor.execute(
+            """
+            UPDATE Clientes
+            SET barbearia_id = (
+                SELECT u.barbearia_id FROM usuarios u
+                WHERE u.id = Clientes.barbeiro_id
+            )
+            WHERE barbearia_id IS NULL AND barbeiro_id IS NOT NULL
+            """,
+        )
+        cursor.execute(
+            "UPDATE Clientes SET barbearia_id = ? WHERE barbearia_id IS NULL",
+            (padrao,),
+        )
+        cursor.execute(
+            """
+            UPDATE financeiro
+            SET barbearia_id = (
+                SELECT u.barbearia_id FROM usuarios u
+                WHERE u.id = financeiro.profissional_id
+            )
+            WHERE barbearia_id IS NULL AND profissional_id IS NOT NULL
+            """,
+        )
+        cursor.execute(
+            "UPDATE financeiro SET barbearia_id = ? WHERE barbearia_id IS NULL",
+            (padrao,),
+        )
+    except Exception as exc:
+        print(f"backfill_barbearia_id: {exc}")
+
+
 def ensure_schema_migrations(cursor):
-    """Adiciona colunas novas em bancos já existentes (SQLite / Turso)."""
+    """Adiciona colunas e tabelas novas em bancos já existentes (SQLite / Turso)."""
     alteracoes = [
         ("usuarios", "data_cadastro", "TEXT"),
         ("usuarios", "status_trial", "TEXT"),
+        ("usuarios", "barbearia_id", "INTEGER"),
+        ("Clientes", "barbearia_id", "INTEGER"),
+        ("financeiro", "barbearia_id", "INTEGER"),
     ]
     for tabela, coluna, tipo_sql in alteracoes:
         try:
@@ -540,6 +635,52 @@ def ensure_schema_migrations(cursor):
                 )
         except Exception as exc:
             print(f"ensure_schema_migrations ({tabela}.{coluna}): {exc}")
+
+    try:
+        cursor.executescript(
+            """
+        CREATE TABLE IF NOT EXISTS servicos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0,
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS horarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            hora TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0,
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS IX_servicos_barbearia ON servicos(barbearia_id);
+        CREATE INDEX IF NOT EXISTS IX_horarios_barbearia ON horarios(barbearia_id);
+        CREATE INDEX IF NOT EXISTS IX_usuarios_barbearia ON usuarios(barbearia_id);
+        CREATE INDEX IF NOT EXISTS IX_Clientes_barbearia ON Clientes(barbearia_id);
+        CREATE INDEX IF NOT EXISTS IX_financeiro_barbearia ON financeiro(barbearia_id);
+        """
+        )
+    except Exception as exc:
+        print(f"ensure_schema_migrations (servicos/horarios): {exc}")
+
+    backfill_barbearia_id(cursor)
+
+    indices_tenant = [
+        "CREATE INDEX IF NOT EXISTS IX_Clientes_barbearia ON Clientes(barbearia_id)",
+        "CREATE INDEX IF NOT EXISTS IX_servicos_barbearia ON servicos(barbearia_id)",
+        "CREATE INDEX IF NOT EXISTS IX_horarios_barbearia ON horarios(barbearia_id)",
+        "CREATE INDEX IF NOT EXISTS IX_usuarios_barbearia ON usuarios(barbearia_id)",
+        "CREATE INDEX IF NOT EXISTS IX_financeiro_barbearia ON financeiro(barbearia_id)",
+    ]
+    for sql_idx in indices_tenant:
+        try:
+            cursor.execute(sql_idx)
+        except Exception as exc:
+            print(f"ensure_schema_migrations (índice): {exc}")
 
 
 def init_database():
@@ -575,6 +716,7 @@ def init_database():
 
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER,
             nome TEXT NOT NULL,
             email TEXT UNIQUE,
             telefone TEXT,
@@ -583,11 +725,31 @@ def init_database():
             especialidade TEXT,
             foto_perfil TEXT,
             data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
-            status_trial TEXT DEFAULT 'trialing'
+            status_trial TEXT DEFAULT 'trialing',
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS servicos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0,
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS horarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            hora TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0,
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
         );
 
         CREATE TABLE IF NOT EXISTS Clientes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER,
             Nome TEXT NOT NULL,
             Dia TEXT NOT NULL,
             Hora TEXT NOT NULL,
@@ -595,6 +757,7 @@ def init_database():
             Whatsapp TEXT,
             barbeiro_id INTEGER,
             status TEXT NOT NULL DEFAULT 'Agendado',
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id),
             FOREIGN KEY (barbeiro_id) REFERENCES usuarios(id)
         );
 
@@ -613,12 +776,14 @@ def init_database():
 
         CREATE TABLE IF NOT EXISTS financeiro (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER,
             descricao TEXT,
             valor REAL NOT NULL,
             tipo_transacao TEXT NOT NULL,
             barbeiro TEXT,
             profissional_id INTEGER,
             data TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id),
             FOREIGN KEY (profissional_id) REFERENCES usuarios(id)
         );
 
@@ -673,11 +838,17 @@ def init_database():
             barbearia_id = cursor.lastrowid
             cursor.execute(
                 """
-            INSERT INTO usuarios (nome, email, senha, role)
-            VALUES (?, ?, ?, 'admin')
+            INSERT INTO usuarios (nome, email, senha, role, barbearia_id, status_trial)
+            VALUES (?, ?, ?, 'admin', ?, 'trialing')
             """,
-                ("Administrador", "admin@agendasimples.local", senha_demo),
+                (
+                    "Administrador",
+                    "admin@agendasimples.local",
+                    senha_demo,
+                    barbearia_id,
+                ),
             )
+            seed_servicos_horarios_padrao(cursor, barbearia_id)
             fim_trial = (datetime.utcnow() + timedelta(days=7)).strftime(
                 "%Y-%m-%d %H:%M:%S"
             )

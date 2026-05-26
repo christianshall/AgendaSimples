@@ -329,7 +329,7 @@
                    id="linkAgendamento"
                    readonly
                    class="form-control"
-                   value="{{ url_for('marcar', profissional=session.user_id if session.role in ('barbeiro', 'profissional') else (barbeiros[0].id if barbeiros else session.user_id), _external=True) }}">
+                   value="{{ url_for('marcar_barbearia', slug=barbearia_slug, profissional=session.user_id if session.role in ('barbeiro', 'profissional') else (barbeiros[0].id if barbeiros else session.user_id), _external=True) if barbearia_slug else url_for('marcar', profissional=session.user_id, _external=True) }}">
             <button type="button" class="btn btn-copy-link" onclick="copiarLinkAgendamento()">
                 <i class="fas fa-copy me-1"></i>{{ _('Copiar Link') }}
             </button>
@@ -559,7 +559,7 @@
         }
     }
 
-    var baseMarcarUrl = "{{ url_for('marcar', _external=True) }}";
+    var baseMarcarUrl = "{{ url_for('marcar_barbearia', slug=barbearia_slug, _external=True) if barbearia_slug else url_for('marcar', _external=True) }}";
 
     function atualizarLinkAgendamento() {
         var sel = document.getElementById('selectLinkProf');

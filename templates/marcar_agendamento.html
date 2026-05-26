@@ -30,7 +30,9 @@
         {% endif %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('agendar') }}">
+            <form method="POST" action="{{ url_for('agendar') }}">
+                <input type="hidden" name="barbearia_id" value="{{ barbearia_id }}">
+                <input type="hidden" name="barbearia_slug" value="{{ barbearia_slug }}">
             <label for="nome">{{ _('Nome completo') }}</label>
             <input type="text" id="nome" name="nome" required
                    placeholder="{{ _('Digite seu nome completo') }}" autocomplete="name">
@@ -70,17 +72,15 @@
             <label for="servico">{{ _('Serviço') }}</label>
             <select id="servico" name="servico" required>
                 <option value="">{{ _('Selecione o serviço') }}</option>
-                <option value="Corte">{{ _('Corte') }}</option>
-                <option value="Corte e Barba">{{ _('Corte e Barba') }}</option>
-                <option value="Corte + Sobrancelha">{{ _('Corte + Sobrancelha') }}</option>
-                <option value="Barba">{{ _('Barba') }}</option>
-                <option value="Outro">{{ _('Outro') }}</option>
+                {% for servico in servicos %}
+                <option value="{{ servico }}">{{ _(servico) }}</option>
+                {% endfor %}
             </select>
 
             <button type="submit">{{ _('Confirmar agendamento') }}</button>
         </form>
 
-        <a href="{{ url_for('home') }}" class="link-voltar">{{ _('Voltar para a página inicial') }}</a>
+        <a href="{{ url_for('barbearia_home', slug=barbearia_slug) }}" class="link-voltar">{{ _('Voltar para a página inicial') }}</a>
     </div>
 
     <div class="bloco-direito"

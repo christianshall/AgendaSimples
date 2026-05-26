@@ -11,5 +11,8 @@ STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
 # Trial
 TRIAL_DAYS = int(os.environ.get("TRIAL_DAYS", "7"))
 
+# Plano mensal (exibido na tela de bloqueio)
+PLANO_MENSAL_VALOR = float(os.environ.get("PLANO_MENSAL_VALOR", "49.90"))
+
 # URL base do app (sem barra final) — ex: https://meudominio.com ou http://localhost:5000
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000").rstrip("/")

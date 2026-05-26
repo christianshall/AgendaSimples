@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('AgendaSimples') }} — {{ _('Agenda online para o seu negócio') }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
+</head>
+<body class="page-login">
+    <div class="login-card login-card--wide">
+        <div class="login-header">
+            <div class="lang-picker-login">{% include '_lang_selector.html' %}</div>
+            <h2>{{ _('AgendaSimples') }}</h2>
+            <p class="registrar-subtitle">{{ _('Plataforma SaaS para salões, clínicas e barbearias') }}</p>
+        </div>
+        <div class="login-body">
+            <p>{{ _('Crie sua conta, personalize sua página pública e receba agendamentos dos clientes.') }}</p>
+            <a href="{{ url_for('registrar') }}" style="display:block;margin-bottom:0.75rem;">
+                <button type="button" style="width:100%;">{{ _('Começar teste grátis') }}</button>
+            </a>
+            <div class="login-links">
+                <span>{{ _('Já tem conta?') }}</span>
+                <a href="{{ url_for('login') }}">{{ _('Entrar no painel') }}</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
