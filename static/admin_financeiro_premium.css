@@ -1,0 +1,122 @@
+/* Visual premium (dark + gold) somente para o painel financeiro. */
+
+body.page-financeiro--premium {
+    --fin-premium-bg: #0b0b10;
+    --fin-premium-card: #14141c;
+    --fin-premium-border: #2a2a35;
+    --fin-premium-text: #f3f3f6;
+    --fin-premium-muted: #a3a3ad;
+    --fin-premium-gold: #d4af37;
+    --fin-premium-blue: #5b9cff;
+
+    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212, 175, 55, 0.12), transparent),
+                radial-gradient(ellipse 60% 40% at 100% 50%, rgba(91, 156, 255, 0.08), transparent),
+                linear-gradient(180deg, #0b0b10 0%, #09090d 100%);
+    color: var(--fin-premium-text);
+}
+
+body.page-financeiro--premium .fin-card {
+    background: var(--fin-premium-card) !important;
+    border-color: var(--fin-premium-border) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.page-financeiro--premium .fin-label,
+body.page-financeiro--premium .section-title,
+body.page-financeiro--premium .kpi-label,
+body.page-financeiro--premium .text-muted {
+    color: var(--fin-premium-muted) !important;
+}
+
+body.page-financeiro--premium .kpi-card {
+    background: var(--fin-premium-card) !important;
+    border-color: var(--fin-premium-border) !important;
+}
+
+body.page-financeiro--premium .kpi-value {
+    color: var(--fin-premium-text) !important;
+}
+
+body.page-financeiro--premium .kpi-icon {
+    background: rgba(212, 175, 55, 0.14) !important;
+    color: var(--fin-premium-gold) !important;
+}
+
+body.page-financeiro--premium .btn-fin-primary {
+    background: linear-gradient(135deg, #c9a227, var(--fin-premium-gold)) !important;
+    color: #0b0b10 !important;
+    border: none !important;
+}
+
+body.page-financeiro--premium .btn-fin-primary:hover {
+    filter: brightness(1.05) !important;
+}
+
+body.page-financeiro--premium .btn-fin-outline {
+    border-color: var(--fin-premium-gold) !important;
+    color: var(--fin-premium-gold) !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+body.page-financeiro--premium .btn-fin-outline:hover {
+    background: rgba(212, 175, 55, 0.12) !important;
+    color: #0b0b10 !important;
+}
+
+body.page-financeiro--premium .form-control,
+body.page-financeiro--premium .form-select {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-color: rgba(42, 42, 53, 0.95) !important;
+    color: var(--fin-premium-text) !important;
+}
+
+body.page-financeiro--premium .form-control:focus,
+body.page-financeiro--premium .form-select:focus {
+    border-color: rgba(212, 175, 55, 0.55) !important;
+    box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.12) !important;
+}
+
+body.page-financeiro--premium .table {
+    color: var(--fin-premium-text) !important;
+}
+
+body.page-financeiro--premium .table thead th {
+    background: rgba(255, 255, 255, 0.03) !important;
+    color: var(--fin-premium-text) !important;
+    border-color: var(--fin-premium-border) !important;
+}
+
+body.page-financeiro--premium .table td {
+    border-color: rgba(42, 42, 53, 0.7) !important;
+    color: var(--fin-premium-text) !important;
+}
+
+body.page-financeiro--premium .tag-chip {
+    background: rgba(212, 175, 55, 0.12) !important;
+    color: var(--fin-premium-gold) !important;
+}
+
+body.page-financeiro--premium .tag-cat {
+    color: var(--fin-premium-text) !important;
+}
+
+body.page-financeiro--premium .kpi-card::before {
+    filter: saturate(1.1);
+}
+
+/* Cabeçalho do bloco de KPIs */
+body.page-financeiro--premium .fin-kpi-wrap {
+    padding: 1.4rem 1.6rem !important;
+}
+
+body.page-financeiro--premium .fin-kpi-header {
+    border-bottom: 1px solid rgba(42, 42, 53, 0.85);
+    padding-bottom: 0.9rem;
+    margin-bottom: 0.2rem;
+}
+
+body.page-financeiro--premium .fin-kpi-sub {
+    color: var(--fin-premium-muted);
+    font-size: 0.86rem;
+}
+
