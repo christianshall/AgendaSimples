@@ -569,7 +569,7 @@ def _connect_sqlite():
     return conn
 
 
-def get_connection():
+def _get_connection_sqlite_turso():
     """
     Produção (Vercel): TURSO_DATABASE_URL + TURSO_AUTH_TOKEN.
     Desenvolvimento: fallback local em database.db.
@@ -592,6 +592,18 @@ def get_connection():
         )
     print("Usando Banco Local em Desenvolvimento")
     return _connect_sqlite()
+
+
+def get_connection():
+    """Roteia para SQL Server (local) ou SQLite/Turso via db_adapter."""
+    try:
+        from db_adapter import get_backend, open_sqlserver_connection
+
+        if get_backend() == "sqlserver":
+            return open_sqlserver_connection()
+    except ImportError:
+        pass
+    return _get_connection_sqlite_turso()
 
 
 def _valor_linha(row, indice=0, nome=None):
@@ -1230,9 +1242,89 @@ def garantir_banco_pronto(conn=None):
             safe_close(conn)
 
 
-def ensure_database_schema(conn=None):
+def _init_schema_sqlserver(conn=None):
+    """DDL e ALTER mínimos para SQL Server (financeiro, Clientes, tb_configuracoes)."""
+    fecha = conn is None
+    if fecha:
+        conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        blocos = (
+            """
+            IF OBJECT_ID('dbo.tb_configuracoes', 'U') IS NULL
+            CREATE TABLE dbo.tb_configuracoes (
+                chave NVARCHAR(200) NOT NULL PRIMARY KEY,
+                valor NVARCHAR(MAX) NULL
+            );
+            """,
+            """
+            IF OBJECT_ID('dbo.financeiro', 'U') IS NULL
+            CREATE TABLE dbo.financeiro (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                barbearia_id INT NULL,
+                descricao NVARCHAR(500) NULL,
+                valor FLOAT NOT NULL DEFAULT 0,
+                tipo_transacao NVARCHAR(50) NOT NULL,
+                categoria NVARCHAR(50) NULL,
+                servico NVARCHAR(500) NULL,
+                produto NVARCHAR(500) NULL,
+                tags NVARCHAR(500) NULL,
+                barbeiro NVARCHAR(200) NULL,
+                profissional_id INT NULL,
+                agendamento_id INT NULL,
+                data DATETIME NULL DEFAULT GETDATE()
+            );
+            """,
+            """
+            IF COL_LENGTH('dbo.financeiro', 'barbearia_id') IS NULL
+                ALTER TABLE dbo.financeiro ADD barbearia_id INT NULL;
+            IF COL_LENGTH('dbo.financeiro', 'agendamento_id') IS NULL
+                ALTER TABLE dbo.financeiro ADD agendamento_id INT NULL;
+            IF COL_LENGTH('dbo.financeiro', 'categoria') IS NULL
+                ALTER TABLE dbo.financeiro ADD categoria NVARCHAR(50) NULL;
+            IF COL_LENGTH('dbo.financeiro', 'servico') IS NULL
+                ALTER TABLE dbo.financeiro ADD servico NVARCHAR(500) NULL;
+            IF COL_LENGTH('dbo.financeiro', 'produto') IS NULL
+                ALTER TABLE dbo.financeiro ADD produto NVARCHAR(500) NULL;
+            IF COL_LENGTH('dbo.financeiro', 'tags') IS NULL
+                ALTER TABLE dbo.financeiro ADD tags NVARCHAR(500) NULL;
+            """,
+            """
+            IF COL_LENGTH('dbo.Clientes', 'barbearia_id') IS NULL
+                ALTER TABLE dbo.Clientes ADD barbearia_id INT NULL;
+            IF COL_LENGTH('dbo.Clientes', 'valor') IS NULL
+                ALTER TABLE dbo.Clientes ADD valor FLOAT NULL;
+            """,
+        )
+        for ddl in blocos:
+            try:
+                cursor.execute(ddl)
+            except Exception as exc:
+                print(f"_init_schema_sqlserver: {exc}")
+        garantir_comissoes_defaults(cursor)
+        safe_commit(conn)
+        return cursor
+    finally:
+        if fecha:
+            safe_close(conn)
+
+
+def initialize_database_schema(conn=None):
+    """Detecta backend e aplica CREATE/ALTER adequados (Turso/SQLite ou T-SQL)."""
+    try:
+        from db_adapter import get_backend
+
+        backend = get_backend()
+    except Exception:
+        backend = "sqlite"
+    if backend == "sqlserver":
+        return _init_schema_sqlserver(conn)
+    return ensure_database_schema_sqlite(conn)
+
+
+def ensure_database_schema_sqlite(conn=None):
     """
-    Garante schema mínimo para produção/desenvolvimento na inicialização.
+    Garante schema mínimo (SQLite / Turso).
     Verifica tabelas críticas e aplica migrações automáticas (ex.: financeiro.tags).
     """
     fecha = conn is None
@@ -1269,6 +1361,11 @@ def ensure_database_schema(conn=None):
     finally:
         if fecha:
             safe_close(conn)
+
+
+def ensure_database_schema(conn=None):
+    """Alias de compatibilidade — delega para initialize_database_schema."""
+    return initialize_database_schema(conn)
 
 
 def ensure_schema_migrations_conn(conn):

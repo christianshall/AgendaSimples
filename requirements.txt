@@ -4,10 +4,11 @@ Flask-Babel==4.0.0
 gunicorn==25.1.0
 werkzeug==3.1.4
 
-# Ambiente e conexão de banco (local + Turso/libsql)
+# Ambiente e conexão de banco (local + Turso/libsql + SQL Server)
 python-dotenv==1.2.2
 libsql==0.1.10
 libsql-client==0.3.1
+pyodbc==5.2.0
 requests==2.32.5
 
 # Pagamentos

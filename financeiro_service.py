@@ -1,21 +1,23 @@
 """
 Módulo de gestão financeira: comissões, KPIs, fechamento de caixa e consultas tenant-safe.
+Todas as queries passam por db_adapter.execute_query (SQLite/Turso ou SQL Server).
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from database import _coluna_existe, _valor_linha
+import db_adapter as db
+from database import _valor_linha, garantir_comissoes_defaults
 
 CATEGORIAS_FINANCEIRAS = ("Serviço", "Produto", "Despesa")
 DEFAULT_PCT_SERVICO = 60.0
 DEFAULT_PCT_PRODUTO = 10.0
 
 
-def coluna_financeiro_existe(cursor, coluna: str) -> bool:
+def coluna_financeiro_existe(coluna: str) -> bool:
     try:
-        return _coluna_existe(cursor, "financeiro", coluna)
+        return db.coluna_existe("financeiro", coluna)
     except Exception:
         return False
 
@@ -60,28 +62,41 @@ def chave_comissao(barbearia_id: int, tipo: str) -> str:
     return f"fin_pct_{tipo}_{int(barbearia_id)}"
 
 
-def carregar_comissoes(cursor, barbearia_id: int) -> dict[str, float]:
-    """Carrega percentuais; cria padrões 60/10 no banco se ainda não existirem."""
-    try:
-        from database import garantir_comissoes_defaults
+def _row_get(row: Any, *keys, index: int = 0, default=None):
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        for k in keys:
+            if k and k in row:
+                return row[k]
+        vals = list(row.values())
+        if index < len(vals):
+            return vals[index]
+        return default
+    return _valor_linha(row, index, keys[0] if keys else None) or default
 
-        garantir_comissoes_defaults(cursor, barbearia_id)
-    except Exception:
-        pass
+
+def carregar_comissoes(barbearia_id: int, *, conn=None) -> dict[str, float]:
+    """Carrega percentuais; cria padrões 60/10 no banco se ainda não existirem."""
+    if conn is not None:
+        garantir_comissoes_defaults(conn.cursor(), barbearia_id)
+    else:
+        db.ensure_financeiro_schema()
 
     pct_servico = DEFAULT_PCT_SERVICO
     pct_produto = DEFAULT_PCT_PRODUTO
     try:
-        cursor.execute(
+        rows = db.execute_query(
             """
             SELECT chave, valor FROM tb_configuracoes
             WHERE chave IN (?, ?)
             """,
             (chave_comissao(barbearia_id, "servico"), chave_comissao(barbearia_id, "produto")),
+            conn=conn,
         )
-        for row in cursor.fetchall() or []:
-            k = _valor_linha(row, 0, "chave")
-            v = _valor_linha(row, 1, "valor")
+        for row in rows or []:
+            k = _row_get(row, "chave", index=0)
+            v = _row_get(row, "valor", index=1)
             try:
                 num = float(str(v).replace(",", "."))
             except (TypeError, ValueError):
@@ -91,30 +106,38 @@ def carregar_comissoes(cursor, barbearia_id: int) -> dict[str, float]:
             elif k == chave_comissao(barbearia_id, "produto"):
                 pct_produto = max(0.0, min(100.0, num))
         if pct_servico == DEFAULT_PCT_SERVICO:
-            cursor.execute(
+            row_g = db.execute_query(
                 "SELECT valor FROM tb_configuracoes WHERE chave = ? LIMIT 1",
                 ("fin_pct_servico_padrao",),
+                fetch="one",
+                conn=conn,
             )
-            row_g = cursor.fetchone()
             if row_g:
                 try:
                     pct_servico = max(
                         0.0,
-                        min(100.0, float(str(_valor_linha(row_g, 0, "valor")).replace(",", "."))),
+                        min(
+                            100.0,
+                            float(str(_row_get(row_g, "valor", index=0)).replace(",", ".")),
+                        ),
                     )
                 except (TypeError, ValueError):
                     pass
         if pct_produto == DEFAULT_PCT_PRODUTO:
-            cursor.execute(
+            row_g = db.execute_query(
                 "SELECT valor FROM tb_configuracoes WHERE chave = ? LIMIT 1",
                 ("fin_pct_produto_padrao",),
+                fetch="one",
+                conn=conn,
             )
-            row_g = cursor.fetchone()
             if row_g:
                 try:
                     pct_produto = max(
                         0.0,
-                        min(100.0, float(str(_valor_linha(row_g, 0, "valor")).replace(",", "."))),
+                        min(
+                            100.0,
+                            float(str(_row_get(row_g, "valor", index=0)).replace(",", ".")),
+                        ),
                     )
                 except (TypeError, ValueError):
                     pass
@@ -123,28 +146,36 @@ def carregar_comissoes(cursor, barbearia_id: int) -> dict[str, float]:
     return {"servico": pct_servico, "produto": pct_produto}
 
 
-def salvar_comissoes(cursor, barbearia_id: int, pct_servico: float, pct_produto: float) -> None:
+def salvar_comissoes(
+    barbearia_id: int, pct_servico: float, pct_produto: float, *, conn=None
+) -> None:
     pct_servico = max(0.0, min(100.0, float(pct_servico)))
     pct_produto = max(0.0, min(100.0, float(pct_produto)))
     for chave, valor in (
         (chave_comissao(barbearia_id, "servico"), pct_servico),
         (chave_comissao(barbearia_id, "produto"), pct_produto),
     ):
-        cursor.execute("SELECT 1 FROM tb_configuracoes WHERE chave = ?", (chave,))
-        if cursor.fetchone():
-            cursor.execute(
+        exists = db.execute_query(
+            "SELECT 1 FROM tb_configuracoes WHERE chave = ? LIMIT 1",
+            (chave,),
+            fetch="one",
+            conn=conn,
+        )
+        if exists:
+            db.execute_write(
                 "UPDATE tb_configuracoes SET valor = ? WHERE chave = ?",
                 (str(valor), chave),
+                conn=conn,
             )
         else:
-            cursor.execute(
+            db.execute_write(
                 "INSERT INTO tb_configuracoes (chave, valor) VALUES (?, ?)",
                 (chave, str(valor)),
+                conn=conn,
             )
 
 
 def parse_filtros_request(args) -> dict[str, Any]:
-    """Extrai filtros de data e profissional da query string."""
     data_ini = (args.get("data_ini") or "").strip()
     data_fim = (args.get("data_fim") or "").strip()
     if not data_ini and not data_fim:
@@ -166,38 +197,28 @@ def parse_filtros_request(args) -> dict[str, Any]:
     }
 
 
-def _select_colunas_financeiro(cursor) -> tuple[str, str]:
-    cat_sel = (
-        "f.categoria"
-        if coluna_financeiro_existe(cursor, "categoria")
-        else "NULL AS categoria"
-    )
-    tags_sel = (
-        "f.tags"
-        if coluna_financeiro_existe(cursor, "tags")
-        else "NULL AS tags"
-    )
+def _select_colunas_financeiro() -> tuple[str, str]:
+    cat_sel = "f.categoria" if coluna_financeiro_existe("categoria") else "NULL AS categoria"
+    tags_sel = "f.tags" if coluna_financeiro_existe("tags") else "NULL AS tags"
     return cat_sel, tags_sel
 
 
 def formatar_transacao_financeira(row) -> dict[str, Any]:
-    descricao = _valor_linha(row, 0) if row is not None else ""
-    valor = float(_valor_linha(row, 1) or 0)
-    tipo_transacao = _valor_linha(row, 2) or "Receita"
-    profissional = _valor_linha(row, 3) or "Geral / Estabelecimento"
-    data = _valor_linha(row, 4)
-    categoria_raw = _valor_linha(row, 6, "categoria")
-    tags_raw = _valor_linha(row, 7, "tags")
-    categoria = resolver_categoria_financeira(
-        categoria_raw, descricao, tipo_transacao
-    )
+    descricao = _row_get(row, "descricao", index=0, default="")
+    valor = float(_row_get(row, "valor", index=1, default=0) or 0)
+    tipo_transacao = _row_get(row, "tipo_transacao", index=2, default="Receita") or "Receita"
+    profissional = _row_get(row, "profissional", index=3, default="Geral / Estabelecimento")
+    data = _row_get(row, "data", index=4)
+    categoria_raw = _row_get(row, "categoria", index=6)
+    tags_raw = _row_get(row, "tags", index=7)
+    categoria = resolver_categoria_financeira(categoria_raw, descricao, tipo_transacao)
     return {
         "descricao": descricao,
         "valor": valor,
         "tipo_transacao": tipo_transacao,
-        "profissional": profissional,
+        "profissional": profissional or "Geral / Estabelecimento",
         "data": data,
-        "profissional_id": _valor_linha(row, 5, "profissional_id"),
+        "profissional_id": _row_get(row, "profissional_id", index=5),
         "categoria": categoria,
         "tags": tags_raw or "",
         "tags_lista": parse_tags_list(tags_raw or ""),
@@ -205,14 +226,14 @@ def formatar_transacao_financeira(row) -> dict[str, Any]:
 
 
 def buscar_transacoes_financeiro(
-    cursor,
     barbearia_id: int,
     profissional_id: Optional[int] = None,
     data_ini: Optional[str] = None,
     data_fim: Optional[str] = None,
+    *,
+    conn=None,
 ) -> list[dict[str, Any]]:
-    """SELECT tenant-safe com filtros opcionais de profissional e período."""
-    cat_sel, tags_sel = _select_colunas_financeiro(cursor)
+    cat_sel, tags_sel = _select_colunas_financeiro()
     sql = f"""
         SELECT f.descricao, f.valor, f.tipo_transacao,
                COALESCE(u.nome, f.barbeiro, 'Geral / Estabelecimento') AS profissional,
@@ -225,15 +246,16 @@ def buscar_transacoes_financeiro(
     if profissional_id:
         sql += " AND f.profissional_id = ?"
         params.append(int(profissional_id))
+    dpart = db.expr_data_yyyy_mm_dd("f.data")
     if data_ini:
-        sql += " AND substr(COALESCE(f.data, ''), 1, 10) >= ?"
+        sql += f" AND {dpart} >= ?"
         params.append(data_ini[:10])
     if data_fim:
-        sql += " AND substr(COALESCE(f.data, ''), 1, 10) <= ?"
+        sql += f" AND {dpart} <= ?"
         params.append(data_fim[:10])
     sql += " ORDER BY f.data DESC"
-    cursor.execute(sql, tuple(params))
-    return [formatar_transacao_financeira(r) for r in cursor.fetchall()]
+    rows = db.execute_query(sql, tuple(params), conn=conn)
+    return [formatar_transacao_financeira(r) for r in rows]
 
 
 def calcular_comissao_item(valor: float, categoria: str, comissoes: dict[str, float]) -> float:
@@ -272,7 +294,6 @@ def calcular_kpis(transacoes: list[dict], comissoes: dict[str, float]) -> dict[s
 def calcular_fechamento_caixa(
     transacoes: list[dict], comissoes: dict[str, float], profissional_id: Optional[int] = None
 ) -> dict[str, Any]:
-    """Fechamento por profissional: bruto, comissões e líquido a pagar."""
     filtradas = transacoes
     if profissional_id:
         filtradas = [
@@ -315,12 +336,14 @@ def calcular_fechamento_caixa(
 
 
 def buscar_faturamento_detalhado_profissionais(
-    cursor, barbearia_id: int, data_ini: Optional[str] = None, data_fim: Optional[str] = None
+    barbearia_id: int,
+    data_ini: Optional[str] = None,
+    data_fim: Optional[str] = None,
+    *,
+    conn=None,
 ) -> list[dict[str, Any]]:
     cat_sel = (
-        "f.categoria"
-        if coluna_financeiro_existe(cursor, "categoria")
-        else "NULL AS categoria"
+        "f.categoria" if coluna_financeiro_existe("categoria") else "NULL AS categoria"
     )
     sql = f"""
         SELECT u.id, u.nome, f.descricao, f.valor, f.tipo_transacao, {cat_sel}
@@ -329,24 +352,25 @@ def buscar_faturamento_detalhado_profissionais(
         WHERE f.barbearia_id = ? AND f.tipo_transacao = 'Receita'
     """
     params: list[Any] = [int(barbearia_id)]
+    dpart = db.expr_data_yyyy_mm_dd("f.data")
     if data_ini:
-        sql += " AND substr(COALESCE(f.data, ''), 1, 10) >= ?"
+        sql += f" AND {dpart} >= ?"
         params.append(data_ini[:10])
     if data_fim:
-        sql += " AND substr(COALESCE(f.data, ''), 1, 10) <= ?"
+        sql += f" AND {dpart} <= ?"
         params.append(data_fim[:10])
-    cursor.execute(sql, tuple(params))
-    comissoes_cfg = carregar_comissoes(cursor, barbearia_id)
+    rows = db.execute_query(sql, tuple(params), conn=conn)
+    comissoes_cfg = carregar_comissoes(barbearia_id, conn=conn)
     agregado: dict[int, dict] = {}
-    for row in cursor.fetchall() or []:
-        uid = _valor_linha(row, 0, "id")
-        nome = _valor_linha(row, 1, "nome")
+    for row in rows or []:
+        uid = _row_get(row, "id", index=0)
+        nome = _row_get(row, "nome", index=1)
         cat = resolver_categoria_financeira(
-            _valor_linha(row, 5, "categoria"),
-            _valor_linha(row, 2, "descricao"),
-            _valor_linha(row, 4, "tipo_transacao"),
+            _row_get(row, "categoria", index=5),
+            _row_get(row, "descricao", index=2),
+            _row_get(row, "tipo_transacao", index=4),
         )
-        valor = float(_valor_linha(row, 3, "valor") or 0)
+        valor = float(_row_get(row, "valor", index=3) or 0)
         if uid not in agregado:
             agregado[uid] = {
                 "id": uid,
@@ -376,39 +400,40 @@ def buscar_faturamento_detalhado_profissionais(
 
 
 def faturamento_diario_para_grafico(
-    cursor,
     barbearia_id: int,
     data_ini: Optional[str] = None,
     data_fim: Optional[str] = None,
+    *,
+    conn=None,
 ) -> dict[str, list]:
-    """Labels e valores para Chart.js (receitas por dia)."""
-    sql = """
-        SELECT substr(COALESCE(f.data, ''), 1, 10) AS dia, SUM(f.valor) AS total
+    dpart = db.expr_data_yyyy_mm_dd("f.data")
+    sql = f"""
+        SELECT {dpart} AS dia, SUM(f.valor) AS total
         FROM financeiro f
         WHERE f.barbearia_id = ? AND f.tipo_transacao = 'Receita'
     """
     params: list[Any] = [int(barbearia_id)]
     if data_ini:
-        sql += " AND substr(COALESCE(f.data, ''), 1, 10) >= ?"
+        sql += f" AND {dpart} >= ?"
         params.append(data_ini[:10])
     if data_fim:
-        sql += " AND substr(COALESCE(f.data, ''), 1, 10) <= ?"
+        sql += f" AND {dpart} <= ?"
         params.append(data_fim[:10])
-    sql += " GROUP BY dia ORDER BY dia"
-    cursor.execute(sql, tuple(params))
+    sql += f" GROUP BY {dpart} ORDER BY {dpart}"
+    rows = db.execute_query(sql, tuple(params), conn=conn)
     labels = []
     valores = []
-    for row in cursor.fetchall() or []:
-        dia = _valor_linha(row, 0, "dia") or ""
+    for row in rows or []:
+        dia = _row_get(row, "dia", index=0) or ""
         if not dia:
             continue
-        labels.append(dia[8:10] + "/" + dia[5:7] if len(dia) >= 10 else dia)
-        valores.append(round(float(_valor_linha(row, 1, "total") or 0), 2))
+        dia_str = str(dia)[:10]
+        labels.append(dia_str[8:10] + "/" + dia_str[5:7] if len(dia_str) >= 10 else dia_str)
+        valores.append(round(float(_row_get(row, "total", index=1) or 0), 2))
     return {"labels": labels, "valores": valores}
 
 
 def preview_split_lancamento(valor: float, categoria: str, comissoes: dict[str, float]) -> dict[str, float]:
-    """Split sugerido para o formulário inteligente."""
     valor = float(valor or 0)
     comissao = calcular_comissao_item(valor, categoria, comissoes)
     return {
@@ -421,3 +446,101 @@ def preview_split_lancamento(valor: float, categoria: str, comissoes: dict[str, 
             else comissoes.get("servico", DEFAULT_PCT_SERVICO)
         ),
     }
+
+
+def listar_profissionais(barbearia_id: int, *, conn=None) -> list[tuple]:
+    rows = db.execute_query(
+        """
+        SELECT id, nome FROM usuarios
+        WHERE barbearia_id = ? AND role IN ('barbeiro', 'profissional')
+        ORDER BY nome
+        """,
+        (barbearia_id,),
+        conn=conn,
+    )
+    return [(_row_get(r, "id", index=0), _row_get(r, "nome", index=1)) for r in rows]
+
+
+def profissional_pertence_barbearia(
+    profissional_id: int, barbearia_id: int, *, conn=None
+) -> bool:
+    row = db.execute_query(
+        """
+        SELECT id FROM usuarios
+        WHERE id = ? AND barbearia_id = ?
+          AND role IN ('barbeiro', 'profissional', 'admin')
+        LIMIT 1
+        """,
+        (profissional_id, barbearia_id),
+        fetch="one",
+        conn=conn,
+    )
+    return row is not None
+
+
+def nome_profissional_lancamento(
+    profissional_id: Optional[int], barbearia_id: int, *, conn=None
+) -> tuple[Optional[str], Optional[int]]:
+    if not profissional_id:
+        return None, None
+    row = db.execute_query(
+        """
+        SELECT nome FROM usuarios
+        WHERE id = ? AND barbearia_id = ?
+        LIMIT 1
+        """,
+        (profissional_id, barbearia_id),
+        fetch="one",
+        conn=conn,
+    )
+    if not row:
+        return None, None
+    return _row_get(row, "nome", index=0), profissional_id
+
+
+def inserir_lancamento_financeiro(
+    barbearia_id: int,
+    descricao: str,
+    valor_num: float,
+    tipo: str,
+    categoria: str,
+    nome_profissional: Optional[str],
+    profissional_id: Optional[int],
+    data_lanc: str,
+    tags: str = "",
+    *,
+    conn=None,
+) -> None:
+    cols = [
+        "descricao",
+        "valor",
+        "tipo_transacao",
+        "barbeiro",
+        "profissional_id",
+        "barbearia_id",
+        "data",
+    ]
+    vals = [
+        descricao,
+        valor_num,
+        tipo,
+        nome_profissional,
+        profissional_id,
+        int(barbearia_id),
+        data_lanc,
+    ]
+    if coluna_financeiro_existe("categoria"):
+        cols.append("categoria")
+        vals.append(categoria)
+    if tags and coluna_financeiro_existe("tags"):
+        cols.append("tags")
+        vals.append(tags)
+    if categoria == "Produto" and coluna_financeiro_existe("produto"):
+        cols.append("produto")
+        vals.append(descricao[:500])
+    elif coluna_financeiro_existe("servico"):
+        cols.append("servico")
+        vals.append(descricao[:500])
+    placeholders = ", ".join("?" for _ in vals)
+    sql = f"INSERT INTO financeiro ({', '.join(cols)}) VALUES ({placeholders})"
+    db.execute_write(sql, tuple(vals), conn=conn)

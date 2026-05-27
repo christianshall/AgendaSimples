@@ -7,7 +7,8 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from urllib.parse import quote
 from datetime import datetime, timedelta
 
-# Conexão: produção = TURSO_DATABASE_URL + TURSO_AUTH_TOKEN; local = database.db
+# Conexão: produção = Turso; local = SQL Server (pyodbc) ou SQLite
+import db_adapter
 from database import (
     DbError,
     SERVICOS_PADRAO,
@@ -20,6 +21,7 @@ from database import (
     garantir_comissoes_defaults,
     get_connection,
     init_database,
+    initialize_database_schema,
     obter_id_inserido,
     safe_close,
     safe_commit,
@@ -785,9 +787,9 @@ Equipe Agenda Simples
 
 
 def _inicializar_schema_aplicacao():
-    """Turso limpo: cria tabelas, colunas e comissões padrão na subida do app."""
+    """Cria tabelas/colunas conforme backend (Turso/SQLite ou SQL Server)."""
     try:
-        ensure_database_schema()
+        initialize_database_schema()
     except Exception:
         app.logger.exception("Falha ao garantir schema do banco na inicialização")
 
@@ -3038,22 +3040,18 @@ def admin_financeiro():
     filtros = fin.parse_filtros_request(request.args)
     filtro_profissional_id = filtros["profissional_id"]
 
-    conn = get_connection()
     try:
-        cursor = ensure_schema_migrations_conn(conn)
-        garantir_comissoes_defaults(cursor, barbearia_id)
-        safe_commit(conn)
-        profissionais = _listar_profissionais(cursor, barbearia_id)
+        db_adapter.ensure_financeiro_schema()
+        profissionais = fin.listar_profissionais(barbearia_id)
 
-        if filtro_profissional_id and not _profissional_pertence_barbearia(
-            cursor, filtro_profissional_id, barbearia_id
+        if filtro_profissional_id and not fin.profissional_pertence_barbearia(
+            filtro_profissional_id, barbearia_id
         ):
             filtro_profissional_id = None
             flash(_("Profissional inválido para este negócio."), "warning")
 
-        comissoes = fin.carregar_comissoes(cursor, barbearia_id)
+        comissoes = fin.carregar_comissoes(barbearia_id)
         transacoes = fin.buscar_transacoes_financeiro(
-            cursor,
             barbearia_id,
             filtro_profissional_id,
             filtros["data_ini"],
@@ -3064,13 +3062,11 @@ def admin_financeiro():
             transacoes, comissoes, filtro_profissional_id
         )
         faturamento_detalhado = fin.buscar_faturamento_detalhado_profissionais(
-            cursor,
             barbearia_id,
             filtros["data_ini"],
             filtros["data_fim"],
         )
         grafico = fin.faturamento_diario_para_grafico(
-            cursor,
             barbearia_id,
             filtros["data_ini"],
             filtros["data_fim"],
@@ -3103,8 +3099,6 @@ def admin_financeiro():
             "danger",
         )
         return redirect(url_for("admin_agenda"))
-    finally:
-        conn.close()
 
 
 @app.route("/admin_financeiro/comissoes", methods=["POST"])
@@ -3126,17 +3120,13 @@ def admin_financeiro_salvar_comissoes():
     except (TypeError, ValueError):
         flash(_("Percentuais de comissão inválidos."), "danger")
         return redirect(url_for("admin_financeiro"))
-    conn = get_connection()
     try:
-        cursor = ensure_schema_migrations_conn(conn)
-        fin.salvar_comissoes(cursor, barbearia_id, pct_servico, pct_produto)
-        safe_commit(conn)
+        db_adapter.ensure_financeiro_schema()
+        fin.salvar_comissoes(barbearia_id, pct_servico, pct_produto)
         flash(_("Comissões atualizadas com sucesso."), "success")
     except Exception:
         app.logger.exception("Erro ao salvar comissões")
         flash(_("Não foi possível salvar as comissões."), "danger")
-    finally:
-        conn.close()
     q = request.form.get("redirect_query", "")
     return redirect(url_for("admin_financeiro") + (f"?{q}" if q else ""))
 
@@ -3171,55 +3161,27 @@ def lancar_transacao():
         flash(_("Valor inválido."), "error")
         return redirect(url_for("admin_financeiro"))
 
-    conn = get_connection()
     try:
-        cursor = ensure_schema_migrations_conn(conn)
-        nome_profissional, profissional_id = _nome_profissional_lancamento(
-            cursor, profissional_id, barbearia_id
+        db_adapter.ensure_financeiro_schema()
+        nome_profissional, profissional_id = fin.nome_profissional_lancamento(
+            profissional_id, barbearia_id
         )
         data_lanc = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cols = [
-            "descricao",
-            "valor",
-            "tipo_transacao",
-            "barbeiro",
-            "profissional_id",
-            "barbearia_id",
-            "data",
-        ]
-        vals = [
+        fin.inserir_lancamento_financeiro(
+            barbearia_id,
             descricao,
             valor_num,
             tipo,
+            categoria,
             nome_profissional,
             profissional_id,
-            int(barbearia_id),
             data_lanc,
-        ]
-        if _financeiro_tem_coluna(cursor, "categoria"):
-            cols.append("categoria")
-            vals.append(categoria)
-        if tags and fin.coluna_financeiro_existe(cursor, "tags"):
-            cols.append("tags")
-            vals.append(tags)
-        if categoria == "Produto" and fin.coluna_financeiro_existe(cursor, "produto"):
-            cols.append("produto")
-            vals.append(descricao[:500])
-        elif fin.coluna_financeiro_existe(cursor, "servico"):
-            cols.append("servico")
-            vals.append(descricao[:500])
-        placeholders = ", ".join("?" for _ in vals)
-        cursor.execute(
-            f"INSERT INTO financeiro ({', '.join(cols)}) VALUES ({placeholders})",
-            tuple(vals),
+            tags,
         )
-        safe_commit(conn)
     except Exception:
         app.logger.exception("Erro ao lançar transação financeira")
         flash(_("Não foi possível salvar o lançamento."), "danger")
         return redirect(url_for("admin_financeiro"))
-    finally:
-        conn.close()
 
     q = request.form.get("redirect_query", "").strip()
     return redirect(url_for("admin_financeiro") + (f"?{q}" if q else ""))
@@ -3239,27 +3201,23 @@ def financeiro_exportar_excel():
     filtros = fin.parse_filtros_request(request.args)
     filtro_prof = filtros["profissional_id"]
 
-    conn = get_connection()
-    cursor = ensure_schema_migrations_conn(conn)
-    if filtro_prof and not _profissional_pertence_barbearia(
-        cursor, filtro_prof, barbearia_id
+    db_adapter.ensure_financeiro_schema()
+    if filtro_prof and not fin.profissional_pertence_barbearia(
+        filtro_prof, barbearia_id
     ):
         filtro_prof = None
     transacoes = fin.buscar_transacoes_financeiro(
-        cursor,
         barbearia_id,
         filtro_prof,
         filtros["data_ini"],
         filtros["data_fim"],
     )
-    kpis = fin.calcular_kpis(transacoes, fin.carregar_comissoes(cursor, barbearia_id))
+    kpis = fin.calcular_kpis(transacoes, fin.carregar_comissoes(barbearia_id))
     faturamento_detalhado = fin.buscar_faturamento_detalhado_profissionais(
-        cursor,
         barbearia_id,
         filtros["data_ini"],
         filtros["data_fim"],
     )
-    conn.close()
 
     output = _gerar_excel_financeiro(
         transacoes, kpis["saldo_caixa"], faturamento_detalhado, filtros
@@ -3290,27 +3248,23 @@ def financeiro_exportar_pdf():
     filtros = fin.parse_filtros_request(request.args)
     filtro_prof = filtros["profissional_id"]
 
-    conn = get_connection()
-    cursor = ensure_schema_migrations_conn(conn)
-    if filtro_prof and not _profissional_pertence_barbearia(
-        cursor, filtro_prof, barbearia_id
+    db_adapter.ensure_financeiro_schema()
+    if filtro_prof and not fin.profissional_pertence_barbearia(
+        filtro_prof, barbearia_id
     ):
         filtro_prof = None
     transacoes = fin.buscar_transacoes_financeiro(
-        cursor,
         barbearia_id,
         filtro_prof,
         filtros["data_ini"],
         filtros["data_fim"],
     )
-    kpis = fin.calcular_kpis(transacoes, fin.carregar_comissoes(cursor, barbearia_id))
+    kpis = fin.calcular_kpis(transacoes, fin.carregar_comissoes(barbearia_id))
     faturamento_detalhado = fin.buscar_faturamento_detalhado_profissionais(
-        cursor,
         barbearia_id,
         filtros["data_ini"],
         filtros["data_fim"],
     )
-    conn.close()
 
     output = _gerar_pdf_financeiro(
         transacoes, kpis["saldo_caixa"], titulo, faturamento_detalhado
