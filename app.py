@@ -2872,15 +2872,15 @@ def _gerar_pdf_financeiro(transacoes, saldo, titulo_estabelecimento, faturamento
 @app.route("/admin_financeiro")
 @requer_plano
 def admin_financeiro():
-    bloqueio = _exigir_admin()
-    if bloqueio:
-        return bloqueio
-
-    barbearia_id = _barbearia_id_admin_obrigatorio()
-    if not barbearia_id:
-        return redirect(url_for("login"))
-
     try:
+        bloqueio = _exigir_admin()
+        if bloqueio:
+            return bloqueio
+
+        barbearia_id = _barbearia_id_admin_obrigatorio()
+        if not barbearia_id:
+            return redirect(url_for("login"))
+
         filtros = fin.parse_filtros_request(request.args)
         filtro_profissional_id = filtros["profissional_id"]
 
@@ -2947,6 +2947,79 @@ def admin_financeiro():
             "danger",
         )
         return redirect(url_for("admin_agenda"))
+
+
+@app.route("/admin_financeiro_diag")
+def admin_financeiro_diag():
+    """
+    Diagnóstico detalhado do fluxo do financeiro em produção.
+    Protegido por CRON_SECRET para evitar exposição pública.
+    """
+    token = (request.headers.get("Authorization") or "").replace("Bearer", "").strip()
+    if not cfg.CRON_SECRET or token != cfg.CRON_SECRET:
+        return {"ok": False, "error": "unauthorized"}, 401
+
+    result = {"ok": False, "steps": [], "error": None}
+    try:
+        result["steps"].append("auth_check")
+        bloqueio = _exigir_admin()
+        if bloqueio:
+            result["ok"] = True
+            result["steps"].append("auth_blocked")
+            return result, 200
+
+        result["steps"].append("barbearia_check")
+        barbearia_id = _barbearia_id_admin_obrigatorio()
+        if not barbearia_id:
+            return {"ok": False, "error": "sem_barbearia_id", "steps": result["steps"]}, 200
+
+        result["steps"].append("open_connection")
+        with db_adapter.connection_scope() as conn:
+            result["steps"].append("ensure_schema")
+            db_adapter.ensure_financeiro_schema(conn)
+            filtros = fin.parse_filtros_request(request.args)
+            profissional_id = filtros["profissional_id"]
+
+            result["steps"].append("listar_profissionais")
+            profissionais = fin.listar_profissionais(barbearia_id, conn=conn)
+            result["profissionais"] = len(profissionais or [])
+
+            result["steps"].append("carregar_comissoes")
+            comissoes = fin.carregar_comissoes(barbearia_id, conn=conn)
+            result["comissoes"] = comissoes
+
+            result["steps"].append("buscar_transacoes")
+            transacoes = fin.buscar_transacoes_financeiro(
+                barbearia_id,
+                profissional_id,
+                filtros["data_ini"],
+                filtros["data_fim"],
+                conn=conn,
+            )
+            result["transacoes"] = len(transacoes or [])
+
+            result["steps"].append("calcular_blocos")
+            _ = fin.calcular_kpis(transacoes, comissoes)
+            _ = fin.calcular_fechamento_caixa(transacoes, comissoes, profissional_id)
+            _ = fin.buscar_faturamento_detalhado_profissionais(
+                barbearia_id, filtros["data_ini"], filtros["data_fim"], conn=conn
+            )
+            _ = fin.faturamento_diario_para_grafico(
+                barbearia_id,
+                filtros["data_ini"],
+                filtros["data_fim"],
+                conn=conn,
+                transacoes_cache=transacoes,
+            )
+
+        result["ok"] = True
+        result["steps"].append("done")
+        return result, 200
+    except Exception as exc:
+        app.logger.exception("admin_financeiro_diag falhou")
+        result["error"] = f"{type(exc).__name__}: {exc}"
+        result["steps"].append("failed")
+        return result, 500
 
 
 @app.route("/admin_financeiro/comissoes", methods=["POST"])
