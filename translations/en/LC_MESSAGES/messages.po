@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-27 00:58-0300\n"
+"POT-Creation-Date: 2026-05-27 01:04-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -18,7 +18,7 @@ msgstr ""
 msgid "Faça login para continuar."
 msgstr ""
 
-#: app.py:244 app.py:3450
+#: app.py:244 app.py:3510
 msgid "Sessão inválida. Faça login novamente."
 msgstr ""
 
@@ -239,6 +239,10 @@ msgstr ""
 msgid "Não foi possível salvar o lançamento."
 msgstr ""
 
+#: app.py:3482
+msgid "Sessão inválida."
+msgstr ""
+
 #: templates/_admin_nav_assinatura.html:4
 msgid "Plano e assinatura"
 msgstr "Plan and subscription"
@@ -258,6 +262,8 @@ msgstr "%(dias)s day(s) left on your free trial."
 #: templates/_banner_plano.html:13
 msgid "Seu teste encerrou. Assine o plano mensal para continuar usando o painel."
 msgstr "Your trial has ended. Subscribe to the monthly plan to keep using the dashboard."
+"Your trial has ended. Subscribe to the monthly plan to keep using the "
+"dashboard."
 
 #: templates/_banner_plano.html:16 templates/admin_assinatura.html:49
 #: templates/bloqueio_assinatura.html:26
@@ -369,7 +375,6 @@ msgid "Financeiro"
 msgstr "Financial"
 
 #: templates/admin_agenda.html:288 templates/admin_metricas.html:6
-#: templates/admin_metricas.html:17
 msgid "Métricas"
 msgstr "Metrics"
 
@@ -561,7 +566,7 @@ msgstr "No subscription found. Start checkout to activate your plan."
 
 #: templates/admin_assinatura.html:51
 #: templates/admin_cadastrar_profissional.html:104
-#: templates/admin_financeiro.html:30 templates/admin_metricas.html:21
+#: templates/admin_financeiro.html:30
 #, fuzzy
 msgid "Voltar à agenda"
 msgstr "Back to schedule"
@@ -842,68 +847,153 @@ msgstr "Value"
 msgid "Nenhuma transação no período."
 msgstr ""
 
-#: templates/admin_metricas.html:25
+#: templates/admin_metricas.html:17
+#, fuzzy
+msgid "Painel de crescimento"
+msgstr "Growth dashboard"
+
+#: templates/admin_metricas.html:18
+msgid "Últimas 8 semanas"
+msgstr "Last 8 weeks"
+
+#: templates/admin_metricas.html:22
+#, fuzzy
+msgid "Exportar CSV"
+msgstr "Export CSV"
+
+#: templates/admin_metricas.html:26
+msgid "CSV plataforma"
+msgstr "Platform CSV"
+
+#: templates/admin_metricas.html:30
+#, fuzzy
+msgid "Agenda"
+msgstr "Schedule"
+
+#: templates/admin_metricas.html:39
+msgid "vs. semana ant."
+msgstr "vs. prev. week"
+
+#: templates/admin_metricas.html:44
 msgid "Seu negócio"
 msgstr "Your business"
 
-#: templates/admin_metricas.html:29
+#: templates/admin_metricas.html:48
 #, fuzzy
 msgid "Agendamentos hoje"
 msgstr "Appointments today"
 
-#: templates/admin_metricas.html:33
+#: templates/admin_metricas.html:52
 msgid "Agendamentos (30 dias)"
 msgstr "Appointments (30 days)"
 
-#: templates/admin_metricas.html:37
-msgid "Atendimentos concluídos (30 dias)"
-msgstr "Completed visits (30 days)"
+#: templates/admin_metricas.html:57
+#, fuzzy
+msgid "Receita estimada (30 dias)"
+msgstr "Estimated revenue (30 days)"
 
-#: templates/admin_metricas.html:41
+#: templates/admin_metricas.html:62
+msgid "Taxa de conclusão"
+msgstr "Completion rate"
+
+#: templates/admin_metricas.html:66
 #, fuzzy
 msgid "Clientes únicos"
 msgstr "Unique clients"
 
-#: templates/admin_metricas.html:46
+#: templates/admin_metricas.html:70
+#, fuzzy
+msgid "Atendimentos concluídos"
+msgstr "Completed visits (30 days)"
+
+#: templates/admin_metricas.html:75
+msgid "Insights para você"
+msgstr "Insights for you"
+
+#: templates/admin_metricas.html:88
+msgid "Evolução semanal"
+msgstr "Weekly trend"
+
+#: templates/admin_metricas.html:92
+#, fuzzy
+msgid "Status dos agendamentos"
+msgstr "Appointment status"
+
+#: templates/admin_metricas.html:99
+#, fuzzy
+msgid "Receita por semana"
+msgstr "Revenue per week"
+
+#: templates/admin_metricas.html:103
+#, fuzzy
+msgid "Top serviços (30 dias)"
+msgstr "Top services (30 days)"
+
+#: templates/admin_metricas.html:116
+msgid "Ainda sem dados — os primeiros agendamentos aparecem aqui."
+msgstr "No data yet — first bookings will show here."
+
+#: templates/admin_metricas.html:122
 #, fuzzy
 msgid "Plataforma AgendaSimples"
 msgstr "AgendaSimples Platform"
 
-#: templates/admin_metricas.html:47
-msgid "Visível apenas para o administrador da plataforma."
-msgstr "Visible only to the platform administrator."
-
-#: templates/admin_metricas.html:51
+#: templates/admin_metricas.html:126
 msgid "Cadastros (7 dias)"
 msgstr "Sign-ups (7 days)"
 
-#: templates/admin_metricas.html:55
-msgid "Cadastros (30 dias)"
-msgstr "Sign-ups (30 days)"
-
-#: templates/admin_metricas.html:59
-msgid "Contas totais"
-msgstr "Total accounts"
-
-#: templates/admin_metricas.html:63
-msgid "Em teste grátis"
-msgstr "On free trial"
-
-#: templates/admin_metricas.html:67
+#: templates/admin_metricas.html:130
 msgid "Planos pagos ativos"
 msgstr "Active paid plans"
 
-#: templates/admin_metricas.html:71
-msgid "Checkouts Stripe (total)"
-msgstr "Stripe checkouts (total)"
+#: templates/admin_metricas.html:135
+msgid "Em teste grátis"
+msgstr "On free trial"
 
-#: templates/admin_metricas.html:75
+#: templates/admin_metricas.html:139
+#, fuzzy
+msgid "Conversão trial → pago"
+msgstr "Trial-to-paid conversion rate"
+
+#: templates/admin_metricas.html:143
 msgid "Checkouts (30 dias)"
 msgstr "Checkouts (30 days)"
 
-#: templates/admin_metricas.html:79
-msgid "Taxa de conversão trial → pago"
-msgstr "Trial-to-paid conversion rate"
+#: templates/admin_metricas.html:147
+msgid "Contas totais"
+msgstr "Total accounts"
+
+#: templates/admin_metricas.html:152
+msgid "Insights da plataforma"
+msgstr "Platform insights"
+
+#: templates/admin_metricas.html:164
+msgid "Cadastros e checkouts por semana"
+msgstr "Sign-ups and checkouts per week"
+
+#: templates/admin_metricas.html:175
+#, fuzzy
+msgid "Agendamentos"
+msgstr "Appointments"
+
+#: templates/admin_metricas.html:176
+msgid "Concluídos"
+msgstr "Completed"
+
+#: templates/admin_metricas.html:177
+#, fuzzy
+msgid "Receita R$"
+msgstr "Revenue R$"
+
+#: templates/admin_metricas.html:178
+#, fuzzy
+msgid "Cadastros"
+msgstr "Register"
+
+#: templates/admin_metricas.html:179
+#, fuzzy
+msgid "Checkouts"
+msgstr "Checkouts"
 
 #: templates/agenda.html:6
 msgid "Minha Agenda"
@@ -1778,4 +1868,10 @@ msgstr "Create my account"
 
 #~ msgid "Corte + Sobrancelha"
 #~ msgstr "Haircut + eyebrows"
+
+#~ msgid "Visível apenas para o administrador da plataforma."
+#~ msgstr "Visible only to the platform administrator."
+
+#~ msgid "Checkouts Stripe (total)"
+#~ msgstr "Stripe checkouts (total)"
 

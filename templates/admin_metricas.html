@@ -8,22 +8,41 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='admin_metricas.css') }}">
 </head>
-<body class="page-metricas p-4">
+<body class="page-metricas p-3 p-md-4">
 {% include '_banner_plano.html' %}
 
-<div class="container-fluid" style="max-width: 1100px;">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+<div class="metricas-wrap">
+    <header class="metricas-hero">
         <div>
-            <h1 class="h3 mb-1"><i class="fas fa-chart-line text-warning me-2"></i>{{ _('Métricas') }}</h1>
-            <p class="text-muted small mb-0">{{ session.get('nome_barbearia', '') }}</p>
+            <h1><i class="fas fa-chart-line me-2"></i>{{ _('Painel de crescimento') }}</h1>
+            <p class="metricas-hero-sub">{{ session.get('nome_barbearia', '') }} · {{ _('Últimas 8 semanas') }}</p>
         </div>
-        <a href="{{ url_for('admin_agenda') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-arrow-left me-1"></i>{{ _('Voltar à agenda') }}
-        </a>
-    </div>
+        <div class="metricas-actions">
+            <a href="{{ url_for('admin_metricas_export') }}" class="btn-metricas btn-metricas--gold">
+                <i class="fas fa-file-csv"></i> {{ _('Exportar CSV') }}
+            </a>
+            {% if eh_saas_owner %}
+            <a href="{{ url_for('admin_metricas_export', escopo='plataforma') }}" class="btn-metricas">
+                <i class="fas fa-cloud-download-alt"></i> {{ _('CSV plataforma') }}
+            </a>
+            {% endif %}
+            <a href="{{ url_for('admin_agenda') }}" class="btn-metricas">
+                <i class="fas fa-arrow-left"></i> {{ _('Agenda') }}
+            </a>
+        </div>
+    </header>
 
-    <h2 class="metricas-section-title h6 text-uppercase">{{ _('Seu negócio') }}</h2>
-    <div class="metricas-grid mb-4">
+  {% macro trend_badge(val) %}
+    {% if val is defined and val != 0 %}
+      <span class="metrica-trend {% if val > 0 %}metrica-trend--up{% elif val < 0 %}metrica-trend--down{% else %}metrica-trend--flat{% endif %}">
+        <i class="fas fa-{% if val > 0 %}arrow-trend-up{% elif val < 0 %}arrow-trend-down{% else %}minus{% endif %}"></i>
+        {{ val|abs }}% {{ _('vs. semana ant.') }}
+      </span>
+    {% endif %}
+  {% endmacro %}
+
+    <h2 class="metricas-section-title">{{ _('Seu negócio') }}</h2>
+    <div class="metricas-grid">
         <div class="metrica-card">
             <h3>{{ negocio.agendamentos_hoje|default(0) }}</h3>
             <p>{{ _('Agendamentos hoje') }}</p>
@@ -31,55 +50,137 @@
         <div class="metrica-card">
             <h3>{{ negocio.agendamentos_mes|default(0) }}</h3>
             <p>{{ _('Agendamentos (30 dias)') }}</p>
+            {{ trend_badge(negocio.tendencia_agendamentos_pct) }}
         </div>
         <div class="metrica-card">
-            <h3>{{ negocio.concluidos_mes|default(0) }}</h3>
-            <p>{{ _('Atendimentos concluídos (30 dias)') }}</p>
+            <h3>R$ {{ '%.2f'|format(negocio.receita_mes|default(0)) }}</h3>
+            <p>{{ _('Receita estimada (30 dias)') }}</p>
+            {{ trend_badge(negocio.tendencia_receita_pct) }}
+        </div>
+        <div class="metrica-card">
+            <h3>{{ negocio.taxa_conclusao_pct|default(0) }}%</h3>
+            <p>{{ _('Taxa de conclusão') }}</p>
         </div>
         <div class="metrica-card">
             <h3>{{ negocio.clientes_unicos|default(0) }}</h3>
             <p>{{ _('Clientes únicos') }}</p>
         </div>
+        <div class="metrica-card">
+            <h3>{{ negocio.concluidos_mes|default(0) }}</h3>
+            <p>{{ _('Atendimentos concluídos') }}</p>
+        </div>
+    </div>
+
+    {% if dicas_negocio %}
+    <h2 class="metricas-section-title"><i class="fas fa-wand-magic-sparkles me-1"></i> {{ _('Insights para você') }}</h2>
+    <div class="insights-list">
+        {% for dica in dicas_negocio %}
+        <div class="insight-card insight-card--{{ dica.tipo }}">
+            <i class="fas {{ dica.icone }}"></i>
+            <span>{{ dica.texto }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="metricas-charts-row">
+        <div class="chart-panel" style="min-height: 320px;">
+            <h3><i class="fas fa-calendar-week text-warning me-2"></i>{{ _('Evolução semanal') }}</h3>
+            <canvas id="chartEvolucaoNegocio" height="260"></canvas>
+        </div>
+        <div class="chart-panel" style="min-height: 320px;">
+            <h3><i class="fas fa-chart-pie text-warning me-2"></i>{{ _('Status dos agendamentos') }}</h3>
+            <canvas id="chartStatusPizza" height="260"></canvas>
+        </div>
+    </div>
+
+    <div class="metricas-charts-row">
+        <div class="chart-panel" style="min-height: 260px;">
+            <h3><i class="fas fa-coins text-warning me-2"></i>{{ _('Receita por semana') }}</h3>
+            <canvas id="chartReceitaNegocio" height="220"></canvas>
+        </div>
+        <div class="chart-panel">
+            <h3><i class="fas fa-fire text-warning me-2"></i>{{ _('Top serviços (30 dias)') }}</h3>
+            {% set tops = graficos_negocio.top_servicos or [] %}
+            {% if tops %}
+            <ul class="top-servicos">
+                {% for item in tops %}
+                <li>
+                    <span>{{ item.servico }}</span>
+                    <span class="bar-wrap"><span class="bar-fill" data-total="{{ item.total }}" style="width:0"></span></span>
+                    <span class="count">{{ item.total }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted small mb-0">{{ _('Ainda sem dados — os primeiros agendamentos aparecem aqui.') }}</p>
+            {% endif %}
+        </div>
     </div>
 
     {% if eh_saas_owner and plataforma %}
-    <h2 class="metricas-section-title h6 text-uppercase">{{ _('Plataforma AgendaSimples') }}</h2>
-    <p class="small text-muted">{{ _('Visível apenas para o administrador da plataforma.') }}</p>
+    <h2 class="metricas-section-title">{{ _('Plataforma AgendaSimples') }}</h2>
     <div class="metricas-grid">
         <div class="metrica-card metrica-card--saas">
             <h3>{{ plataforma.cadastros_7d }}</h3>
             <p>{{ _('Cadastros (7 dias)') }}</p>
         </div>
         <div class="metrica-card metrica-card--saas">
-            <h3>{{ plataforma.cadastros_30d }}</h3>
-            <p>{{ _('Cadastros (30 dias)') }}</p>
-        </div>
-        <div class="metrica-card metrica-card--saas">
-            <h3>{{ plataforma.total_contas }}</h3>
-            <p>{{ _('Contas totais') }}</p>
+            <h3>{{ plataforma.planos_ativos }}</h3>
+            <p>{{ _('Planos pagos ativos') }}</p>
+            <span class="mrr-badge">MRR ≈ R$ {{ '%.2f'|format(plataforma.mrr_estimado|default(0)) }}</span>
         </div>
         <div class="metrica-card metrica-card--saas">
             <h3>{{ plataforma.em_trial }}</h3>
             <p>{{ _('Em teste grátis') }}</p>
         </div>
         <div class="metrica-card metrica-card--saas">
-            <h3>{{ plataforma.planos_ativos }}</h3>
-            <p>{{ _('Planos pagos ativos') }}</p>
-        </div>
-        <div class="metrica-card metrica-card--saas">
-            <h3>{{ plataforma.checkouts_total }}</h3>
-            <p>{{ _('Checkouts Stripe (total)') }}</p>
+            <h3>{{ plataforma.taxa_conversao_pct }}%</h3>
+            <p>{{ _('Conversão trial → pago') }}</p>
         </div>
         <div class="metrica-card metrica-card--saas">
             <h3>{{ plataforma.checkouts_30d }}</h3>
             <p>{{ _('Checkouts (30 dias)') }}</p>
         </div>
         <div class="metrica-card metrica-card--saas">
-            <h3>{{ plataforma.taxa_conversao_pct }}%</h3>
-            <p>{{ _('Taxa de conversão trial → pago') }}</p>
+            <h3>{{ plataforma.total_contas }}</h3>
+            <p>{{ _('Contas totais') }}</p>
         </div>
+    </div>
+
+    {% if dicas_plataforma %}
+    <h2 class="metricas-section-title">{{ _('Insights da plataforma') }}</h2>
+    <div class="insights-list">
+        {% for dica in dicas_plataforma %}
+        <div class="insight-card insight-card--{{ dica.tipo }}">
+            <i class="fas {{ dica.icone }}"></i>
+            <span>{{ dica.texto }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="chart-panel mt-3" style="min-height: 300px;">
+        <h3><i class="fas fa-globe me-2" style="color: var(--metricas-blue)"></i>{{ _('Cadastros e checkouts por semana') }}</h3>
+        <canvas id="chartEvolucaoPlataforma" height="240"></canvas>
     </div>
     {% endif %}
 </div>
+
+<script id="metricas-chart-data" type="application/json">
+{
+  "negocio": {{ graficos_negocio|tojson }},
+  "plataforma": {{ graficos_plataforma|tojson }},
+  "labels": {
+    "agendamentos": {{ _('Agendamentos')|tojson }},
+    "concluidos": {{ _('Concluídos')|tojson }},
+    "receita": {{ _('Receita R$')|tojson }},
+    "cadastros": {{ _('Cadastros')|tojson }},
+    "checkouts": {{ _('Checkouts')|tojson }}
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='admin_metricas.js') }}"></script>
 </body>
 </html>

@@ -3421,17 +3421,77 @@ def admin_metricas():
     if bloqueio:
         return bloqueio
 
-    from metrics_service import metricas_estabelecimento, metricas_plataforma
+    from metrics_service import (
+        insights_negocio,
+        insights_plataforma,
+        metricas_estabelecimento,
+        metricas_plataforma,
+        pacote_graficos_negocio,
+        pacote_graficos_plataforma,
+    )
 
     barbearia_id = session.get("barbearia_id")
     negocio = metricas_estabelecimento(barbearia_id) if barbearia_id else {}
-    plataforma = metricas_plataforma() if _eh_saas_owner() else None
+    graficos_negocio = pacote_graficos_negocio(barbearia_id) if barbearia_id else {}
+    dicas_negocio = insights_negocio(
+        negocio,
+        graficos_negocio.get("evolucao"),
+        graficos_negocio.get("top_servicos"),
+    )
+
+    plataforma = None
+    graficos_plataforma = {}
+    dicas_plataforma = []
+    if _eh_saas_owner():
+        plataforma = metricas_plataforma()
+        graficos_plataforma = pacote_graficos_plataforma()
+        dicas_plataforma = insights_plataforma(plataforma)
 
     return render_template(
         "admin_metricas.html",
         negocio=negocio,
         plataforma=plataforma,
         eh_saas_owner=plataforma is not None,
+        graficos_negocio=graficos_negocio,
+        graficos_plataforma=graficos_plataforma,
+        dicas_negocio=dicas_negocio,
+        dicas_plataforma=dicas_plataforma,
+    )
+
+
+@app.route("/admin/metricas/export")
+@requer_plano
+def admin_metricas_export():
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
+
+    from io import BytesIO
+
+    from metrics_service import gerar_csv_negocio, gerar_csv_plataforma
+
+    escopo = (request.args.get("escopo") or "negocio").strip().lower()
+    barbearia_id = session.get("barbearia_id")
+    nome = session.get("nome_barbearia", "negocio")
+
+    if escopo == "plataforma" and _eh_saas_owner():
+        conteudo = gerar_csv_plataforma()
+        nome_arquivo = "agendasimples_plataforma.csv"
+    else:
+        if not barbearia_id:
+            flash(_("Sessão inválida."), "error")
+            return redirect(url_for("admin_metricas"))
+        conteudo = gerar_csv_negocio(barbearia_id, nome)
+        slug = (session.get("barbearia_slug") or "metricas").replace("/", "-")[:40]
+        nome_arquivo = f"metricas_{slug}.csv"
+
+    buf = BytesIO(conteudo.encode("utf-8-sig"))
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="text/csv; charset=utf-8",
+        as_attachment=True,
+        download_name=nome_arquivo,
     )
 
 

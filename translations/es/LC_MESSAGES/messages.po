@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-27 00:58-0300\n"
+"POT-Creation-Date: 2026-05-27 01:04-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es\n"
@@ -18,7 +18,7 @@ msgstr ""
 msgid "Faça login para continuar."
 msgstr ""
 
-#: app.py:244 app.py:3450
+#: app.py:244 app.py:3510
 msgid "Sessão inválida. Faça login novamente."
 msgstr ""
 
@@ -239,6 +239,10 @@ msgstr ""
 msgid "Não foi possível salvar o lançamento."
 msgstr ""
 
+#: app.py:3482
+msgid "Sessão inválida."
+msgstr ""
+
 #: templates/_admin_nav_assinatura.html:4
 msgid "Plano e assinatura"
 msgstr "Plan y suscripción"
@@ -369,7 +373,6 @@ msgid "Financeiro"
 msgstr "Financiero"
 
 #: templates/admin_agenda.html:288 templates/admin_metricas.html:6
-#: templates/admin_metricas.html:17
 msgid "Métricas"
 msgstr "Métricas"
 
@@ -560,7 +563,7 @@ msgstr "No se encontró suscripción. Inicie el checkout para activar el plan."
 
 #: templates/admin_assinatura.html:51
 #: templates/admin_cadastrar_profissional.html:104
-#: templates/admin_financeiro.html:30 templates/admin_metricas.html:21
+#: templates/admin_financeiro.html:30
 #, fuzzy
 msgid "Voltar à agenda"
 msgstr "Volver a la agenda"
@@ -841,68 +844,153 @@ msgstr "Valor"
 msgid "Nenhuma transação no período."
 msgstr ""
 
-#: templates/admin_metricas.html:25
+#: templates/admin_metricas.html:17
+#, fuzzy
+msgid "Painel de crescimento"
+msgstr "Panel de crecimiento"
+
+#: templates/admin_metricas.html:18
+msgid "Últimas 8 semanas"
+msgstr "Últimas 8 semanas"
+
+#: templates/admin_metricas.html:22
+#, fuzzy
+msgid "Exportar CSV"
+msgstr "Exportar CSV"
+
+#: templates/admin_metricas.html:26
+msgid "CSV plataforma"
+msgstr "CSV plataforma"
+
+#: templates/admin_metricas.html:30
+#, fuzzy
+msgid "Agenda"
+msgstr "Agenda"
+
+#: templates/admin_metricas.html:39
+msgid "vs. semana ant."
+msgstr "vs. sem. ant."
+
+#: templates/admin_metricas.html:44
 msgid "Seu negócio"
 msgstr "Su negocio"
 
-#: templates/admin_metricas.html:29
+#: templates/admin_metricas.html:48
 #, fuzzy
 msgid "Agendamentos hoje"
 msgstr "Citas hoy"
 
-#: templates/admin_metricas.html:33
+#: templates/admin_metricas.html:52
 msgid "Agendamentos (30 dias)"
 msgstr "Citas (30 días)"
 
-#: templates/admin_metricas.html:37
-msgid "Atendimentos concluídos (30 dias)"
-msgstr "Atenciones completadas (30 días)"
+#: templates/admin_metricas.html:57
+#, fuzzy
+msgid "Receita estimada (30 dias)"
+msgstr "Ingresos estimados (30 días)"
 
-#: templates/admin_metricas.html:41
+#: templates/admin_metricas.html:62
+msgid "Taxa de conclusão"
+msgstr "Tasa de finalización"
+
+#: templates/admin_metricas.html:66
 #, fuzzy
 msgid "Clientes únicos"
 msgstr "Clientes únicos"
 
-#: templates/admin_metricas.html:46
+#: templates/admin_metricas.html:70
+#, fuzzy
+msgid "Atendimentos concluídos"
+msgstr "Atenciones completadas (30 días)"
+
+#: templates/admin_metricas.html:75
+msgid "Insights para você"
+msgstr "Insights para usted"
+
+#: templates/admin_metricas.html:88
+msgid "Evolução semanal"
+msgstr "Evolución semanal"
+
+#: templates/admin_metricas.html:92
+#, fuzzy
+msgid "Status dos agendamentos"
+msgstr "Estado de las citas"
+
+#: templates/admin_metricas.html:99
+#, fuzzy
+msgid "Receita por semana"
+msgstr "Ingresos por semana"
+
+#: templates/admin_metricas.html:103
+#, fuzzy
+msgid "Top serviços (30 dias)"
+msgstr "Top servicios (30 días)"
+
+#: templates/admin_metricas.html:116
+msgid "Ainda sem dados — os primeiros agendamentos aparecem aqui."
+msgstr "Sin datos aún — las primeras reservas aparecerán aquí."
+
+#: templates/admin_metricas.html:122
 #, fuzzy
 msgid "Plataforma AgendaSimples"
 msgstr "Plataforma AgendaSimples"
 
-#: templates/admin_metricas.html:47
-msgid "Visível apenas para o administrador da plataforma."
-msgstr "Visible solo para el administrador de la plataforma."
-
-#: templates/admin_metricas.html:51
+#: templates/admin_metricas.html:126
 msgid "Cadastros (7 dias)"
 msgstr "Registros (7 días)"
 
-#: templates/admin_metricas.html:55
-msgid "Cadastros (30 dias)"
-msgstr "Registros (30 días)"
-
-#: templates/admin_metricas.html:59
-msgid "Contas totais"
-msgstr "Cuentas totales"
-
-#: templates/admin_metricas.html:63
-msgid "Em teste grátis"
-msgstr "En prueba gratis"
-
-#: templates/admin_metricas.html:67
+#: templates/admin_metricas.html:130
 msgid "Planos pagos ativos"
 msgstr "Planes de pago activos"
 
-#: templates/admin_metricas.html:71
-msgid "Checkouts Stripe (total)"
-msgstr "Checkouts Stripe (total)"
+#: templates/admin_metricas.html:135
+msgid "Em teste grátis"
+msgstr "En prueba gratis"
 
-#: templates/admin_metricas.html:75
+#: templates/admin_metricas.html:139
+#, fuzzy
+msgid "Conversão trial → pago"
+msgstr "Tasa de conversión prueba → pago"
+
+#: templates/admin_metricas.html:143
 msgid "Checkouts (30 dias)"
 msgstr "Checkouts (30 días)"
 
-#: templates/admin_metricas.html:79
-msgid "Taxa de conversão trial → pago"
-msgstr "Tasa de conversión prueba → pago"
+#: templates/admin_metricas.html:147
+msgid "Contas totais"
+msgstr "Cuentas totales"
+
+#: templates/admin_metricas.html:152
+msgid "Insights da plataforma"
+msgstr "Insights de la plataforma"
+
+#: templates/admin_metricas.html:164
+msgid "Cadastros e checkouts por semana"
+msgstr "Registros y checkouts por semana"
+
+#: templates/admin_metricas.html:175
+#, fuzzy
+msgid "Agendamentos"
+msgstr "Citas"
+
+#: templates/admin_metricas.html:176
+msgid "Concluídos"
+msgstr "Completados"
+
+#: templates/admin_metricas.html:177
+#, fuzzy
+msgid "Receita R$"
+msgstr "Ingresos R$"
+
+#: templates/admin_metricas.html:178
+#, fuzzy
+msgid "Cadastros"
+msgstr "Registrar"
+
+#: templates/admin_metricas.html:179
+#, fuzzy
+msgid "Checkouts"
+msgstr "Checkouts"
 
 #: templates/agenda.html:6
 msgid "Minha Agenda"
@@ -1779,4 +1867,10 @@ msgstr "Crear mi cuenta"
 
 #~ msgid "Corte + Sobrancelha"
 #~ msgstr "Corte + cejas"
+
+#~ msgid "Visível apenas para o administrador da plataforma."
+#~ msgstr "Visible solo para el administrador de la plataforma."
+
+#~ msgid "Checkouts Stripe (total)"
+#~ msgstr "Checkouts Stripe (total)"
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-27 00:58-0300\n"
+"POT-Creation-Date: 2026-05-27 01:04-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Faça login para continuar."
 msgstr ""
 
-#: app.py:244 app.py:3450
+#: app.py:244 app.py:3510
 msgid "Sessão inválida. Faça login novamente."
 msgstr ""
 
@@ -236,6 +236,10 @@ msgstr ""
 msgid "Não foi possível salvar o lançamento."
 msgstr ""
 
+#: app.py:3482
+msgid "Sessão inválida."
+msgstr ""
+
 #: templates/_admin_nav_assinatura.html:4
 msgid "Plano e assinatura"
 msgstr ""
@@ -359,7 +363,6 @@ msgid "Financeiro"
 msgstr ""
 
 #: templates/admin_agenda.html:288 templates/admin_metricas.html:6
-#: templates/admin_metricas.html:17
 msgid "Métricas"
 msgstr ""
 
@@ -541,7 +544,7 @@ msgstr ""
 
 #: templates/admin_assinatura.html:51
 #: templates/admin_cadastrar_profissional.html:104
-#: templates/admin_financeiro.html:30 templates/admin_metricas.html:21
+#: templates/admin_financeiro.html:30
 msgid "Voltar à agenda"
 msgstr ""
 
@@ -802,64 +805,136 @@ msgstr ""
 msgid "Nenhuma transação no período."
 msgstr ""
 
-#: templates/admin_metricas.html:25
+#: templates/admin_metricas.html:17
+msgid "Painel de crescimento"
+msgstr ""
+
+#: templates/admin_metricas.html:18
+msgid "Últimas 8 semanas"
+msgstr ""
+
+#: templates/admin_metricas.html:22
+msgid "Exportar CSV"
+msgstr ""
+
+#: templates/admin_metricas.html:26
+msgid "CSV plataforma"
+msgstr ""
+
+#: templates/admin_metricas.html:30
+msgid "Agenda"
+msgstr ""
+
+#: templates/admin_metricas.html:39
+msgid "vs. semana ant."
+msgstr ""
+
+#: templates/admin_metricas.html:44
 msgid "Seu negócio"
 msgstr ""
 
-#: templates/admin_metricas.html:29
+#: templates/admin_metricas.html:48
 msgid "Agendamentos hoje"
 msgstr ""
 
-#: templates/admin_metricas.html:33
+#: templates/admin_metricas.html:52
 msgid "Agendamentos (30 dias)"
 msgstr ""
 
-#: templates/admin_metricas.html:37
-msgid "Atendimentos concluídos (30 dias)"
+#: templates/admin_metricas.html:57
+msgid "Receita estimada (30 dias)"
 msgstr ""
 
-#: templates/admin_metricas.html:41
+#: templates/admin_metricas.html:62
+msgid "Taxa de conclusão"
+msgstr ""
+
+#: templates/admin_metricas.html:66
 msgid "Clientes únicos"
 msgstr ""
 
-#: templates/admin_metricas.html:46
-msgid "Plataforma AgendaSimples"
-msgstr ""
-
-#: templates/admin_metricas.html:47
-msgid "Visível apenas para o administrador da plataforma."
-msgstr ""
-
-#: templates/admin_metricas.html:51
-msgid "Cadastros (7 dias)"
-msgstr ""
-
-#: templates/admin_metricas.html:55
-msgid "Cadastros (30 dias)"
-msgstr ""
-
-#: templates/admin_metricas.html:59
-msgid "Contas totais"
-msgstr ""
-
-#: templates/admin_metricas.html:63
-msgid "Em teste grátis"
-msgstr ""
-
-#: templates/admin_metricas.html:67
-msgid "Planos pagos ativos"
-msgstr ""
-
-#: templates/admin_metricas.html:71
-msgid "Checkouts Stripe (total)"
+#: templates/admin_metricas.html:70
+msgid "Atendimentos concluídos"
 msgstr ""
 
 #: templates/admin_metricas.html:75
+msgid "Insights para você"
+msgstr ""
+
+#: templates/admin_metricas.html:88
+msgid "Evolução semanal"
+msgstr ""
+
+#: templates/admin_metricas.html:92
+msgid "Status dos agendamentos"
+msgstr ""
+
+#: templates/admin_metricas.html:99
+msgid "Receita por semana"
+msgstr ""
+
+#: templates/admin_metricas.html:103
+msgid "Top serviços (30 dias)"
+msgstr ""
+
+#: templates/admin_metricas.html:116
+msgid "Ainda sem dados — os primeiros agendamentos aparecem aqui."
+msgstr ""
+
+#: templates/admin_metricas.html:122
+msgid "Plataforma AgendaSimples"
+msgstr ""
+
+#: templates/admin_metricas.html:126
+msgid "Cadastros (7 dias)"
+msgstr ""
+
+#: templates/admin_metricas.html:130
+msgid "Planos pagos ativos"
+msgstr ""
+
+#: templates/admin_metricas.html:135
+msgid "Em teste grátis"
+msgstr ""
+
+#: templates/admin_metricas.html:139
+msgid "Conversão trial → pago"
+msgstr ""
+
+#: templates/admin_metricas.html:143
 msgid "Checkouts (30 dias)"
 msgstr ""
 
-#: templates/admin_metricas.html:79
-msgid "Taxa de conversão trial → pago"
+#: templates/admin_metricas.html:147
+msgid "Contas totais"
+msgstr ""
+
+#: templates/admin_metricas.html:152
+msgid "Insights da plataforma"
+msgstr ""
+
+#: templates/admin_metricas.html:164
+msgid "Cadastros e checkouts por semana"
+msgstr ""
+
+#: templates/admin_metricas.html:175
+msgid "Agendamentos"
+msgstr ""
+
+#: templates/admin_metricas.html:176
+msgid "Concluídos"
+msgstr ""
+
+#: templates/admin_metricas.html:177
+msgid "Receita R$"
+msgstr ""
+
+#: templates/admin_metricas.html:178
+msgid "Cadastros"
+msgstr ""
+
+#: templates/admin_metricas.html:179
+msgid "Checkouts"
 msgstr ""
 
 #: templates/agenda.html:6
