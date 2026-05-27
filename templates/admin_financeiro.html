@@ -173,34 +173,36 @@
         <!-- Fechamento de caixa -->
         <div class="col-lg-5">
             <div class="fin-card h-100">
-                <div class="section-title"><i class="fas fa-cash-register me-2"></i>{{ _('Fechamento de caixa') }}</div>
+                <div class="section-title mb-2"><i class="fas fa-cash-register me-2"></i>{{ _('Fechamento de caixa') }}</div>
                 {% if filtro_profissional_id %}
-                <p class="small text-muted mb-2">{{ _('Profissional selecionado no filtro') }}</p>
+                <p class="small text-muted mb-3">{{ _('Profissional selecionado no filtro') }}</p>
                 {% else %}
-                <p class="small text-muted mb-2">{{ _('Totais de receitas no período (todos)') }}</p>
+                <p class="small text-muted mb-3">{{ _('Totais de receitas no período (todos)') }}</p>
                 {% endif %}
-                <div class="fechamento-box mb-3">
-                    <div class="fin-label">{{ _('Total bruto') }}</div>
-                    <div class="valor-destaque">R$ {{ "%.2f"|format(fechamento.total_bruto) }}</div>
-                    <div class="row mt-2 small">
-                        <div class="col-6">{{ _('Serviços') }}: R$ {{ "%.2f"|format(fechamento.bruto_servicos) }}</div>
-                        <div class="col-6">{{ _('Produtos') }}: R$ {{ "%.2f"|format(fechamento.bruto_produtos) }}</div>
+                <div class="fechamento-premium-grid mb-3">
+                    <div class="fechamento-box fechamento-box--bruto">
+                        <div class="fin-label">{{ _('Total bruto') }}</div>
+                        <div class="valor-destaque">R$ {{ "%.2f"|format(fechamento.total_bruto) }}</div>
+                        <div class="row mt-2 small">
+                            <div class="col-6">{{ _('Serviços') }}: R$ {{ "%.2f"|format(fechamento.bruto_servicos) }}</div>
+                            <div class="col-6">{{ _('Produtos') }}: R$ {{ "%.2f"|format(fechamento.bruto_produtos) }}</div>
+                        </div>
                     </div>
-                </div>
-                <div class="row g-2 small mb-2">
-                    <div class="col-6">
-                        <span class="text-muted">{{ _('Comissão serviços') }} ({{ fechamento.pct_servico }} %)</span><br>
-                        <strong>R$ {{ "%.2f"|format(fechamento.comissao_servicos) }}</strong>
+                    <div class="fechamento-box fechamento-box--comissao">
+                        <div class="small mb-2">
+                            <span class="text-muted">{{ _('Comissão serviços') }} ({{ fechamento.pct_servico }} %)</span><br>
+                            <strong>R$ {{ "%.2f"|format(fechamento.comissao_servicos) }}</strong>
+                        </div>
+                        <div class="small mb-0">
+                            <span class="text-muted">{{ _('Comissão produtos') }} ({{ fechamento.pct_produto }} %)</span><br>
+                            <strong>R$ {{ "%.2f"|format(fechamento.comissao_produtos) }}</strong>
+                        </div>
                     </div>
-                    <div class="col-6">
-                        <span class="text-muted">{{ _('Comissão produtos') }} ({{ fechamento.pct_produto }} %)</span><br>
-                        <strong>R$ {{ "%.2f"|format(fechamento.comissao_produtos) }}</strong>
+                    <div class="fechamento-box fechamento-box--liquido">
+                        <div class="fin-label">{{ _('Valor líquido a pagar ao profissional') }}</div>
+                        <div class="valor-destaque fechamento-liquido">R$ {{ "%.2f"|format(fechamento.liquido_a_pagar) }}</div>
+                        <div class="small text-muted mt-1">{{ _('Retenção estabelecimento') }}: R$ {{ "%.2f"|format(fechamento.retencao_estabelecimento) }}</div>
                     </div>
-                </div>
-                <div class="fechamento-box" style="background: linear-gradient(135deg, #e8f5e9, #f8fbff);">
-                    <div class="fin-label">{{ _('Valor líquido a pagar ao profissional') }}</div>
-                    <div class="valor-destaque" style="color: var(--fin-success);">R$ {{ "%.2f"|format(fechamento.liquido_a_pagar) }}</div>
-                    <div class="small text-muted mt-1">{{ _('Retenção estabelecimento') }}: R$ {{ "%.2f"|format(fechamento.retencao_estabelecimento) }}</div>
                 </div>
             </div>
         </div>
@@ -291,8 +293,8 @@
     <!-- Transações -->
     <div class="fin-card">
         <div class="section-title"><i class="fas fa-list me-2"></i>{{ _('Transações') }}</div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive table-transacoes-wrap">
+            <table class="table table-hover mb-0 transacoes-table">
                 <thead>
                     <tr>
                         <th>{{ _('Data') }}</th>
@@ -337,7 +339,12 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">{{ _('Nenhuma transação no período.') }}</td>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="fin-empty-state">
+                                <i class="fas fa-receipt mb-2"></i>
+                                <div class="text-muted">{{ _('Nenhuma transação no período.') }}</div>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

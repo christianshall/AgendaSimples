@@ -120,3 +120,60 @@ body.page-financeiro--premium .fin-kpi-sub {
     font-size: 0.86rem;
 }
 
+body.page-financeiro--premium .fechamento-premium-grid {
+    display: grid;
+    gap: 0.8rem;
+}
+
+body.page-financeiro--premium .fechamento-box {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(42, 42, 53, 0.92) !important;
+}
+
+body.page-financeiro--premium .fechamento-box--bruto {
+    background: linear-gradient(135deg, rgba(91, 156, 255, 0.1), rgba(91, 156, 255, 0.02)) !important;
+}
+
+body.page-financeiro--premium .fechamento-box--comissao {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.03)) !important;
+}
+
+body.page-financeiro--premium .fechamento-box--liquido {
+    background: linear-gradient(135deg, rgba(61, 214, 140, 0.12), rgba(61, 214, 140, 0.03)) !important;
+}
+
+body.page-financeiro--premium .fechamento-liquido {
+    color: #3dd68c !important;
+}
+
+body.page-financeiro--premium .table-transacoes-wrap {
+    max-height: 440px;
+    overflow: auto;
+    border-radius: 12px;
+}
+
+body.page-financeiro--premium .transacoes-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    backdrop-filter: blur(4px);
+}
+
+body.page-financeiro--premium .transacoes-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+body.page-financeiro--premium .fin-empty-state {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    color: var(--fin-premium-muted);
+}
+
+body.page-financeiro--premium .fin-empty-state i {
+    font-size: 1.5rem;
+    color: var(--fin-premium-gold);
+}
+
