@@ -1388,6 +1388,11 @@ def ensure_schema_migrations(cursor):
         ("usuarios", "barbearia_id", "INTEGER"),
         ("Clientes", "barbearia_id", "INTEGER"),
         ("Clientes", "valor", "REAL"),
+        ("financeiro", "descricao", "TEXT"),
+        ("financeiro", "tipo_transacao", "TEXT"),
+        ("financeiro", "barbeiro", "TEXT"),
+        ("financeiro", "profissional_id", "INTEGER"),
+        ("financeiro", "data", "TEXT"),
         ("financeiro", "barbearia_id", "INTEGER"),
         ("financeiro", "agendamento_id", "INTEGER"),
         ("financeiro", "categoria", "TEXT"),
@@ -1405,6 +1410,10 @@ def ensure_schema_migrations(cursor):
                 cursor.execute(
                     f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo_sql}"
                 )
+                if usar_banco_remoto():
+                    conn_mig = getattr(cursor, "connection", None)
+                    if conn_mig is not None:
+                        safe_commit(conn_mig)
         except Exception as exc:
             print(f"ensure_schema_migrations ({tabela}.{coluna}): {exc}")
 

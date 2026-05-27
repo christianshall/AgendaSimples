@@ -304,6 +304,12 @@ def connection_scope():
 def ensure_financeiro_schema(conn=None) -> None:
     """Garante tabelas/colunas críticas do financeiro no backend ativo."""
     ensure_app_schema(conn)
+    try:
+        from financeiro_service import limpar_cache_colunas_financeiro
+
+        limpar_cache_colunas_financeiro()
+    except Exception:
+        pass
 
 
 def ensure_app_schema(conn=None) -> None:

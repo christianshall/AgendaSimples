@@ -275,13 +275,25 @@ def requer_assinatura_ativa(get_connection):
             import db_adapter
             from database import safe_close, safe_commit
 
-            conn = get_connection()
-            cursor = db_adapter.cursor(conn)
             try:
-                liberado = admin_tem_acesso_painel(cursor, barbearia_id)
-                safe_commit(conn)
-            finally:
-                safe_close(conn)
+                conn = get_connection()
+                cursor = db_adapter.cursor(conn)
+                try:
+                    liberado = admin_tem_acesso_painel(cursor, barbearia_id)
+                    safe_commit(conn)
+                finally:
+                    safe_close(conn)
+            except Exception:
+                from flask import current_app
+
+                current_app.logger.exception(
+                    "Falha ao verificar assinatura (barbearia_id=%s)", barbearia_id
+                )
+                flash(
+                    "Não foi possível validar sua assinatura. Tente novamente.",
+                    "warning",
+                )
+                return redirect(url_for("login"))
 
             if liberado:
                 return view(*args, **kwargs)

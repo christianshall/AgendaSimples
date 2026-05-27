@@ -14,12 +14,40 @@ CATEGORIAS_FINANCEIRAS = ("Serviço", "Produto", "Despesa")
 DEFAULT_PCT_SERVICO = 60.0
 DEFAULT_PCT_PRODUTO = 10.0
 
+_COLUNAS_FIN_CACHE: dict[str, bool] = {}
 
-def coluna_financeiro_existe(coluna: str) -> bool:
+
+def coluna_financeiro_existe(coluna: str, *, conn=None) -> bool:
+    if coluna in _COLUNAS_FIN_CACHE:
+        return _COLUNAS_FIN_CACHE[coluna]
     try:
-        return db.coluna_existe("financeiro", coluna)
+        ok = db.coluna_existe("financeiro", coluna, conn=conn)
     except Exception:
-        return False
+        ok = False
+    _COLUNAS_FIN_CACHE[coluna] = ok
+    return ok
+
+
+def _expr_profissional_financeiro() -> str:
+    """Nome exibido do profissional — só referencia colunas que existem no banco."""
+    partes = []
+    if coluna_financeiro_existe("profissional_id"):
+        partes.append("u.nome")
+    if coluna_financeiro_existe("barbeiro"):
+        partes.append("f.barbeiro")
+    if not partes:
+        return "'Geral / Estabelecimento'"
+    expr = "COALESCE(" + ", ".join(partes) + ", 'Geral / Estabelecimento')"
+    return expr
+
+
+def _filtro_data_sql(alias: str = "f") -> str:
+    return db.expr_data_yyyy_mm_dd(f"{alias}.data")
+
+
+def limpar_cache_colunas_financeiro() -> None:
+    """Após migração do schema, recarrega detecção de colunas."""
+    _COLUNAS_FIN_CACHE.clear()
 
 
 def resolver_categoria_financeira(categoria, descricao, tipo_transacao) -> str:
@@ -197,10 +225,16 @@ def parse_filtros_request(args) -> dict[str, Any]:
     }
 
 
-def _select_colunas_financeiro() -> tuple[str, str]:
+def _select_colunas_financeiro() -> tuple[str, str, str, str]:
     cat_sel = "f.categoria" if coluna_financeiro_existe("categoria") else "NULL AS categoria"
     tags_sel = "f.tags" if coluna_financeiro_existe("tags") else "NULL AS tags"
-    return cat_sel, tags_sel
+    prof_sel = (
+        "f.profissional_id"
+        if coluna_financeiro_existe("profissional_id")
+        else "NULL AS profissional_id"
+    )
+    data_sel = "f.data" if coluna_financeiro_existe("data") else "NULL AS data"
+    return cat_sel, tags_sel, prof_sel, data_sel
 
 
 def formatar_transacao_financeira(row) -> dict[str, Any]:
@@ -233,28 +267,37 @@ def buscar_transacoes_financeiro(
     *,
     conn=None,
 ) -> list[dict[str, Any]]:
-    cat_sel, tags_sel = _select_colunas_financeiro()
+    cat_sel, tags_sel, prof_sel, data_sel = _select_colunas_financeiro()
+    prof_expr = _expr_profissional_financeiro()
+    join_usuarios = (
+        "LEFT JOIN usuarios u ON f.profissional_id = u.id"
+        if coluna_financeiro_existe("profissional_id")
+        else ""
+    )
     sql = f"""
         SELECT f.descricao, f.valor, f.tipo_transacao,
-               COALESCE(u.nome, f.barbeiro, 'Geral / Estabelecimento') AS profissional,
-               f.data, f.profissional_id, {cat_sel}, {tags_sel}
+               {prof_expr} AS profissional,
+               {data_sel}, {prof_sel}, {cat_sel}, {tags_sel}
         FROM financeiro f
-        LEFT JOIN usuarios u ON f.profissional_id = u.id
+        {join_usuarios}
         WHERE f.barbearia_id = ?
     """
     params: list[Any] = [int(barbearia_id)]
-    if profissional_id:
+    if profissional_id and coluna_financeiro_existe("profissional_id"):
         sql += " AND f.profissional_id = ?"
         params.append(int(profissional_id))
-    dpart = db.expr_data_yyyy_mm_dd("f.data")
-    if data_ini:
+    dpart = _filtro_data_sql("f")
+    if data_ini and coluna_financeiro_existe("data"):
         sql += f" AND {dpart} >= ?"
         params.append(data_ini[:10])
-    if data_fim:
+    if data_fim and coluna_financeiro_existe("data"):
         sql += f" AND {dpart} <= ?"
         params.append(data_fim[:10])
-    sql += " ORDER BY f.data DESC"
-    rows = db.execute_query(sql, tuple(params), conn=conn)
+    if coluna_financeiro_existe("data"):
+        sql += " ORDER BY f.data DESC"
+    else:
+        sql += " ORDER BY f.id DESC"
+    rows = db.execute_query(sql, tuple(params), conn=conn) or []
     return [formatar_transacao_financeira(r) for r in rows]
 
 
@@ -342,6 +385,9 @@ def buscar_faturamento_detalhado_profissionais(
     *,
     conn=None,
 ) -> list[dict[str, Any]]:
+    if not coluna_financeiro_existe("profissional_id"):
+        return []
+
     cat_sel = (
         "f.categoria" if coluna_financeiro_existe("categoria") else "NULL AS categoria"
     )
@@ -352,14 +398,18 @@ def buscar_faturamento_detalhado_profissionais(
         WHERE f.barbearia_id = ? AND f.tipo_transacao = 'Receita'
     """
     params: list[Any] = [int(barbearia_id)]
-    dpart = db.expr_data_yyyy_mm_dd("f.data")
-    if data_ini:
-        sql += f" AND {dpart} >= ?"
-        params.append(data_ini[:10])
-    if data_fim:
-        sql += f" AND {dpart} <= ?"
-        params.append(data_fim[:10])
-    rows = db.execute_query(sql, tuple(params), conn=conn)
+    if coluna_financeiro_existe("data"):
+        dpart = _filtro_data_sql("f")
+        if data_ini:
+            sql += f" AND {dpart} >= ?"
+            params.append(data_ini[:10])
+        if data_fim:
+            sql += f" AND {dpart} <= ?"
+            params.append(data_fim[:10])
+    try:
+        rows = db.execute_query(sql, tuple(params), conn=conn) or []
+    except Exception:
+        return []
     comissoes_cfg = carregar_comissoes(barbearia_id, conn=conn)
     agregado: dict[int, dict] = {}
     for row in rows or []:
@@ -399,14 +449,45 @@ def buscar_faturamento_detalhado_profissionais(
     return sorted(agregado.values(), key=lambda x: -x["total"])
 
 
+def _grafico_a_partir_transacoes(transacoes: list[dict]) -> dict[str, list]:
+    """Fallback: agrega receitas por dia em Python (Turso/SQLite legado)."""
+    from collections import defaultdict
+
+    por_dia: dict[str, float] = defaultdict(float)
+    for t in transacoes:
+        if t.get("tipo_transacao") != "Receita":
+            continue
+        raw = t.get("data")
+        if not raw:
+            continue
+        dia_str = str(raw)[:10]
+        if len(dia_str) < 8:
+            continue
+        por_dia[dia_str] += float(t.get("valor") or 0)
+    labels, valores = [], []
+    for dia in sorted(por_dia.keys()):
+        labels.append(dia[8:10] + "/" + dia[5:7] if len(dia) >= 10 else dia)
+        valores.append(round(por_dia[dia], 2))
+    return {"labels": labels, "valores": valores}
+
+
 def faturamento_diario_para_grafico(
     barbearia_id: int,
     data_ini: Optional[str] = None,
     data_fim: Optional[str] = None,
     *,
     conn=None,
+    transacoes_cache: Optional[list[dict]] = None,
 ) -> dict[str, list]:
-    dpart = db.expr_data_yyyy_mm_dd("f.data")
+    if not coluna_financeiro_existe("data"):
+        if transacoes_cache is not None:
+            return _grafico_a_partir_transacoes(transacoes_cache)
+        txs = buscar_transacoes_financeiro(
+            barbearia_id, None, data_ini, data_fim, conn=conn
+        )
+        return _grafico_a_partir_transacoes(txs)
+
+    dpart = _filtro_data_sql("f")
     sql = f"""
         SELECT {dpart} AS dia, SUM(f.valor) AS total
         FROM financeiro f
@@ -420,10 +501,19 @@ def faturamento_diario_para_grafico(
         sql += f" AND {dpart} <= ?"
         params.append(data_fim[:10])
     sql += f" GROUP BY {dpart} ORDER BY {dpart}"
-    rows = db.execute_query(sql, tuple(params), conn=conn)
+    try:
+        rows = db.execute_query(sql, tuple(params), conn=conn) or []
+    except Exception:
+        if transacoes_cache is not None:
+            return _grafico_a_partir_transacoes(transacoes_cache)
+        txs = buscar_transacoes_financeiro(
+            barbearia_id, None, data_ini, data_fim, conn=conn
+        )
+        return _grafico_a_partir_transacoes(txs)
+
     labels = []
     valores = []
-    for row in rows or []:
+    for row in rows:
         dia = _row_get(row, "dia", index=0) or ""
         if not dia:
             continue

@@ -2880,41 +2880,46 @@ def admin_financeiro():
     if not barbearia_id:
         return redirect(url_for("login"))
 
-    filtros = fin.parse_filtros_request(request.args)
-    filtro_profissional_id = filtros["profissional_id"]
-
     try:
-        db_adapter.ensure_financeiro_schema()
-        profissionais = fin.listar_profissionais(barbearia_id)
+        filtros = fin.parse_filtros_request(request.args)
+        filtro_profissional_id = filtros["profissional_id"]
 
-        if filtro_profissional_id and not fin.profissional_pertence_barbearia(
-            filtro_profissional_id, barbearia_id
-        ):
-            filtro_profissional_id = None
-            flash(_("Profissional inválido para este negócio."), "warning")
+        with db_adapter.connection_scope() as conn:
+            db_adapter.ensure_financeiro_schema(conn)
+            profissionais = fin.listar_profissionais(barbearia_id, conn=conn)
 
-        comissoes = fin.carregar_comissoes(barbearia_id)
-        transacoes = fin.buscar_transacoes_financeiro(
-            barbearia_id,
-            filtro_profissional_id,
-            filtros["data_ini"],
-            filtros["data_fim"],
-        )
-        kpis = fin.calcular_kpis(transacoes, comissoes)
-        fechamento = fin.calcular_fechamento_caixa(
-            transacoes, comissoes, filtro_profissional_id
-        )
-        faturamento_detalhado = fin.buscar_faturamento_detalhado_profissionais(
-            barbearia_id,
-            filtros["data_ini"],
-            filtros["data_fim"],
-        )
-        grafico = fin.faturamento_diario_para_grafico(
-            barbearia_id,
-            filtros["data_ini"],
-            filtros["data_fim"],
-        )
-        profissionais_por_nome = {p[1]: p[0] for p in profissionais}
+            if filtro_profissional_id and not fin.profissional_pertence_barbearia(
+                filtro_profissional_id, barbearia_id, conn=conn
+            ):
+                filtro_profissional_id = None
+                flash(_("Profissional inválido para este negócio."), "warning")
+
+            comissoes = fin.carregar_comissoes(barbearia_id, conn=conn)
+            transacoes = fin.buscar_transacoes_financeiro(
+                barbearia_id,
+                filtro_profissional_id,
+                filtros["data_ini"],
+                filtros["data_fim"],
+                conn=conn,
+            )
+            kpis = fin.calcular_kpis(transacoes, comissoes)
+            fechamento = fin.calcular_fechamento_caixa(
+                transacoes, comissoes, filtro_profissional_id
+            )
+            faturamento_detalhado = fin.buscar_faturamento_detalhado_profissionais(
+                barbearia_id,
+                filtros["data_ini"],
+                filtros["data_fim"],
+                conn=conn,
+            )
+            grafico = fin.faturamento_diario_para_grafico(
+                barbearia_id,
+                filtros["data_ini"],
+                filtros["data_fim"],
+                conn=conn,
+                transacoes_cache=transacoes,
+            )
+            profissionais_por_nome = {p[1]: p[0] for p in profissionais}
 
         return render_template(
             "admin_financeiro.html",
@@ -2932,12 +2937,12 @@ def admin_financeiro():
             grafico_valores=grafico["valores"],
             comissoes_json=comissoes,
         )
-    except Exception:
-        app.logger.exception("Erro no Financeiro")
+    except Exception as exc:
+        app.logger.exception("Erro no Financeiro: %s", exc)
         flash(
             _(
                 "Não foi possível carregar o financeiro. "
-                "Confira o terminal (Erro no Financeiro) e as migrações do banco."
+                "O banco foi atualizado — tente novamente em alguns segundos."
             ),
             "danger",
         )
