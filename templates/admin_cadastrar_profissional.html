@@ -97,6 +97,8 @@
 </head>
 <body lang="{{ current_locale }}">
 
+{% include '_banner_plano.html' %}
+
 <div class="top-actions">
     <a href="{{ url_for('admin_agenda') }}" class="btn btn-outline-gold btn-sm">
         <i class="fas fa-arrow-left me-1"></i> {{ _('Voltar à agenda') }}

@@ -285,6 +285,7 @@
             <a href="{{ url_for('admin_financeiro') }}" class="btn btn-warning btn-sm" title="{{ _('Financeiro') }}">
                 <i class="fas fa-dollar-sign"></i>
             </a>
+            {% include '_admin_nav_assinatura.html' %}
             {% endif %}
 
             <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm" title="{{ _('Sair') }}">

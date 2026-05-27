@@ -11,11 +11,15 @@
 </head>
 <body class="page-admin-config">
 
+{% include '_banner_plano.html' %}
+
 <div class="config-card">
     <h3 class="mb-1 text-center"><i class="fas fa-cog me-2"></i>Configurações</h3>
     <p class="text-center text-muted small mb-4">Personalize a Home pública e o painel</p>
 
     <form action="{{ url_for('admin_configuracoes') }}" method="POST" enctype="multipart/form-data">
+
+        {% include '_links_publicos.html' %}
 
         <p class="section-title">Identidade</p>
 

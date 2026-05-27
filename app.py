@@ -1069,12 +1069,36 @@ def _resolver_barbearia(cursor, identificador):
     return auth.resolver_barbearia(identificador)
 
 
+def _url_absoluta_app(route, **kwargs):
+    """Monta URL pública usando APP_BASE_URL quando configurado."""
+    path = url_for(route, **kwargs)
+    base = (cfg.APP_BASE_URL or "").strip().rstrip("/")
+    if base and not base.startswith("http://localhost"):
+        return f"{base}{path}"
+    return url_for(route, _external=True, **kwargs)
+
+
+def _urls_publicas_estabelecimento(identificador):
+    """Home e agendamento públicos do estabelecimento (slug ou id)."""
+    ident = (identificador or "").strip()
+    if not ident:
+        return None, None
+    return (
+        _url_absoluta_app("barbearia_home", identificador=ident),
+        _url_absoluta_app("marcar_barbearia", identificador=ident),
+    )
+
+
 def _ctx_landing_vendas(form=None):
+    og_image = cfg.OG_IMAGE_URL or ""
+    canonical = _url_absoluta_app("home")
     return {
         "trial_days": cfg.TRIAL_DAYS,
         "preco_mensal": cfg.PLANO_MENSAL_VALOR,
         "ramos": RAMOS_ATIVIDADE,
         "form": form or {},
+        "canonical_url": canonical,
+        "og_image_url": og_image,
     }
 
 
@@ -3354,6 +3378,9 @@ def admin_configuracoes():
     config_foto = cursor.fetchone()
     foto_capa = config_foto[0] if config_foto else None
 
+    ident_publico = session.get("barbearia_slug") or str(barbearia_id_alvo)
+    url_home_publica, url_agendar_publica = _urls_publicas_estabelecimento(ident_publico)
+
     conn.close()
     return render_template(
         "admin_configuracoes.html",
@@ -3373,6 +3400,8 @@ def admin_configuracoes():
         link_instagram=configs.get("link_instagram") or "",
         link_facebook=configs.get("link_facebook") or "",
         link_whatsapp=configs.get("link_whatsapp") or "",
+        url_home_publica=url_home_publica,
+        url_agendar_publica=url_agendar_publica,
     )
 
 @app.route("/admin/clientes")
@@ -3384,17 +3413,28 @@ def admin_clientes():
 @requer_plano
 def admin_assinatura():
     """Status do plano (rota liberada pelo decorator quando trial/plano ativo)."""
-    from subscriptions import obter_assinatura, assinatura_permite_acesso
+    from subscriptions import (
+        assinatura_permite_acesso,
+        obter_assinatura,
+        resumo_plano_admin,
+    )
 
-    barbearia_id = session.get("barbearia_id") or session.get("user_id")
+    barbearia_id = session.get("barbearia_id")
+    if not barbearia_id:
+        flash(_("Sessão inválida. Faça login novamente."), "error")
+        return redirect(url_for("login"))
+
     conn, cursor = _open_db()
-    assinatura = obter_assinatura(cursor, barbearia_id)
+    assinatura = obter_assinatura(cursor, int(barbearia_id))
     safe_close(conn)
+    resumo = resumo_plano_admin(barbearia_id)
     return render_template(
         "admin_assinatura.html",
         assinatura=assinatura,
         acesso_ok=assinatura_permite_acesso(assinatura),
         trial_days=cfg.TRIAL_DAYS,
+        preco_mensal=cfg.PLANO_MENSAL_VALOR,
+        plano_resumo=resumo,
     )
 
 # -------------------------- RODAR --------------------------

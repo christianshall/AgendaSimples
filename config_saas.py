@@ -16,3 +16,6 @@ PLANO_MENSAL_VALOR = float(os.environ.get("PLANO_MENSAL_VALOR", "49.90"))
 
 # URL base do app (sem barra final) — ex: https://meudominio.com ou http://localhost:5000
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000").rstrip("/")
+
+# Imagem para compartilhamento (Open Graph) — URL absoluta opcional
+OG_IMAGE_URL = os.environ.get("OG_IMAGE_URL", "").strip()

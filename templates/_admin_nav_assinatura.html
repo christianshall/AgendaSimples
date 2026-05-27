@@ -1,0 +1,7 @@
+{% if eh_admin|default(false) %}
+<a href="{{ url_for('admin_assinatura') }}"
+   class="btn btn-nav-tool btn-sm {% if plano_resumo and plano_resumo.mostrar_banner %}btn-warning{% endif %}"
+   title="{{ _('Plano e assinatura') }}">
+    <i class="fas fa-crown"></i>
+</a>
+{% endif %}

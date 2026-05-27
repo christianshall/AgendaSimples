@@ -1,0 +1,50 @@
+{% if url_home_publica and url_agendar_publica %}
+<section class="links-publicos mb-4" aria-labelledby="links-publicos-title">
+    <p id="links-publicos-title" class="section-title mb-2">{{ _('Divulgue seu negócio') }}</p>
+    <p class="small text-muted mb-3">
+        {{ _('Compartilhe estes links no Instagram, WhatsApp e Google — cada agendamento é receita para você.') }}
+    </p>
+    <div class="mb-2">
+        <label class="form-label small mb-1">{{ _('Página inicial (portfólio)') }}</label>
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control js-copy-url" readonly value="{{ url_home_publica }}" id="url-home-publica">
+            <button type="button" class="btn btn-outline-secondary js-copy-btn" data-target="url-home-publica" title="{{ _('Copiar') }}">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+    </div>
+    <div class="mb-0">
+        <label class="form-label small mb-1">{{ _('Agendar online') }}</label>
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control js-copy-url" readonly value="{{ url_agendar_publica }}" id="url-agendar-publica">
+            <button type="button" class="btn btn-outline-secondary js-copy-btn" data-target="url-agendar-publica" title="{{ _('Copiar') }}">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+    </div>
+</section>
+<script>
+(function () {
+    document.querySelectorAll('.js-copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var id = btn.getAttribute('data-target');
+            var input = document.getElementById(id);
+            if (!input) return;
+            input.select();
+            input.setSelectionRange(0, 99999);
+            var ok = false;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value).then(function () { ok = true; });
+            } else {
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            }
+            var icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = ok ? 'fas fa-check text-success' : 'fas fa-copy';
+                setTimeout(function () { icon.className = 'fas fa-copy'; }, 2000);
+            }
+        });
+    });
+})();
+</script>
+{% endif %}
