@@ -104,6 +104,12 @@
         <div><strong>Serviço:</strong> {{ ag.servico }}</div>
     </div>
 
+    {% if whatsapp_lembrete and voltar_para_agenda %}
+        <a href="{{ whatsapp_lembrete }}" class="btn" target="_blank" rel="noopener" style="background:#25D366;color:#fff;">
+            📱 Enviar confirmação no WhatsApp
+        </a>
+    {% endif %}
+
     {% if voltar_para_agenda %}
         <a href="{{ url_for('admin_agenda') }}" class="btn">⬅ Voltar para a Agenda</a>
         {% if barbearia_slug %}

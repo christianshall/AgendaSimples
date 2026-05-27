@@ -42,6 +42,86 @@ def criar_assinatura_trial(cursor, barbearia_id, dias_trial):
     )
 
 
+def dias_restantes_trial(assinatura):
+    """Dias até o fim do trial (0 se hoje for o último dia). None se não aplicável."""
+    if not assinatura:
+        return None
+    if (assinatura.get("plano_status") or "").lower() != "trialing":
+        return None
+    fim = assinatura.get("data_fim_trial")
+    if not fim:
+        return None
+    agora = datetime.utcnow()
+    if fim < agora:
+        return 0
+    return max(0, (fim.date() - agora.date()).days)
+
+
+def obter_assinatura_barbearia(barbearia_id):
+    """Versão sem cursor — usa db_adapter (Turso / SQL Server / SQLite)."""
+    import db_adapter as db
+
+    row = db.execute_query(
+        """
+        SELECT id, barbearia_id, stripe_customer_id, stripe_subscription_id,
+               plano_status, data_fim_trial, data_fim_plano
+        FROM assinaturas
+        WHERE barbearia_id = ?
+        LIMIT 1
+        """,
+        (int(barbearia_id),),
+        fetch="one",
+    )
+    if not row:
+        return None
+    return {
+        "id": db.row_get(row, "id", index=0),
+        "barbearia_id": db.row_get(row, "barbearia_id", index=1),
+        "stripe_customer_id": db.row_get(row, "stripe_customer_id", index=2),
+        "stripe_subscription_id": db.row_get(row, "stripe_subscription_id", index=3),
+        "plano_status": db.row_get(row, "plano_status", index=4),
+        "data_fim_trial": _parse_dt(db.row_get(row, "data_fim_trial", index=5)),
+        "data_fim_plano": _parse_dt(db.row_get(row, "data_fim_plano", index=6)),
+    }
+
+
+def resumo_plano_admin(barbearia_id):
+    """
+    Dados para banner de conversão no painel (trial acabando / assinar).
+    """
+    assinatura = obter_assinatura_barbearia(barbearia_id)
+    preco = float(cfg.PLANO_MENSAL_VALOR)
+    base = {
+        "mostrar_banner": False,
+        "urgente": False,
+        "dias_restantes": None,
+        "preco_mensal": preco,
+        "status": None,
+        "checkout_url": None,
+    }
+    if not assinatura:
+        base.update(mostrar_banner=True, urgente=True, status="sem_assinatura")
+        return base
+
+    status = (assinatura.get("plano_status") or "").lower()
+    base["status"] = status
+
+    if status == "active":
+        return base
+
+    if status == "trialing":
+        dias = dias_restantes_trial(assinatura)
+        base["dias_restantes"] = dias
+        if dias is not None and dias <= 7:
+            base["mostrar_banner"] = True
+            base["urgente"] = dias <= 3
+        return base
+
+    base["mostrar_banner"] = True
+    base["urgente"] = True
+    return base
+
+
 def obter_assinatura(cursor, barbearia_id):
     cursor.execute(
         """

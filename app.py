@@ -52,7 +52,11 @@ import traceback
 from flask_babel import Babel, _, gettext
 
 app = Flask(__name__)
-app.secret_key = "CHRISTIAN_BARBESHOP_KEY_2025"
+app.secret_key = (
+    os.environ.get("SECRET_KEY")
+    or os.environ.get("FLASK_SECRET_KEY")
+    or "dev-only-change-me-in-production"
+)
 
 # 2. CONFIGURAR O FLASK-BABEL (PT-BR, EN-US, ES-ES)
 app.config["BABEL_DEFAULT_LOCALE"] = "pt"
@@ -74,10 +78,18 @@ babel = Babel(app, locale_selector=get_locale)
 
 @app.context_processor
 def inject_i18n():
-    return {
+    ctx = {
         "current_locale": get_locale(),
         "supported_locales": app.config["BABEL_SUPPORTED_LOCALES"],
     }
+    if session.get("role") == "admin" and session.get("barbearia_id"):
+        try:
+            from subscriptions import resumo_plano_admin
+
+            ctx["plano_resumo"] = resumo_plano_admin(session["barbearia_id"])
+        except Exception:
+            ctx["plano_resumo"] = {"mostrar_banner": False}
+    return ctx
 
 HORARIOS = [
     "08:00", "09:00", "10:00", "11:00",
@@ -672,6 +684,22 @@ def _whatsapp_suporte_url(cursor):
     conn = getattr(cursor, "_conn", None)
     link = auth.whatsapp_suporte_url(conn=conn)
     return _normalizar_link_whatsapp(link) if link else None
+
+
+def _url_whatsapp_texto_lembrete(nome, data, hora, servico, telefone_cliente=None):
+    """Link wa.me para o profissional enviar confirmação ao cliente."""
+    if not telefone_cliente:
+        return None
+    tel = re.sub(r"\D", "", str(telefone_cliente))
+    if len(tel) < 10:
+        return None
+    if not tel.startswith("55"):
+        tel = "55" + tel
+    texto = (
+        f"Olá {nome}! Seu horário está confirmado: {servico} em {data} às {hora}. "
+        "Qualquer dúvida, responda aqui."
+    )
+    return f"https://wa.me/{tel}?text={quote(texto)}"
 
 
 def _url_whatsapp_com_texto(link_base, texto):
@@ -2168,12 +2196,21 @@ def sucesso_agendamento(agendamento_id):
         else url_for("home")
     )
 
+    whatsapp_lembrete = _url_whatsapp_texto_lembrete(
+        ag.get("nome"),
+        ag.get("data_exib") or ag.get("data"),
+        ag.get("hora"),
+        ag.get("servico"),
+        ag.get("whatsapp"),
+    )
+
     return render_template(
         "sucesso_agendamento.html",
         ag=ag,
         voltar_para_agenda=True,
         barbearia_slug=ident_home,
         url_home=url_home,
+        whatsapp_lembrete=whatsapp_lembrete,
     )
 
 # -------------------------- WHATSAPP / EDITAR / EXCLUIR --------------------------

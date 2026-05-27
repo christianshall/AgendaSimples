@@ -1,0 +1,19 @@
+{% if plano_resumo and plano_resumo.mostrar_banner %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_plano_banner.css') }}">
+<div class="plano-banner {% if plano_resumo.urgente %}plano-banner--urgente{% else %}plano-banner--trial{% endif %}" role="status">
+    {% if plano_resumo.dias_restantes is not none and plano_resumo.dias_restantes > 0 %}
+        <span>
+            {% if plano_resumo.urgente %}
+                {{ _('Seu teste grátis termina em %(dias)s dia(s)! Assine para não perder a agenda e o financeiro.', dias=plano_resumo.dias_restantes) }}
+            {% else %}
+                {{ _('Restam %(dias)s dia(s) do seu teste grátis.', dias=plano_resumo.dias_restantes) }}
+            {% endif %}
+        </span>
+    {% else %}
+        <span>{{ _('Seu teste encerrou. Assine o plano mensal para continuar usando o painel.') }}</span>
+    {% endif %}
+    <a href="{{ url_for('checkout') }}" class="btn-assinar">
+        {{ _('Assinar por R$ %(valor).2f/mês', valor=plano_resumo.preco_mensal) }}
+    </a>
+</div>
+{% endif %}

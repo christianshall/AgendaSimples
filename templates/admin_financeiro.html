@@ -11,6 +11,8 @@
 </head>
 <body class="page-financeiro p-4 p-md-5">
 
+{% include '_banner_plano.html' %}
+
 {% set qs_export = 'data_ini=' ~ data_ini ~ '&data_fim=' ~ data_fim ~ ('&profissional_id=' ~ filtro_profissional_id|string if filtro_profissional_id else '') %}
 {% set redirect_query = qs_export %}
 
