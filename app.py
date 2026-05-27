@@ -130,9 +130,21 @@ PERFIL_UPLOAD_DIR = "static/uploads/perfil"
 _EXTENSOES_FOTO_PERFIL = frozenset({"jpg", "jpeg", "png", "webp", "gif"})
 
 
+def _open_db():
+    """Abre conexão com schema garantido e cursor que traduz SQL (Turso/SQL Server)."""
+    conn = db_adapter.get_connection()
+    db_adapter.ensure_app_schema(conn)
+    return conn, db_adapter.cursor(conn)
+
+
 def _coluna_usuarios_existe(cursor, coluna):
-    cursor.execute("PRAGMA table_info(usuarios)")
-    return any(row[1] == coluna for row in cursor.fetchall())
+    conn = getattr(cursor, "_conn", None)
+    return db_adapter.coluna_existe("usuarios", coluna, conn=conn)
+
+
+def _coluna_existe(cursor, tabela, coluna):
+    conn = getattr(cursor, "_conn", None)
+    return db_adapter.coluna_existe(tabela, coluna, conn=conn)
 
 
 def _extensao_imagem_segura(filename):
@@ -652,67 +664,14 @@ def _usuarios_tem_coluna_telefone(cursor):
 
 
 def _buscar_usuario_por_identificador(cursor, identificador):
-    identificador = (identificador or "").strip()
-    if not identificador:
-        return None
-    tem_telefone = _usuarios_tem_coluna_telefone(cursor)
-    if _identificador_e_email(identificador):
-        cursor.execute(
-            """
-            SELECT id, nome, email
-            FROM usuarios
-            WHERE LOWER(TRIM(email)) = LOWER(?)
-            """,
-            (identificador,),
-        )
-    elif tem_telefone:
-        telefone = _limpar_telefone(identificador)
-        if len(telefone) < 8:
-            return None
-        sufixo = telefone[-9:] if len(telefone) >= 9 else telefone
-        cursor.execute(
-            """
-            SELECT id, nome, email, telefone
-            FROM usuarios
-            WHERE telefone IS NOT NULL
-              AND TRIM(telefone) <> ''
-              AND (
-                REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
-                    telefone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', '')
-                = ?
-                OR RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
-                    telefone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''),
-                    9) = ?
-              )
-            """,
-            (telefone, sufixo),
-        )
-    else:
-        return None
-    row = cursor.fetchone()
-    if not row:
-        return None
-    return {
-        "id": row[0],
-        "nome": row[1],
-        "email": row[2],
-        "telefone": row[3] if tem_telefone and len(row) > 3 else None,
-    }
+    conn = getattr(cursor, "_conn", None)
+    return auth.buscar_usuario_por_identificador(identificador, conn=conn)
 
 
 def _whatsapp_suporte_url(cursor):
-    cursor.execute(
-        """
-        SELECT link_whatsapp FROM barbearias
-        WHERE link_whatsapp IS NOT NULL AND TRIM(link_whatsapp) <> ''
-        ORDER BY id
-        LIMIT 1
-        """
-    )
-    row = cursor.fetchone()
-    if not row or not row[0]:
-        return None
-    return _normalizar_link_whatsapp(row[0])
+    conn = getattr(cursor, "_conn", None)
+    link = auth.whatsapp_suporte_url(conn=conn)
+    return _normalizar_link_whatsapp(link) if link else None
 
 
 def _url_whatsapp_com_texto(link_base, texto):
@@ -1192,19 +1151,7 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
         if senha != senha_confirma:
             erros.append(_("As senhas não coincidem."))
 
-        conn = get_connection()
-        cursor = db_adapter.cursor(conn)
-
-        try:
-            db_adapter.ensure_app_schema(conn)
-        except Exception as exc_mig:
-            _log_erro_cadastro_saas(exc_mig, "ensure_app_schema", email=email)
-            flash(
-                _("Erro ao preparar o banco de dados. Tente novamente em instantes."),
-                "error",
-            )
-            safe_close(conn)
-            return render_template(template_name, **_ctx_landing_vendas(form))
+        conn, cursor = _open_db()
 
         if not erros and auth.email_ja_cadastrado(email, conn=conn):
             erros.append(
@@ -1212,22 +1159,15 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
             )
 
         slug = slugify(nome_negocio) if nome_negocio else ""
-        if not erros and slug:
-            cursor.execute(
-                """
-                SELECT id FROM barbearias
-                WHERE slug = ? OR LOWER(TRIM(email)) = LOWER(?)
-                """,
-                (slug, email),
-            )
-            if cursor.fetchone():
-                erros.append(
-                    _(
-                        "Já existe uma conta com este e-mail ou nome de negócio semelhante."
-                    )
+        if not erros and slug and auth.slug_ou_email_ja_usado(slug, email, conn=conn):
+            erros.append(
+                _(
+                    "Já existe uma conta com este e-mail ou nome de negócio semelhante."
                 )
+            )
 
         if erros:
+            safe_close(conn)
             for msg in erros:
                 flash(msg, "error")
             return render_template(template_name, **_ctx_landing_vendas(form))
@@ -1373,16 +1313,13 @@ def bloqueio_assinatura():
     if not barbearia_id:
         return redirect(url_for("login"))
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn, cursor = _open_db()
     from subscriptions import admin_tem_acesso_painel
 
     if admin_tem_acesso_painel(cursor, barbearia_id):
-        conn.commit()
-        conn.close()
+        safe_close(conn)
         return redirect(url_for("admin_agenda"))
-    conn.commit()
-    conn.close()
+    safe_close(conn)
     return render_template(
         "bloqueio_assinatura.html",
         preco=cfg.PLANO_MENSAL_VALOR,
@@ -1396,10 +1333,8 @@ def login():
     if request.method == "POST":
         email = request.form.get("email")
         senha = request.form.get("password")
-        conn = db_adapter.get_connection()
+        conn, cursor = _open_db()
         try:
-            db_adapter.ensure_app_schema(conn)
-            cursor = db_adapter.cursor(conn)
             usuario = auth.buscar_usuario_por_email(email, conn=conn)
 
             senha_armazenada = (usuario or {}).get("senha")
@@ -1474,10 +1409,7 @@ def esqueci_senha():
 
     if request.method == "POST":
         identificador = (request.form.get("identificador") or "").strip()
-        conn = get_connection()
-        cursor = conn.cursor()
-        usuario = _buscar_usuario_por_identificador(cursor, identificador)
-        conn.close()
+        usuario = auth.buscar_usuario_por_identificador(identificador)
 
         if not usuario:
             flash(
@@ -1513,10 +1445,9 @@ def esqueci_senha():
             f"Olá, esqueci minha senha e gostaria de redefinir. "
             f"Meu telefone é {telefone_exibicao}."
         )
-        conn = get_connection()
-        cursor = conn.cursor()
-        wa_base = _whatsapp_suporte_url(cursor)
-        conn.close()
+        wa_base = auth.whatsapp_suporte_url()
+        if wa_base:
+            wa_base = _normalizar_link_whatsapp(wa_base)
         whatsapp_url = _url_whatsapp_com_texto(wa_base, texto)
         modo_whatsapp = True
         if not whatsapp_url:
@@ -1738,12 +1669,10 @@ def admin_cadastrar_profissional():
             barbearia_id,
         )
 
-        conn = get_connection()
-        cursor = conn.cursor()
-        ensure_schema_migrations(cursor)
+        conn, cursor = _open_db()
 
         if not _coluna_existe(cursor, "usuarios", "barbearia_id"):
-            conn.close()
+            safe_close(conn)
             flash(
                 _(
                     "Banco desatualizado. Execute: python aplicar_migracao_barbearia_id_usuarios.py"
@@ -1752,11 +1681,11 @@ def admin_cadastrar_profissional():
             )
             return render_template("admin_cadastrar_profissional.html", form={})
 
-        if email and not erros and _email_ja_cadastrado(cursor, email):
+        if email and not erros and auth.email_ja_cadastrado(email, conn=conn):
             erros.append("Este e-mail já está cadastrado.")
 
         if erros:
-            conn.close()
+            safe_close(conn)
             for msg in erros:
                 flash(msg, "error")
             return render_template(
@@ -1783,7 +1712,7 @@ def admin_cadastrar_profissional():
                 foto_perfil=foto_nome,
             )
         except ValueError as exc:
-            conn.close()
+            safe_close(conn)
             flash(str(exc), "error")
             return render_template(
                 "admin_cadastrar_profissional.html",
@@ -1795,15 +1724,16 @@ def admin_cadastrar_profissional():
                 },
             )
 
-        cursor.execute(
+        ver = db_adapter.execute_query(
             "SELECT barbearia_id FROM usuarios WHERE LOWER(TRIM(email)) = LOWER(?)",
             (email,),
+            fetch="one",
+            conn=conn,
         )
-        ver = cursor.fetchone()
-        bid_inserido = _valor_linha(ver, 0, "barbearia_id") if ver else None
+        bid_inserido = db_adapter.row_get(ver, "barbearia_id", index=0) if ver else None
         if bid_inserido is None or int(bid_inserido) != int(barbearia_id):
             safe_rollback(conn)
-            conn.close()
+            safe_close(conn)
             flash(
                 _(
                     "Falha ao gravar vínculo com o negócio. "
@@ -1819,8 +1749,8 @@ def admin_cadastrar_profissional():
             email,
             barbearia_id,
         )
-        conn.commit()
-        conn.close()
+        safe_commit(conn)
+        safe_close(conn)
         flash(f"Profissional {nome} cadastrado com sucesso!", "success")
         return redirect(url_for("admin_agenda"))
 
@@ -2257,36 +2187,25 @@ def editar(data, hora):
     if _eh_profissional_equipe() and str(barbeiro_id) != str(session.get("user_id")):
         flash(_("Você só pode editar seus próprios agendamentos."), "error")
         return redirect(url_for("acesso_negado"))
-    conn = get_connection()
-    cursor = conn.cursor()
     if request.method == "POST":
-        cursor.execute(
-            """
-            UPDATE Clientes SET Nome=?, Servico=?, Whatsapp=?
-            WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?
-            """,
-            (
-                request.form["nome"],
-                request.form["servico"],
-                request.form.get("whatsapp", ""),
-                data,
-                hora,
-                barbeiro_id,
-                barbearia_id,
-            ),
+        agenda.atualizar_cliente_slot(
+            request.form["nome"],
+            request.form["servico"],
+            request.form.get("whatsapp", ""),
+            data,
+            hora,
+            int(barbeiro_id),
+            barbearia_id,
         )
-        conn.commit()
-        conn.close()
         return redirect(url_for("admin_agenda"))
-    cursor.execute(
-        """
-        SELECT Nome, Servico, Whatsapp FROM Clientes
-        WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?
-        """,
-        (data, hora, barbeiro_id, barbearia_id),
+    cliente_row = agenda.buscar_cliente_slot(
+        data, hora, int(barbeiro_id), barbearia_id
     )
-    cliente = cursor.fetchone()
-    conn.close()
+    cliente = (
+        (cliente_row["Nome"], cliente_row["Servico"], cliente_row["Whatsapp"])
+        if cliente_row
+        else None
+    )
     return render_template("editar.html", cliente=cliente, data=data, hora=hora, barbeiro_id=barbeiro_id)
 
 @app.route("/excluir/<string:data>/<string:hora>")
@@ -2299,14 +2218,7 @@ def excluir(data, hora):
     if _eh_profissional_equipe() and str(barbeiro_id) != str(session.get("user_id")):
         flash(_("Você só pode excluir seus próprios agendamentos."), "error")
         return redirect(url_for("acesso_negado"))
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "DELETE FROM Clientes WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?",
-        (data, hora, barbeiro_id, barbearia_id),
-    )
-    conn.commit()
-    conn.close()
+    agenda.excluir_cliente_slot(data, hora, int(barbeiro_id), barbearia_id)
     return redirect(url_for("admin_agenda"))
 
 @app.route("/whatsapp/<string:data>/<string:hora>")
@@ -2318,17 +2230,9 @@ def enviar_whatsapp(data, hora):
     barbeiro_id = request.args.get("barbeiro_id")
     if _eh_profissional_equipe() and str(barbeiro_id) != str(session.get("user_id")):
         return redirect(url_for("acesso_negado"))
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT Nome, Whatsapp FROM Clientes
-        WHERE Dia=? AND Hora=? AND barbeiro_id=? AND barbearia_id=?
-        """,
-        (data, hora, barbeiro_id, barbearia_id),
+    cliente = agenda.buscar_whatsapp_cliente_slot(
+        data, hora, int(barbeiro_id), barbearia_id
     )
-    cliente = cursor.fetchone()
-    conn.close()
     if not cliente or not cliente[1]:
         return "⚠️ WhatsApp não cadastrado!"
     numero = "+55" + cliente[1].strip() if not cliente[1].startswith("+") else cliente[1].strip()
@@ -2351,36 +2255,30 @@ def marcar():
     slug_sessao = session.get("barbearia_slug")
     if slug_sessao:
         return redirect(url_for("marcar_barbearia", identificador=slug_sessao, **request.args))
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT slug FROM barbearias ORDER BY id LIMIT 1")
-    row = cursor.fetchone()
-    conn.close()
-    if row and row[0]:
-        return redirect(url_for("marcar_barbearia", identificador=row[0], **request.args))
+    slug = auth.primeiro_slug_barbearia()
+    if slug:
+        return redirect(url_for("marcar_barbearia", identificador=slug, **request.args))
     flash(_("Nenhum estabelecimento cadastrado ainda."), "warning")
     return redirect(url_for("home"))
 
 
 @app.route("/b/<identificador>/marcar")
 def marcar_barbearia(identificador):
-    conn = get_connection()
-    cursor = conn.cursor()
-    ensure_schema_migrations(cursor)
-    barbearia = _resolver_barbearia(cursor, identificador)
+    conn, cursor = _open_db()
+    barbearia = auth.resolver_barbearia(identificador, conn=conn)
     if not barbearia:
-        conn.close()
+        safe_close(conn)
         flash(_("Estabelecimento não encontrado."), "warning")
         return redirect(url_for("home"))
 
     barbearia_id = barbearia["id"]
     slug_exib = barbearia["slug"] or str(barbearia["id"])
     configs = _carregar_configs_home(cursor, barbearia_id)
-    barbeiros = _listar_profissionais(cursor, barbearia_id)
-    horarios = _listar_horarios(cursor, barbearia_id)
+    barbeiros = fin.listar_profissionais(barbearia_id, conn=conn)
+    horarios = agenda.listar_horarios(barbearia_id, conn=conn)
     servicos = _listar_servicos(cursor, barbearia_id)
     servicos_detalhados = _listar_servicos_detalhados(cursor, barbearia_id)
-    conn.close()
+    safe_close(conn)
 
     profissional_sugerido = None
     profissional_param = request.args.get("profissional")
@@ -2415,14 +2313,7 @@ def exportar_excel():
     if not barbearia_id:
         return redirect(url_for("login"))
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT Nome, Dia, Hora, Servico FROM Clientes WHERE barbearia_id = ?",
-        (barbearia_id,),
-    )
-    dados = cursor.fetchall()
-    conn.close()
+    dados = agenda.listar_agendamentos_export(barbearia_id)
 
     from openpyxl import Workbook
 
@@ -2447,19 +2338,7 @@ def pdf_diario(data):
     if bloqueio:
         return bloqueio
     barbearia_id = _barbearia_id_sessao()
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT c.Nome, c.Hora, c.Servico, u.nome
-        FROM Clientes c
-        JOIN usuarios u ON c.barbeiro_id = u.id
-        WHERE c.Dia = ? AND c.barbearia_id = ?
-        """,
-        (data, barbearia_id),
-    )
-    clientes = cursor.fetchall()
-    conn.close()
+    clientes = agenda.listar_agendamentos_dia_pdf(data, barbearia_id)
 
     output = io.BytesIO()
     c = canvas.Canvas(output, pagesize=A4)
@@ -3199,8 +3078,7 @@ def admin_galeria():
     if not barbearia_id:
         return redirect(url_for("login"))
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn, cursor = _open_db()
 
     if request.method == "POST":
         categoria = request.form.get("categoria")
@@ -3221,19 +3099,26 @@ def admin_galeria():
                 "INSERT INTO tb_galeria (barbearia_id, categoria, caminho_foto) VALUES (?, ?, ?)",
                 (barbearia_id, categoria, filename),
             )
-            conn.commit()
+            safe_commit(conn)
 
-    cursor.execute(
-        "SELECT id, categoria, caminho_foto FROM tb_galeria WHERE barbearia_id = ? ORDER BY id DESC",
+    todas_fotos = db_adapter.execute_query(
+        """
+        SELECT id, categoria, caminho_foto FROM tb_galeria
+        WHERE barbearia_id = ? ORDER BY id DESC
+        """,
         (barbearia_id,),
+        conn=conn,
     )
-    todas_fotos = cursor.fetchall()
-    conn.close()
+    safe_close(conn)
     
     galeria = {"corte": [], "corte_barba": [], "sobrancelha": [], "outros": []}
-    for f in todas_fotos:
-        if f.categoria in galeria:
-            galeria[f.categoria].append({"id": f.id, "foto": f.caminho_foto})
+    for f in todas_fotos or []:
+        cat = db_adapter.row_get(f, "categoria", index=1)
+        if cat in galeria:
+            galeria[cat].append({
+                "id": db_adapter.row_get(f, "id", index=0),
+                "foto": db_adapter.row_get(f, "caminho_foto", index=2),
+            })
             
     return render_template("admin_galeria.html", galeria=galeria)
 
@@ -3248,17 +3133,17 @@ def eliminar_foto(foto_id):
     if not barbearia_id:
         return redirect(url_for("login"))
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn, cursor = _open_db()
 
-    cursor.execute(
+    foto = db_adapter.execute_query(
         "SELECT caminho_foto FROM tb_galeria WHERE id = ? AND barbearia_id = ?",
         (foto_id, barbearia_id),
+        fetch="one",
+        conn=conn,
     )
-    foto = cursor.fetchone()
     
     if foto:
-        nome_arquivo = foto[0]
+        nome_arquivo = db_adapter.row_get(foto, "caminho_foto", index=0)
         caminho_completo = os.path.join('static/uploads/galeria', nome_arquivo)
         
         if os.path.exists(caminho_completo):
@@ -3271,9 +3156,9 @@ def eliminar_foto(foto_id):
             "DELETE FROM tb_galeria WHERE id = ? AND barbearia_id = ?",
             (foto_id, barbearia_id),
         )
-        conn.commit()
+        safe_commit(conn)
         
-    conn.close()
+    safe_close(conn)
     return redirect(url_for("admin_galeria"))
 
 # -------------------------- CONFIGURAÇÕES DO ADMIN (COM FOTO DE CAPA) --------------------------
@@ -3284,12 +3169,11 @@ def admin_configuracoes():
     if bloqueio:
         return bloqueio
         
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn, cursor = _open_db()
     
     barbearia_id_alvo = _barbearia_id_admin_obrigatorio()
     if not barbearia_id_alvo:
-        conn.close()
+        safe_close(conn)
         return redirect(url_for("login"))
 
     if request.method == "POST":
@@ -3466,10 +3350,9 @@ def admin_assinatura():
     from subscriptions import obter_assinatura, assinatura_permite_acesso
 
     barbearia_id = session.get("barbearia_id") or session.get("user_id")
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn, cursor = _open_db()
     assinatura = obter_assinatura(cursor, barbearia_id)
-    conn.close()
+    safe_close(conn)
     return render_template(
         "admin_assinatura.html",
         assinatura=assinatura,

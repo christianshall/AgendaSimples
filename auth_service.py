@@ -208,6 +208,95 @@ def obter_id_usuario_apos_insert(email: str, *, conn) -> Optional[int]:
     )
 
 
+def buscar_usuario_por_identificador(identificador: str, *, conn=None) -> Optional[dict]:
+    """Busca por e-mail ou telefone (recuperação de senha)."""
+    identificador = (identificador or "").strip()
+    if not identificador:
+        return None
+    if "@" in identificador:
+        row = db.execute_query(
+            """
+            SELECT id, nome, email FROM usuarios
+            WHERE LOWER(TRIM(email)) = LOWER(?)
+            LIMIT 1
+            """,
+            (identificador,),
+            fetch="one",
+            conn=conn,
+        )
+        if not row:
+            return None
+        return {
+            "id": db.row_get(row, "id", index=0),
+            "nome": db.row_get(row, "nome", index=1),
+            "email": db.row_get(row, "email", index=2),
+            "telefone": None,
+        }
+
+    if not db.coluna_existe("usuarios", "telefone", conn=conn):
+        return None
+
+    telefone = "".join(c for c in identificador if c.isdigit())
+    if len(telefone) < 8:
+        return None
+    sufixo = telefone[-9:] if len(telefone) >= 9 else telefone
+    row = db.execute_query(
+        """
+        SELECT id, nome, email, telefone FROM usuarios
+        WHERE telefone IS NOT NULL AND TRIM(telefone) <> ''
+          AND (
+            REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                telefone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', '')
+            = ?
+            OR RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                telefone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''),
+                9) = ?
+          )
+        LIMIT 1
+        """,
+        (telefone, sufixo),
+        fetch="one",
+        conn=conn,
+    )
+    if not row:
+        return None
+    return {
+        "id": db.row_get(row, "id", index=0),
+        "nome": db.row_get(row, "nome", index=1),
+        "email": db.row_get(row, "email", index=2),
+        "telefone": db.row_get(row, "telefone", index=3),
+    }
+
+
+def whatsapp_suporte_url(*, conn=None) -> Optional[str]:
+    row = db.execute_query(
+        """
+        SELECT link_whatsapp FROM barbearias
+        WHERE link_whatsapp IS NOT NULL AND TRIM(link_whatsapp) <> ''
+        ORDER BY id
+        LIMIT 1
+        """,
+        fetch="one",
+        conn=conn,
+    )
+    if not row:
+        return None
+    link = db.row_get(row, "link_whatsapp", index=0) or db.row_get(row, index=0)
+    return (str(link).strip() if link else None) or None
+
+
+def primeiro_slug_barbearia(*, conn=None) -> Optional[str]:
+    row = db.execute_query(
+        "SELECT slug FROM barbearias ORDER BY id LIMIT 1",
+        fetch="one",
+        conn=conn,
+    )
+    if not row:
+        return None
+    slug = db.row_get(row, "slug", index=0)
+    return str(slug).strip() if slug else None
+
+
 def buscar_usuario_resumo_por_email(email: str, *, conn=None) -> Optional[dict]:
     row = db.execute_query(
         """

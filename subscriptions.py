@@ -192,13 +192,16 @@ def requer_assinatura_ativa(get_connection):
                 flash("Sessão inválida. Faça login novamente.", "error")
                 return redirect(url_for("login"))
 
+            import db_adapter
+            from database import safe_close, safe_commit
+
             conn = get_connection()
-            cursor = conn.cursor()
+            cursor = db_adapter.cursor(conn)
             try:
                 liberado = admin_tem_acesso_painel(cursor, barbearia_id)
-                conn.commit()
+                safe_commit(conn)
             finally:
-                conn.close()
+                safe_close(conn)
 
             if liberado:
                 return view(*args, **kwargs)

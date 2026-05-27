@@ -246,6 +246,122 @@ def buscar_agendamento_por_id(agendamento_id: int, *, conn=None) -> Optional[dic
     }
 
 
+def buscar_cliente_slot(
+    dia: str, hora: str, barbeiro_id: int, barbearia_id: int, *, conn=None
+) -> Optional[dict]:
+    row = db.execute_query(
+        """
+        SELECT Nome, Servico, Whatsapp FROM Clientes
+        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
+        LIMIT 1
+        """,
+        (dia, hora, barbeiro_id, barbearia_id),
+        fetch="one",
+        conn=conn,
+    )
+    if not row:
+        return None
+    return {
+        "Nome": db.row_get(row, "Nome", index=0),
+        "Servico": db.row_get(row, "Servico", index=1),
+        "Whatsapp": db.row_get(row, "Whatsapp", index=2),
+    }
+
+
+def atualizar_cliente_slot(
+    nome: str,
+    servico: str,
+    whatsapp: str,
+    dia: str,
+    hora: str,
+    barbeiro_id: int,
+    barbearia_id: int,
+    *,
+    conn=None,
+) -> None:
+    db.execute_write(
+        """
+        UPDATE Clientes SET Nome = ?, Servico = ?, Whatsapp = ?
+        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
+        """,
+        (nome, servico, whatsapp, dia, hora, barbeiro_id, barbearia_id),
+        conn=conn,
+    )
+
+
+def excluir_cliente_slot(
+    dia: str, hora: str, barbeiro_id: int, barbearia_id: int, *, conn=None
+) -> None:
+    db.execute_write(
+        """
+        DELETE FROM Clientes
+        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
+        """,
+        (dia, hora, barbeiro_id, barbearia_id),
+        conn=conn,
+    )
+
+
+def buscar_whatsapp_cliente_slot(
+    dia: str, hora: str, barbeiro_id: int, barbearia_id: int, *, conn=None
+) -> Optional[tuple]:
+    row = db.execute_query(
+        """
+        SELECT Nome, Whatsapp FROM Clientes
+        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
+        LIMIT 1
+        """,
+        (dia, hora, barbeiro_id, barbearia_id),
+        fetch="one",
+        conn=conn,
+    )
+    if not row:
+        return None
+    return (db.row_get(row, "Nome", index=0), db.row_get(row, "Whatsapp", index=1))
+
+
+def listar_agendamentos_export(barbearia_id: int, *, conn=None) -> list:
+    rows = db.execute_query(
+        "SELECT Nome, Dia, Hora, Servico FROM Clientes WHERE barbearia_id = ?",
+        (barbearia_id,),
+        conn=conn,
+    )
+    return [
+        (
+            db.row_get(r, "Nome", index=0),
+            db.row_get(r, "Dia", index=1),
+            db.row_get(r, "Hora", index=2),
+            db.row_get(r, "Servico", index=3),
+        )
+        for r in rows or []
+    ]
+
+
+def listar_agendamentos_dia_pdf(
+    data: str, barbearia_id: int, *, conn=None
+) -> list:
+    rows = db.execute_query(
+        """
+        SELECT c.Nome, c.Hora, c.Servico, u.nome
+        FROM Clientes c
+        JOIN usuarios u ON c.barbeiro_id = u.id
+        WHERE c.Dia = ? AND c.barbearia_id = ?
+        ORDER BY c.Hora
+        """,
+        (data, barbearia_id),
+        conn=conn,
+    )
+    return [
+        (
+            db.row_get(r, index=0),
+            db.row_get(r, index=1),
+            db.row_get(r, index=2),
+            db.row_get(r, index=3),
+        )
+        for r in rows or []
+    ]
+
+
 def obter_preco_servico(barbearia_id: int, nome_servico: str, *, conn=None) -> float:
     nome = (nome_servico or "").strip()
     if not nome:

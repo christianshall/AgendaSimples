@@ -5,6 +5,8 @@ import stripe
 from flask import flash, redirect, render_template, request, session, url_for
 
 import config_saas as cfg
+import db_adapter
+from database import safe_close, safe_commit
 from subscriptions import (
     assinatura_por_customer_id,
     assinatura_por_subscription_id,
@@ -57,7 +59,7 @@ def register_stripe_routes(app, get_connection):
 
         _init_stripe()
         conn = get_connection()
-        cursor = conn.cursor()
+        cursor = db_adapter.cursor(conn)
 
         cursor.execute(
             "SELECT nome, email FROM barbearias WHERE id = ?",
@@ -65,7 +67,7 @@ def register_stripe_routes(app, get_connection):
         )
         barbearia = cursor.fetchone()
         if not barbearia:
-            conn.close()
+            safe_close(conn)
             return redirect(url_for("login"))
 
         nome_barbearia, email = barbearia[0], barbearia[1]
@@ -99,7 +101,7 @@ def register_stripe_routes(app, get_connection):
                     """,
                     (barbearia_id, customer_id, fim_trial, agora, agora),
                 )
-            conn.commit()
+            safe_commit(conn)
 
         subscription_data = {"metadata": {"barbearia_id": str(barbearia_id)}}
         if dias_trial > 0:
@@ -117,7 +119,7 @@ def register_stripe_routes(app, get_connection):
                 metadata={"barbearia_id": str(barbearia_id)},
             )
         except stripe.error.StripeError as e:
-            conn.close()
+            safe_close(conn)
             flash(f"Erro ao iniciar pagamento: {e.user_message or str(e)}", "danger")
             return render_template(
                 "checkout.html",
@@ -126,7 +128,7 @@ def register_stripe_routes(app, get_connection):
                 trial_days=dias_trial,
             )
 
-        conn.close()
+        safe_close(conn)
         return redirect(checkout_session.url, code=303)
 
     @app.route("/payment/success")
@@ -193,12 +195,12 @@ def register_stripe_routes(app, get_connection):
             return "Assinatura inválida", 400
 
         conn = get_connection()
-        cursor = conn.cursor()
+        cursor = db_adapter.cursor(conn)
         try:
             _processar_evento_stripe(cursor, event, _init_stripe, _stripe_ts_para_datetime)
-            conn.commit()
+            safe_commit(conn)
         finally:
-            conn.close()
+            safe_close(conn)
 
         return "", 200
 
