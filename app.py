@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 
 # Conexão: produção = Turso; local = SQL Server (pyodbc) ou SQLite
 import db_adapter
+import auth_service as auth
+import agenda_service as agenda
 from database import (
     DbError,
     SERVICOS_PADRAO,
@@ -257,19 +259,12 @@ def _linha_usuario_login(row):
 
 def _barbearia_id_do_usuario(cursor, user_id, tentar_corrigir=True):
     """barbearia_id gravado no registro do usuário (fonte de verdade)."""
-    cursor.execute(
-        "SELECT barbearia_id FROM usuarios WHERE id = ?",
-        (int(user_id),),
-    )
-    row = cursor.fetchone()
-    if not row:
-        return None
-    bid = _valor_linha(row, 0, "barbearia_id") or _valor_linha(row, nome="barbearia_id")
-    if bid is None and tentar_corrigir:
-        bid = vincular_usuario_barbearia(cursor, int(user_id))
-    if bid is None:
-        return None
-    return int(bid)
+    conn = getattr(cursor, "_conn", None)
+    if conn is not None:
+        return auth.barbearia_id_do_usuario(
+            int(user_id), conn=conn, tentar_corrigir=tentar_corrigir
+        )
+    return auth.barbearia_id_do_usuario(int(user_id), tentar_corrigir=tentar_corrigir)
 
 
 def _logout_por_falta_vinculo():
@@ -1081,12 +1076,10 @@ _RAMOS_VALIDOS = {c for c, _ in RAMOS_ATIVIDADE}
 
 def _resolver_barbearia(cursor, identificador):
     """Busca estabelecimento por slug ou ID numérico."""
-    identificador = (identificador or "").strip()
-    if not identificador:
-        return None
-    if identificador.isdigit():
-        return _obter_barbearia_por_id(cursor, int(identificador))
-    return _obter_barbearia_por_slug(cursor, identificador)
+    conn = getattr(cursor, "_conn", None)
+    if conn is not None:
+        return auth.resolver_barbearia(identificador, conn=conn)
+    return auth.resolver_barbearia(identificador)
 
 
 def _ctx_landing_vendas(form=None):
@@ -1200,20 +1193,20 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
             erros.append(_("As senhas não coincidem."))
 
         conn = get_connection()
-        cursor = conn.cursor()
+        cursor = db_adapter.cursor(conn)
 
         try:
-            ensure_schema_migrations(cursor)
-            safe_commit(conn)
+            db_adapter.ensure_app_schema(conn)
         except Exception as exc_mig:
-            _log_erro_cadastro_saas(exc_mig, "ensure_schema_migrations", email=email)
+            _log_erro_cadastro_saas(exc_mig, "ensure_app_schema", email=email)
             flash(
                 _("Erro ao preparar o banco de dados. Tente novamente em instantes."),
                 "error",
             )
+            safe_close(conn)
             return render_template(template_name, **_ctx_landing_vendas(form))
 
-        if not erros and _email_ja_cadastrado(cursor, email):
+        if not erros and auth.email_ja_cadastrado(email, conn=conn):
             erros.append(
                 _("Este e-mail já está cadastrado. Faça login ou use outro e-mail.")
             )
@@ -1245,11 +1238,7 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
         _inserir_barbearia_cadastro(
             cursor, nome_negocio, slug, email, senha_hash, agora, ramo
         )
-        barbearia_id = obter_id_inserido(
-            cursor,
-            "SELECT id FROM barbearias WHERE LOWER(TRIM(email)) = LOWER(?) ORDER BY id DESC LIMIT 1",
-            (email,),
-        )
+        barbearia_id = auth.obter_id_barbearia_apos_insert(email, conn=conn)
         if not barbearia_id:
             raise RuntimeError(
                 "INSERT barbearias OK, mas ID não retornado (lastrowid/Turso)."
@@ -1262,14 +1251,7 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
         )
         safe_commit(conn)
 
-        cursor.execute(
-            """
-            SELECT id, nome, role, barbearia_id FROM usuarios
-            WHERE LOWER(TRIM(email)) = LOWER(?)
-            """,
-            (email,),
-        )
-        user = cursor.fetchone()
+        user = auth.buscar_usuario_resumo_por_email(email, conn=conn)
         if not user:
             safe_close(conn)
             conn = None
@@ -1284,17 +1266,9 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
                 url_for("barbearia_home", identificador=identificador_publico)
             )
 
-        user_id = _valor_linha(user, 0, "id")
+        user_id = user.get("id")
         if not user_id:
-            user_id = obter_id_inserido(
-                cursor,
-                """
-                SELECT id FROM usuarios
-                WHERE LOWER(TRIM(email)) = LOWER(?)
-                ORDER BY id DESC LIMIT 1
-                """,
-                (email,),
-            )
+            user_id = auth.obter_id_usuario_apos_insert(email, conn=conn)
 
         identificador_publico = slug or str(barbearia_id)
         safe_close(conn)
@@ -1304,7 +1278,7 @@ def _processar_cadastro_saas(template_name="home_vendas.html"):
             if user_id:
                 _definir_sessao_admin(
                     user_id,
-                    nome_profissional or _valor_linha(user, 1, "nome"),
+                    nome_profissional or user.get("nome"),
                     barbearia_id,
                     nome_negocio,
                     slug,
@@ -1378,18 +1352,15 @@ def home():
 @app.route("/b/<identificador>")
 def barbearia_home(identificador):
     """Home pública do estabelecimento (slug ou ID numérico)."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    ensure_schema_migrations(cursor)
-    barbearia = _resolver_barbearia(cursor, identificador)
-    if not barbearia:
-        conn.close()
-        flash(_("Estabelecimento não encontrado."), "warning")
-        return redirect(url_for("home"))
-    slug_exib = barbearia["slug"] or str(barbearia["id"])
-    pagina = _render_home_estabelecimento(cursor, barbearia["id"], slug_exib)
-    conn.close()
-    return pagina
+    with db_adapter.connection_scope() as conn:
+        db_adapter.ensure_app_schema(conn)
+        cursor = db_adapter.cursor(conn)
+        barbearia = auth.resolver_barbearia(identificador, conn=conn)
+        if not barbearia:
+            flash(_("Estabelecimento não encontrado."), "warning")
+            return redirect(url_for("home"))
+        slug_exib = barbearia["slug"] or str(barbearia["id"])
+        return _render_home_estabelecimento(cursor, barbearia["id"], slug_exib)
 
 
 @app.route("/assinatura/bloqueio")
@@ -1425,71 +1396,68 @@ def login():
     if request.method == "POST":
         email = request.form.get("email")
         senha = request.form.get("password")
-        conn = get_connection()
-        cursor = conn.cursor()
-        ensure_schema_migrations(cursor)
+        conn = db_adapter.get_connection()
+        try:
+            db_adapter.ensure_app_schema(conn)
+            cursor = db_adapter.cursor(conn)
+            usuario = auth.buscar_usuario_por_email(email, conn=conn)
 
-        cursor.execute(
-            """
-            SELECT id, nome, role, senha, barbearia_id
-            FROM usuarios
-            WHERE LOWER(TRIM(email)) = LOWER(?)
-            """,
-            (email,),
-        )
-        row = cursor.fetchone()
-        usuario = _linha_usuario_login(row)
-
-        senha_armazenada = (usuario or {}).get("senha")
-        if usuario and _senha_confere(senha_armazenada, senha):
-            user_id = int(usuario["id"])
-            bid_db = _barbearia_id_do_usuario(cursor, user_id, tentar_corrigir=True)
-            if bid_db is None:
-                safe_rollback(conn)
-                safe_close(conn)
-                app.logger.warning(
-                    "Login bloqueado: user_id=%s sem barbearia_id no banco",
-                    user_id,
+            senha_armazenada = (usuario or {}).get("senha")
+            if usuario and _senha_confere(senha_armazenada, senha):
+                user_id = int(usuario["id"])
+                bid_db = auth.barbearia_id_do_usuario(
+                    user_id, conn=conn, tentar_corrigir=True
                 )
-                return _logout_por_falta_vinculo()
-
-            try:
-                usuario["barbearia_id"] = bid_db
-                _iniciar_sessao_usuario(cursor, usuario, email)
-                session["barbearia_id"] = int(bid_db)
-                session["usuario_id"] = user_id
-                session["user_id"] = user_id
-                session.modified = True
-
-                bid_final = _barbearia_id_do_usuario(
-                    cursor, user_id, tentar_corrigir=False
-                )
-                if bid_final is None or not session.get("barbearia_id"):
+                if bid_db is None:
                     safe_rollback(conn)
-                    safe_close(conn)
+                    app.logger.warning(
+                        "Login bloqueado: user_id=%s sem barbearia_id no banco",
+                        user_id,
+                    )
                     return _logout_por_falta_vinculo()
 
-                app.logger.info(
-                    "Login OK user_id=%s barbearia_id=%s",
-                    user_id,
-                    bid_final,
-                )
-                safe_commit(conn)
-            except ValueError as exc:
-                safe_rollback(conn)
-                safe_close(conn)
-                app.logger.warning("Login sem barbearia vinculada: %s", exc)
-                return _logout_por_falta_vinculo()
-            safe_close(conn)
-            destino = _url_segura_apos_login(
-                request.form.get("next") or request.args.get("next")
-            )
-            if destino:
-                return redirect(destino)
-            return redirect(url_for("admin_agenda"))
+                try:
+                    usuario["barbearia_id"] = bid_db
+                    _iniciar_sessao_usuario(cursor, usuario, email)
+                    session["barbearia_id"] = int(bid_db)
+                    session["usuario_id"] = user_id
+                    session["user_id"] = user_id
+                    session.modified = True
 
-        safe_rollback(conn)
-        safe_close(conn)
+                    bid_final = auth.barbearia_id_do_usuario(
+                        user_id, conn=conn, tentar_corrigir=False
+                    )
+                    if bid_final is None or not session.get("barbearia_id"):
+                        safe_rollback(conn)
+                        return _logout_por_falta_vinculo()
+
+                    app.logger.info(
+                        "Login OK user_id=%s barbearia_id=%s",
+                        user_id,
+                        bid_final,
+                    )
+                    safe_commit(conn)
+                except ValueError as exc:
+                    safe_rollback(conn)
+                    app.logger.warning("Login sem barbearia vinculada: %s", exc)
+                    return _logout_por_falta_vinculo()
+
+                destino = _url_segura_apos_login(
+                    request.form.get("next") or request.args.get("next")
+                )
+                if destino:
+                    return redirect(destino)
+                return redirect(url_for("admin_agenda"))
+
+            safe_rollback(conn)
+        except Exception:
+            safe_rollback(conn)
+            app.logger.exception("Erro no login")
+            flash(_("Não foi possível concluir o login. Tente novamente."), "error")
+            return redirect(url_for("login", next=request.form.get("next")))
+        finally:
+            safe_close(conn)
+
         flash("Usuário ou senha incorretos!", "error")
         return redirect(url_for("login", next=request.form.get("next")))
     proxima = request.args.get("next")
@@ -1593,14 +1561,7 @@ def redefinir_senha(token):
             return render_template("redefinir_senha.html", token=token)
 
         senha_hash = generate_password_hash(nova)
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE usuarios SET senha = ? WHERE id = ?",
-            (senha_hash, user_id),
-        )
-        conn.commit()
-        conn.close()
+        auth.atualizar_senha_usuario(user_id, senha_hash)
         flash("Senha alterada com sucesso! Faça login com a nova senha.", "success")
         return redirect(url_for("login"))
 
@@ -1650,79 +1611,62 @@ def admin_agenda():
     if bloqueio:
         return bloqueio
 
-    conn = get_connection()
-    cursor = conn.cursor()
     try:
-        ensure_schema_migrations(cursor)
-        bloqueio_vinculo = _sincronizar_barbearia_sessao(cursor)
-        if bloqueio_vinculo:
-            conn.close()
-            return bloqueio_vinculo
+        with db_adapter.connection_scope() as conn:
+            db_adapter.ensure_app_schema(conn)
+            cursor = db_adapter.cursor(conn)
+            bloqueio_vinculo = _sincronizar_barbearia_sessao(cursor)
+            if bloqueio_vinculo:
+                return bloqueio_vinculo
 
-        barbearia_id = _barbearia_id_sessao()
-        user_id = session.get("user_id") or session.get("usuario_id")
-        eh_admin = _eh_admin()
-        filtrar_meus = _eh_profissional_equipe()
+            barbearia_id = _barbearia_id_sessao()
+            user_id = session.get("user_id") or session.get("usuario_id")
+            eh_admin = _eh_admin()
+            filtrar_meus = _eh_profissional_equipe()
 
-        foto_capa = obter_foto_capa(cursor)
-        horarios_negocio = _listar_horarios(cursor, barbearia_id)
-
-        sql_agenda = """
-            SELECT c.Nome, c.Dia, c.Hora, c.Servico, c.Whatsapp, u.nome AS barbeiro_nome,
-                   c.barbeiro_id, IFNULL(c.status, 'Agendado') AS status
-            FROM Clientes c
-            INNER JOIN usuarios u ON c.barbeiro_id = u.id
-            WHERE c.barbearia_id = ?
-              AND IFNULL(c.status, 'Agendado') <> 'Concluído'
-        """
-        params = [barbearia_id]
-        if filtrar_meus:
-            sql_agenda += " AND c.barbeiro_id = ?"
-            params.append(user_id)
-        sql_agenda += " ORDER BY c.Dia, c.Hora"
-
-        cursor.execute(sql_agenda, tuple(params))
-        registros = cursor.fetchall()
-
-        hoje = datetime.today()
-        agenda_data = {
-            (hoje + timedelta(days=i)).strftime("%Y-%m-%d"): {
-                h: None for h in horarios_negocio
-            }
-            for i in range(28)
-        }
-
-        for r in registros:
-            dia_val = _valor_linha(r, 1, "Dia")
-            hora_val = _valor_linha(r, 2, "Hora")
-            d_str = (
-                dia_val.strftime("%Y-%m-%d")
-                if isinstance(dia_val, datetime)
-                else str(dia_val or "")[:10]
+            foto_capa = obter_foto_capa(cursor)
+            horarios_negocio = agenda.listar_horarios(barbearia_id, conn=conn)
+            registros = agenda.listar_registros_agenda(
+                barbearia_id, user_id, filtrar_meus, conn=conn
             )
-            h_str = str(hora_val or "")[:5]
-            if d_str in agenda_data and h_str in agenda_data[d_str]:
-                if agenda_data[d_str][h_str] is None:
-                    agenda_data[d_str][h_str] = []
-                agenda_data[d_str][h_str].append({
-                    "nome": _valor_linha(r, 0, "Nome"),
-                    "servico": _valor_linha(r, 3, "Servico"),
-                    "whatsapp": _valor_linha(r, 4, "Whatsapp") or "",
-                    "barbeiro_nome": _valor_linha(r, 5, "barbeiro_nome"),
-                    "barbeiro_id": _valor_linha(r, 6, "barbeiro_id"),
-                })
 
-        barbeiros = _listar_profissionais(cursor, barbearia_id)
-        barbearia = _obter_barbearia_por_id(cursor, barbearia_id)
-        barbearia_slug = (
-            barbearia["slug"] if barbearia else session.get("barbearia_slug", "")
-        )
+            hoje = datetime.today()
+            agenda_data = {
+                (hoje + timedelta(days=i)).strftime("%Y-%m-%d"): {
+                    h: None for h in horarios_negocio
+                }
+                for i in range(28)
+            }
+
+            for r in registros:
+                dia_val = r.get("Dia")
+                hora_val = r.get("Hora")
+                d_str = (
+                    dia_val.strftime("%Y-%m-%d")
+                    if isinstance(dia_val, datetime)
+                    else str(dia_val or "")[:10]
+                )
+                h_str = str(hora_val or "")[:5]
+                if d_str in agenda_data and h_str in agenda_data[d_str]:
+                    if agenda_data[d_str][h_str] is None:
+                        agenda_data[d_str][h_str] = []
+                    agenda_data[d_str][h_str].append({
+                        "nome": r.get("Nome"),
+                        "servico": r.get("Servico"),
+                        "whatsapp": r.get("Whatsapp") or "",
+                        "barbeiro_nome": r.get("barbeiro_nome"),
+                        "barbeiro_id": r.get("barbeiro_id"),
+                    })
+
+            barbeiros = fin.listar_profissionais(barbearia_id, conn=conn)
+            barbearia = auth.buscar_barbearia_por_id(barbearia_id, conn=conn)
+            barbearia_slug = (
+                barbearia["slug"] if barbearia else session.get("barbearia_slug", "")
+            )
     except Exception as exc:
-        conn.close()
         app.logger.exception("Erro ao carregar admin_agenda: %s", exc)
         flash(_("Não foi possível carregar a agenda. Tente novamente."), "error")
         return redirect(url_for("acesso_negado"))
-    conn.close()
 
     return render_template(
         "admin_agenda.html",
@@ -1925,96 +1869,81 @@ def admin_agenda_concluir():
 
     barbearia_id = _barbearia_id_sessao()
 
-    conn = get_connection()
-    cursor = ensure_schema_migrations_conn(conn)
-    cursor.execute(
-        """
-        SELECT Nome, Servico, IFNULL(status, 'Agendado')
-        FROM Clientes
-        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
-        """,
-        (data, hora, barbeiro_id, barbearia_id),
-    )
-    agendamento = cursor.fetchone()
-    if not agendamento:
-        conn.close()
-        flash("Agendamento não encontrado.", "danger")
-        return redirect(url_for("admin_agenda"))
-    if agendamento[2] == "Concluído":
-        conn.close()
-        flash("Este agendamento já foi concluído.", "warning")
-        return redirect(url_for("admin_agenda"))
-
     try:
-        cursor.execute(
-            """
-            UPDATE Clientes
-            SET status = 'Concluído'
-            WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
-            """,
-            (data, hora, barbeiro_id, barbearia_id),
-        )
-        safe_commit(conn)
-        agendamento_id = _id_agendamento_slot(
-            cursor, data, hora, int(barbeiro_id), barbearia_id
-        )
-        descricao_fin = _montar_descricao_atendimento(
-            tipo_feito, detalhe, servico_agendado, nome_cliente
-        )
-        cat_fin = _categoria_de_tipo_atendimento(tipo_feito)
-        try:
-            if valor > 0:
-                _registrar_receita_agendamento(
-                    cursor,
-                    descricao_fin,
-                    valor,
-                    int(barbeiro_id),
-                    barbearia_id,
-                    agendamento_id=agendamento_id,
-                    substituir_existente=True,
-                    categoria=cat_fin,
-                )
-                safe_commit(conn)
-                flash(
-                    f"Atendimento concluído. Receita de R$ {valor:.2f} registrada no financeiro.",
-                    "success",
-                )
-            else:
-                if agendamento_id:
+        with db_adapter.connection_scope() as conn:
+            db_adapter.ensure_app_schema(conn)
+            cursor = db_adapter.cursor(conn)
+            agendamento = agenda.buscar_agendamento_slot(
+                data, hora, int(barbeiro_id), barbearia_id, conn=conn
+            )
+            if not agendamento:
+                flash("Agendamento não encontrado.", "danger")
+                return redirect(url_for("admin_agenda"))
+            if agendamento.get("status") == "Concluído":
+                flash("Este agendamento já foi concluído.", "warning")
+                return redirect(url_for("admin_agenda"))
+
+            agenda.marcar_agendamento_concluido(
+                data, hora, int(barbeiro_id), barbearia_id, conn=conn
+            )
+            agendamento_id = agenda.id_agendamento_slot(
+                data, hora, int(barbeiro_id), barbearia_id, conn=conn
+            )
+            descricao_fin = _montar_descricao_atendimento(
+                tipo_feito, detalhe, servico_agendado, nome_cliente
+            )
+            cat_fin = _categoria_de_tipo_atendimento(tipo_feito)
+            try:
+                if valor > 0:
                     _registrar_receita_agendamento(
                         cursor,
                         descricao_fin,
-                        0.0,
+                        valor,
                         int(barbeiro_id),
                         barbearia_id,
                         agendamento_id=agendamento_id,
                         substituir_existente=True,
                         categoria=cat_fin,
                     )
-                    safe_commit(conn)
-                flash(
-                    "Atendimento concluído sem lançamento financeiro (valor R$ 0,00).",
-                    "success",
+                    flash(
+                        f"Atendimento concluído. Receita de R$ {valor:.2f} registrada no financeiro.",
+                        "success",
+                    )
+                else:
+                    if agendamento_id:
+                        _registrar_receita_agendamento(
+                            cursor,
+                            descricao_fin,
+                            0.0,
+                            int(barbeiro_id),
+                            barbearia_id,
+                            agendamento_id=agendamento_id,
+                            substituir_existente=True,
+                            categoria=cat_fin,
+                        )
+                    flash(
+                        "Atendimento concluído sem lançamento financeiro (valor R$ 0,00).",
+                        "success",
+                    )
+            except Exception:
+                app.logger.exception(
+                    "Falha no financeiro ao concluir %s %s barbeiro=%s",
+                    data,
+                    hora,
+                    barbeiro_id,
                 )
-        except Exception:
-            app.logger.exception(
-                "Falha no financeiro ao concluir %s %s barbeiro=%s",
-                data,
-                hora,
-                barbeiro_id,
-            )
-            flash(
-                _(
-                    "Atendimento marcado como concluído, mas o lançamento "
-                    "financeiro falhou. Registre manualmente no financeiro."
-                ),
-                "warning",
-            )
+                flash(
+                    _(
+                        "Atendimento marcado como concluído, mas o lançamento "
+                        "financeiro falhou. Registre manualmente no financeiro."
+                    ),
+                    "warning",
+                )
     except DbError as e:
-        conn.rollback()
         flash(f"Erro ao concluir atendimento: {e}", "danger")
-    finally:
-        conn.close()
+    except Exception:
+        app.logger.exception("Erro ao concluir atendimento")
+        flash(_("Não foi possível concluir o atendimento."), "danger")
 
     return redirect(url_for("admin_agenda"))
 
@@ -2146,92 +2075,84 @@ def agendar():
     novo_id = None
     ident_home = slug_volta or None
     equipe = False
-    conn = get_connection()
     try:
-        cursor = ensure_schema_migrations_conn(conn)
-        equipe = _usuario_equipe_logado()
+        with db_adapter.connection_scope() as conn:
+            db_adapter.ensure_app_schema(conn)
+            cursor = db_adapter.cursor(conn)
+            equipe = _usuario_equipe_logado()
 
-        if not barbearia_id and slug_volta:
-            barbearia = _obter_barbearia_por_slug(cursor, slug_volta)
-            if barbearia:
-                barbearia_id = _valor_linha(barbearia, 0, "id")
+            if not barbearia_id and slug_volta:
+                barbearia = auth.buscar_barbearia_por_slug(slug_volta, conn=conn)
+                if barbearia:
+                    barbearia_id = barbearia["id"]
 
-        if not barbearia_id:
-            flash(_("Estabelecimento inválido."), "error")
-            return redirect(url_for("home"))
+            if not barbearia_id:
+                flash(_("Estabelecimento inválido."), "error")
+                return redirect(url_for("home"))
 
-        if not _profissional_pertence_barbearia(cursor, barbeiro_id, barbearia_id):
-            flash(_("Profissional inválido para este estabelecimento."), "error")
-            if equipe:
-                return redirect(url_for("admin_agenda"))
-            return _redirect_home_barbearia(cursor, barbearia_id, slug_volta)
+            if not agenda.profissional_pertence_barbearia(
+                barbeiro_id, barbearia_id, conn=conn
+            ):
+                flash(_("Profissional inválido para este estabelecimento."), "error")
+                if equipe:
+                    return redirect(url_for("admin_agenda"))
+                return _redirect_home_barbearia(cursor, barbearia_id, slug_volta)
 
-        cursor.execute(
-            """
-            SELECT COUNT(*) FROM Clientes
-            WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
-              AND IFNULL(status, 'Agendado') <> 'Concluído'
-            """,
-            (data, hora, barbeiro_id, barbearia_id),
-        )
+            if agenda.horario_ocupado(
+                data, hora, barbeiro_id, barbearia_id, conn=conn
+            ):
+                flash(
+                    "Este horário já está ocupado com este profissional. Por favor, escolha outra opção!",
+                    "warning",
+                )
+                if equipe:
+                    return redirect(url_for("admin_agenda"))
+                return _redirect_home_barbearia(cursor, barbearia_id, slug_volta)
 
-        if cursor.fetchone()[0] > 0:
-            flash(
-                "Este horário já está ocupado com este profissional. Por favor, escolha outra opção!",
-                "warning",
+            valor_form = _parse_valor_monetario(request.form.get("valor"))
+            valor_clientes = float(valor_form) if valor_form is not None else 0.0
+            valor_financeiro = (
+                float(valor_form)
+                if valor_form is not None
+                else agenda.obter_preco_servico(barbearia_id, servico, conn=conn)
             )
-            if equipe:
-                return redirect(url_for("admin_agenda"))
-            return _redirect_home_barbearia(cursor, barbearia_id, slug_volta)
+            categoria_fin = _categoria_financeira_do_formulario(request.form)
+            descricao_fin = _descricao_financeiro_agendamento(servico, nome)
 
-        valor_form = _parse_valor_monetario(request.form.get("valor"))
-        valor_clientes = float(valor_form) if valor_form is not None else 0.0
-        valor_financeiro = (
-            float(valor_form)
-            if valor_form is not None
-            else _obter_preco_servico(cursor, barbearia_id, servico)
-        )
-        categoria_fin = _categoria_financeira_do_formulario(request.form)
-        descricao_fin = _descricao_financeiro_agendamento(servico, nome)
+            novo_id = agenda.inserir_agendamento(
+                nome,
+                data,
+                hora,
+                servico,
+                whatsapp,
+                barbeiro_id,
+                barbearia_id,
+                valor=valor_clientes,
+                conn=conn,
+            )
+            ident_home = _identificador_publico_barbearia(
+                cursor, barbearia_id, slug_volta
+            )
 
-        novo_id = _inserir_agendamento_retornar_id(
-            cursor,
-            nome,
-            data,
-            hora,
-            servico,
-            whatsapp,
-            barbeiro_id,
-            barbearia_id,
-            valor=valor_clientes,
-        )
-        ident_home = _identificador_publico_barbearia(
-            cursor, barbearia_id, slug_volta
-        )
-        safe_commit(conn)
-
-        if novo_id:
-            try:
-                _registrar_receita_agendamento(
-                    cursor,
-                    descricao_fin,
-                    valor_financeiro,
-                    barbeiro_id,
-                    barbearia_id,
-                    agendamento_id=novo_id,
-                    substituir_existente=True,
-                    categoria=categoria_fin,
-                    nome_item=servico,
-                )
-                safe_commit(conn)
-            except Exception:
-                safe_rollback(conn)
-                app.logger.exception(
-                    "Falha ao registrar financeiro (agendamento id=%s já salvo)",
-                    novo_id,
-                )
+            if novo_id:
+                try:
+                    _registrar_receita_agendamento(
+                        cursor,
+                        descricao_fin,
+                        valor_financeiro,
+                        barbeiro_id,
+                        barbearia_id,
+                        agendamento_id=novo_id,
+                        substituir_existente=True,
+                        categoria=categoria_fin,
+                        nome_item=servico,
+                    )
+                except Exception:
+                    app.logger.exception(
+                        "Falha ao registrar financeiro (agendamento id=%s já salvo)",
+                        novo_id,
+                    )
     except Exception as exc:
-        safe_rollback(conn)
         app.logger.exception("Erro ao salvar agendamento: %s", exc)
         flash(
             _("Não foi possível salvar o agendamento. Detalhe: %(erro)s", erro=str(exc)),
@@ -2242,8 +2163,6 @@ def agendar():
         if ident_home:
             return redirect(url_for("barbearia_home", identificador=ident_home))
         return redirect(url_for("home"))
-    finally:
-        conn.close()
 
     if not novo_id:
         flash(
@@ -2290,14 +2209,10 @@ def sucesso_agendamento(agendamento_id):
             return redirect(url_for("barbearia_home", identificador=slug))
         return redirect(url_for("home"))
 
-    conn = get_connection()
-    cursor = conn.cursor()
     try:
-        ag = _buscar_agendamento_por_id(cursor, agendamento_id)
+        ag = agenda.buscar_agendamento_por_id(agendamento_id)
     except DbError:
         ag = None
-    finally:
-        conn.close()
 
     if not ag:
         flash("Agendamento não encontrado ou já removido.", "danger")
@@ -2307,14 +2222,9 @@ def sucesso_agendamento(agendamento_id):
 
     ident_home = slug or ag.get("barbearia_slug") or ""
     if not ident_home and ag.get("barbearia_id"):
-        conn2 = get_connection()
-        cur2 = conn2.cursor()
-        try:
-            ident_home = _identificador_publico_barbearia(
-                cur2, ag.get("barbearia_id")
-            ) or ""
-        finally:
-            conn2.close()
+        b = auth.buscar_barbearia_por_id(int(ag["barbearia_id"]))
+        if b:
+            ident_home = (b.get("slug") or str(b["id"])).strip()
 
     if not _usuario_equipe_logado():
         if ident_home:

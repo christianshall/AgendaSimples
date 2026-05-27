@@ -86,6 +86,34 @@ def _log_backend_once() -> None:
         print("Usando Banco Local em Desenvolvimento (SQLite)")
 
 
+def _limits_to_top(sql: str, max_passes: int = 24) -> str:
+    """Converte cada LIMIT N no SELECT mais próximo anterior (subqueries inclusas)."""
+    out = sql
+    for _ in range(max_passes):
+        match = re.search(r"\s+LIMIT\s+(\d+)\b", out, re.IGNORECASE)
+        if not match:
+            break
+        n = match.group(1)
+        prefix = out[: match.start()]
+        selects = list(re.finditer(r"\bSELECT\b", prefix, re.IGNORECASE))
+        if not selects:
+            out = out[: match.start()] + out[match.end() :]
+            continue
+        sel = selects[-1]
+        insert_at = sel.end()
+        between = out[insert_at : match.start()]
+        if re.search(r"\bTOP\s+\d+\b", between, re.IGNORECASE):
+            out = out[: match.start()] + out[match.end() :]
+            continue
+        out = (
+            out[:insert_at]
+            + f" TOP {n} "
+            + out[insert_at : match.start()]
+            + out[match.end() :]
+        )
+    return out
+
+
 def translate_sql(sql: str, backend: Optional[Backend] = None) -> str:
     """
     Traduz SQL canônico (SQLite) para o dialeto do backend ativo.
@@ -109,17 +137,7 @@ def translate_sql(sql: str, backend: Optional[Backend] = None) -> str:
         out = re.sub(r"\bIFNULL\s*\(", "ISNULL(", out, flags=re.IGNORECASE)
         out = re.sub(r"\bADD\s+COLUMN\b", "ADD", out, flags=re.IGNORECASE)
 
-        limit_match = re.search(r"\s+LIMIT\s+(\d+)\s*;?\s*$", out, re.IGNORECASE)
-        if limit_match:
-            n = limit_match.group(1)
-            out = re.sub(r"\s+LIMIT\s+\d+\s*;?\s*$", "", out, flags=re.IGNORECASE)
-            out = re.sub(
-                r"^\s*SELECT\s+",
-                f"SELECT TOP {n} ",
-                out,
-                count=1,
-                flags=re.IGNORECASE,
-            )
+        out = _limits_to_top(out)
         return out
 
     # turso / sqlite: aceitar SQL Server legado
@@ -285,9 +303,28 @@ def connection_scope():
 
 def ensure_financeiro_schema(*, conn=None) -> None:
     """Garante tabelas/colunas críticas do financeiro no backend ativo."""
+    ensure_app_schema(conn)
+
+
+def ensure_app_schema(*, conn=None) -> None:
+    """Garante schema completo conforme backend (Turso/SQLite ou SQL Server)."""
     from database import initialize_database_schema
 
     initialize_database_schema(conn)
+
+
+def row_get(row: Any, *keys, index: int = 0, default=None):
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        for k in keys:
+            if k and k in row:
+                return row[k]
+        vals = list(row.values())
+        if index < len(vals):
+            return vals[index]
+        return default
+    return _valor_linha(row, index, keys[0] if keys else None) or default
 
 
 class AdapterCursor:
@@ -315,3 +352,7 @@ class AdapterCursor:
     @property
     def description(self):
         return self._cursor.description
+
+
+def cursor(conn) -> AdapterCursor:
+    return AdapterCursor(conn)
