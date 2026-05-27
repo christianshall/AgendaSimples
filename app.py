@@ -3407,6 +3407,61 @@ def admin_configuracoes():
 def admin_clientes():
     return render_template("admin_clientes.html")
 
+@app.route("/health/db", methods=["GET"])
+def health_db():
+    """
+    Diagnóstico do banco (Turso/SQLite/SQL Server).
+    Protegido por CRON_SECRET: Authorization: Bearer <CRON_SECRET>
+    """
+    from flask import jsonify
+
+    token = (request.headers.get("Authorization") or "").replace("Bearer", "").strip()
+    if not cfg.CRON_SECRET or token != cfg.CRON_SECRET:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    import db_adapter as db_mod
+
+    resultado = {
+        "ok": False,
+        "backend": db_mod.get_backend(),
+        "turso_url_configurada": bool(
+            (os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL") or "").strip()
+        ),
+        "turso_token_configurado": bool((os.environ.get("TURSO_AUTH_TOKEN") or "").strip()),
+        "tabelas": {},
+        "erro": None,
+    }
+    try:
+        row = db_mod.execute_query("SELECT 1 AS ok", fetch="one")
+        resultado["ping"] = db_mod.row_get(row, "ok", index=0)
+        for nome in (
+            "barbearias",
+            "usuarios",
+            "financeiro",
+            "Clientes",
+            "assinaturas",
+            "tb_configuracoes",
+        ):
+            try:
+                cnt_row = db_mod.execute_query(
+                    f"SELECT COUNT(*) AS total FROM {nome}",
+                    fetch="one",
+                )
+                resultado["tabelas"][nome] = int(
+                    db_mod.row_get(cnt_row, "total", index=0) or 0
+                )
+            except Exception as tab_exc:
+                resultado["tabelas"][nome] = f"erro: {tab_exc}"
+        db_mod.ensure_financeiro_schema()
+        resultado["schema_financeiro"] = "ok"
+        resultado["ok"] = True
+        return jsonify(resultado), 200
+    except Exception as exc:
+        app.logger.exception("health_db falhou")
+        resultado["erro"] = f"{type(exc).__name__}: {exc}"
+        return jsonify(resultado), 500
+
+
 @app.route("/cron/trial-reminders", methods=["GET", "POST"])
 def cron_trial_reminders():
     """Cron (Vercel): envia e-mails de trial a 2 dias do fim. Header: Authorization: Bearer CRON_SECRET."""
