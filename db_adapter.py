@@ -301,12 +301,12 @@ def connection_scope():
         safe_close(conn)
 
 
-def ensure_financeiro_schema(*, conn=None) -> None:
+def ensure_financeiro_schema(conn=None) -> None:
     """Garante tabelas/colunas críticas do financeiro no backend ativo."""
     ensure_app_schema(conn)
 
 
-def ensure_app_schema(*, conn=None) -> None:
+def ensure_app_schema(conn=None) -> None:
     """Garante schema completo conforme backend (Turso/SQLite ou SQL Server)."""
     from database import initialize_database_schema
 
