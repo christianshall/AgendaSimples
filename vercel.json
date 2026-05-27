@@ -22,5 +22,11 @@
   },
   "env": {
     "PYTHON_VERSION": "3.12"
-  }
+  },
+  "crons": [
+    {
+      "path": "/cron/trial-reminders",
+      "schedule": "0 14 * * *"
+    }
+  ]
 }

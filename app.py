@@ -31,9 +31,6 @@ from database import (
     seed_servicos_horarios_padrao,
     vincular_usuario_barbearia,
 )
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from subscriptions import criar_assinatura_trial, requer_assinatura_ativa
 from stripe_payments import register_stripe_routes
 import config_saas as cfg
@@ -203,6 +200,11 @@ def _definir_sessao_usuario(
     session["nome_barbearia"] = str(nome_barbearia or "").strip() or "AgendaSimples"
     session["barbearia_slug"] = str(barbearia_slug or "").strip()
     session.modified = True
+
+
+def _gravar_email_sessao(email):
+    if email:
+        session["user_email"] = str(email).strip().lower()
 
 
 def _definir_sessao_admin(user_id, user_name, barbearia_id, nome_barbearia, barbearia_slug):
@@ -441,6 +443,11 @@ def _iniciar_sessao_usuario(cursor, user, email):
                 "UPDATE usuarios SET barbearia_id = ? WHERE id = ?",
                 (barbearia_id, int(user_id)),
             )
+
+    if isinstance(user, dict) and user.get("email"):
+        _gravar_email_sessao(user.get("email"))
+    elif email:
+        _gravar_email_sessao(email)
 
     if b_row:
         _definir_sessao_usuario(
@@ -718,54 +725,39 @@ def _link_redefinir_senha(token):
 
 
 def enviar_email_recuperacao(destinatario, nome_usuario, link_redefinir):
-    """
-    Envia e-mail com link de redefinição via SMTP (variáveis de ambiente).
-    Retorna True se enviado; False se SMTP não configurado ou falha no envio.
-    """
-    smtp_host = os.environ.get("SMTP_HOST", "").strip()
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-    smtp_user = os.environ.get("SMTP_USER", "").strip()
-    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
-    smtp_from = os.environ.get("SMTP_FROM", smtp_user or "noreply@agendasimples.local")
-    use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
+    """Delega para email_service (SMTP via variáveis de ambiente)."""
+    from email_service import enviar_email_recuperacao as _enviar
 
-    if not smtp_host:
-        app.logger.warning(
-            "SMTP_HOST não configurado — e-mail de recuperação não enviado para %s",
-            destinatario,
-        )
+    return _enviar(destinatario, nome_usuario, link_redefinir)
+
+
+def _eh_saas_owner():
+    """Dono da plataforma (métricas globais) — e-mail em SAAS_OWNER_EMAIL."""
+    owner = (cfg.SAAS_OWNER_EMAIL or "").strip().lower()
+    if not owner:
         return False
+    email_sessao = (session.get("user_email") or "").strip().lower()
+    return email_sessao == owner
 
-    assunto = "Redefinição de senha — Agenda Simples"
-    corpo = f"""Olá, {nome_usuario or 'usuário'}!
 
-Recebemos um pedido para redefinir sua senha no Agenda Simples.
-
-Clique no link abaixo (válido por 30 minutos):
-{link_redefinir}
-
-Se você não solicitou isso, ignore este e-mail.
-
-Atenciosamente,
-Equipe Agenda Simples
-"""
-    msg = MIMEMultipart()
-    msg["From"] = smtp_from
-    msg["To"] = destinatario
-    msg["Subject"] = assunto
-    msg.attach(MIMEText(corpo, "plain", "utf-8"))
-
+def _processar_lembrete_trial_login(barbearia_id):
+    """Tenta enviar lembrete de trial para o admin que acabou de entrar."""
+    if session.get("role") != "admin" or not barbearia_id:
+        return
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
-            if use_tls:
-                server.starttls()
-            if smtp_user and smtp_password:
-                server.login(smtp_user, smtp_password)
-            server.sendmail(smtp_from, [destinatario], msg.as_string())
-        return True
-    except Exception as exc:
-        app.logger.exception("Falha ao enviar e-mail de recuperação: %s", exc)
-        return False
+        from trial_reminder_service import processar_lembrete_barbearia
+
+        resultado = processar_lembrete_barbearia(int(barbearia_id))
+        if resultado == "enviado":
+            flash(
+                _(
+                    "Enviamos um e-mail sobre o fim do seu teste grátis. "
+                    "Confira sua caixa de entrada."
+                ),
+                "info",
+            )
+    except Exception:
+        app.logger.exception("Lembrete de trial no login")
 
 
 def _inicializar_schema_aplicacao():
@@ -1424,6 +1416,7 @@ def login():
                         bid_final,
                     )
                     safe_commit(conn)
+                    _processar_lembrete_trial_login(session.get("barbearia_id"))
                 except ValueError as exc:
                     safe_rollback(conn)
                     app.logger.warning("Login sem barbearia vinculada: %s", exc)
@@ -3408,6 +3401,39 @@ def admin_configuracoes():
 @requer_plano
 def admin_clientes():
     return render_template("admin_clientes.html")
+
+@app.route("/cron/trial-reminders", methods=["GET", "POST"])
+def cron_trial_reminders():
+    """Cron (Vercel): envia e-mails de trial a 2 dias do fim. Header: Authorization: Bearer CRON_SECRET."""
+    token = (request.headers.get("Authorization") or "").replace("Bearer", "").strip()
+    if not cfg.CRON_SECRET or token != cfg.CRON_SECRET:
+        return {"error": "unauthorized"}, 401
+    from flask import jsonify
+    from trial_reminder_service import processar_lembretes_trial
+
+    return jsonify(processar_lembretes_trial())
+
+
+@app.route("/admin/metricas")
+@requer_plano
+def admin_metricas():
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
+
+    from metrics_service import metricas_estabelecimento, metricas_plataforma
+
+    barbearia_id = session.get("barbearia_id")
+    negocio = metricas_estabelecimento(barbearia_id) if barbearia_id else {}
+    plataforma = metricas_plataforma() if _eh_saas_owner() else None
+
+    return render_template(
+        "admin_metricas.html",
+        negocio=negocio,
+        plataforma=plataforma,
+        eh_saas_owner=plataforma is not None,
+    )
+
 
 @app.route("/admin/assinatura")
 @requer_plano

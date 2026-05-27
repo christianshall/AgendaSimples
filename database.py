@@ -1397,6 +1397,7 @@ def ensure_schema_migrations(cursor):
         ("financeiro", "tags", "TEXT"),
         ("servicos", "preco", "REAL"),
         ("barbearias", "ramo_atividade", "TEXT"),
+        ("assinaturas", "email_trial_lembrete_em", "TEXT"),
     ]
     for tabela, coluna, tipo_sql in alteracoes:
         try:

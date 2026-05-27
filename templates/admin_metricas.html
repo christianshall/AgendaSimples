@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale|default('pt') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Métricas') }} — AgendaSimples</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_metricas.css') }}">
+</head>
+<body class="page-metricas p-4">
+{% include '_banner_plano.html' %}
+
+<div class="container-fluid" style="max-width: 1100px;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1"><i class="fas fa-chart-line text-warning me-2"></i>{{ _('Métricas') }}</h1>
+            <p class="text-muted small mb-0">{{ session.get('nome_barbearia', '') }}</p>
+        </div>
+        <a href="{{ url_for('admin_agenda') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>{{ _('Voltar à agenda') }}
+        </a>
+    </div>
+
+    <h2 class="metricas-section-title h6 text-uppercase">{{ _('Seu negócio') }}</h2>
+    <div class="metricas-grid mb-4">
+        <div class="metrica-card">
+            <h3>{{ negocio.agendamentos_hoje|default(0) }}</h3>
+            <p>{{ _('Agendamentos hoje') }}</p>
+        </div>
+        <div class="metrica-card">
+            <h3>{{ negocio.agendamentos_mes|default(0) }}</h3>
+            <p>{{ _('Agendamentos (30 dias)') }}</p>
+        </div>
+        <div class="metrica-card">
+            <h3>{{ negocio.concluidos_mes|default(0) }}</h3>
+            <p>{{ _('Atendimentos concluídos (30 dias)') }}</p>
+        </div>
+        <div class="metrica-card">
+            <h3>{{ negocio.clientes_unicos|default(0) }}</h3>
+            <p>{{ _('Clientes únicos') }}</p>
+        </div>
+    </div>
+
+    {% if eh_saas_owner and plataforma %}
+    <h2 class="metricas-section-title h6 text-uppercase">{{ _('Plataforma AgendaSimples') }}</h2>
+    <p class="small text-muted">{{ _('Visível apenas para o administrador da plataforma.') }}</p>
+    <div class="metricas-grid">
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.cadastros_7d }}</h3>
+            <p>{{ _('Cadastros (7 dias)') }}</p>
+        </div>
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.cadastros_30d }}</h3>
+            <p>{{ _('Cadastros (30 dias)') }}</p>
+        </div>
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.total_contas }}</h3>
+            <p>{{ _('Contas totais') }}</p>
+        </div>
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.em_trial }}</h3>
+            <p>{{ _('Em teste grátis') }}</p>
+        </div>
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.planos_ativos }}</h3>
+            <p>{{ _('Planos pagos ativos') }}</p>
+        </div>
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.checkouts_total }}</h3>
+            <p>{{ _('Checkouts Stripe (total)') }}</p>
+        </div>
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.checkouts_30d }}</h3>
+            <p>{{ _('Checkouts (30 dias)') }}</p>
+        </div>
+        <div class="metrica-card metrica-card--saas">
+            <h3>{{ plataforma.taxa_conversao_pct }}%</h3>
+            <p>{{ _('Taxa de conversão trial → pago') }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

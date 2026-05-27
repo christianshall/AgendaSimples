@@ -19,3 +19,12 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000").rstrip("/
 
 # Imagem para compartilhamento (Open Graph) — URL absoluta opcional
 OG_IMAGE_URL = os.environ.get("OG_IMAGE_URL", "").strip()
+
+# E-mail do dono da plataforma (vê métricas globais em /admin/metricas)
+SAAS_OWNER_EMAIL = os.environ.get("SAAS_OWNER_EMAIL", "").strip().lower()
+
+# Cron Vercel: Authorization: Bearer <CRON_SECRET>
+CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
+
+# Dias antes do fim do trial para enviar lembrete por e-mail
+TRIAL_EMAIL_DIAS_AVISO = int(os.environ.get("TRIAL_EMAIL_DIAS_AVISO", "2"))

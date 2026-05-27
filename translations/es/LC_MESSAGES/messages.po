@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-26 13:09-0300\n"
+"POT-Creation-Date: 2026-05-27 00:58-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es\n"
@@ -14,13 +14,256 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: app.py:548
+#: app.py:241
+msgid "Faça login para continuar."
+msgstr ""
+
+#: app.py:244 app.py:3450
+msgid "Sessão inválida. Faça login novamente."
+msgstr ""
+
+#: app.py:247
+msgid "Você não tem permissão para acessar esta área."
+msgstr ""
+
+#: app.py:258
+msgid "Esta página é exclusiva do administrador."
+msgstr ""
+
+#: app.py:754
+msgid ""
+"Enviamos um e-mail sobre o fim do seu teste grátis. Confira sua caixa de "
+"entrada."
+msgstr ""
+
+#: app.py:1034
 msgid "Idioma alterado com sucesso."
 msgstr ""
 
-#: app.py:550
+#: app.py:1036
 msgid "Idioma não suportado."
 msgstr ""
+
+#: app.py:1048
+#, fuzzy
+msgid "Barbearia"
+msgstr "Barba"
+
+#: app.py:1049
+msgid "Salão de Beleza"
+msgstr ""
+
+#: app.py:1050
+msgid "Clínica de Estética"
+msgstr ""
+
+#: app.py:1051
+#, fuzzy
+msgid "Outros"
+msgstr "Otro"
+
+#: app.py:1186
+msgid "Informe o nome do seu negócio."
+msgstr "Indique el nombre de su negocio."
+
+#: app.py:1188
+msgid "Informe o seu nome."
+msgstr "Indique su nombre."
+
+#: app.py:1190
+msgid "Informe um e-mail válido."
+msgstr "Indique un correo válido."
+
+#: app.py:1192
+#, fuzzy
+msgid "Selecione o ramo de atividade."
+msgstr "Seleccione el profesional"
+
+#: app.py:1194
+msgid "A senha deve ter pelo menos 6 caracteres."
+msgstr "La contraseña debe tener al menos 6 caracteres."
+
+#: app.py:1196
+msgid "As senhas não coincidem."
+msgstr "Las contraseñas no coinciden."
+
+#: app.py:1202
+msgid "Este e-mail já está cadastrado. Faça login ou use outro e-mail."
+msgstr "Este correo ya está registrado. Inicie sesión u use otro correo."
+
+#: app.py:1209
+msgid "Já existe uma conta com este e-mail ou nome de negócio semelhante."
+msgstr "Ya existe una cuenta con este correo o nombre de negocio similar."
+
+#: app.py:1244
+msgid ""
+"Conta criada! Sua página pública já está no ar — faça login para "
+"gerenciá-la."
+msgstr ""
+
+#: app.py:1280
+#, python-format
+msgid ""
+"Parabéns! Sua conta teste de %(days)s dias foi criada. Esta é a página "
+"pública do seu negócio — já está no ar para seus clientes!"
+msgstr ""
+
+#: app.py:1299
+msgid "Não foi possível criar sua conta. Tente novamente em instantes."
+msgstr "No fue posible crear su cuenta. Intente de nuevo en un momento."
+
+#: app.py:1344 app.py:2325
+msgid "Estabelecimento não encontrado."
+msgstr ""
+
+#: app.py:1436
+msgid "Não foi possível concluir o login. Tente novamente."
+msgstr ""
+
+#: app.py:1445
+msgid "Faça login para acessar esta página."
+msgstr ""
+
+#: app.py:1644
+msgid "Não foi possível carregar a agenda. Tente novamente."
+msgstr ""
+
+#: app.py:1675
+msgid ""
+"Não foi possível cadastrar o profissional: negócio não identificado na "
+"sessão. Faça login novamente como administrador."
+msgstr ""
+
+#: app.py:1723
+msgid ""
+"Banco desatualizado. Execute: python "
+"aplicar_migracao_barbearia_id_usuarios.py"
+msgstr ""
+
+#: app.py:1784
+msgid ""
+"Falha ao gravar vínculo com o negócio. O profissional não foi cadastrado."
+" Tente novamente."
+msgstr ""
+
+#: app.py:1842
+msgid "Você só pode concluir seus próprios agendamentos."
+msgstr ""
+
+#: app.py:1912
+msgid ""
+"Atendimento marcado como concluído, mas o lançamento financeiro falhou. "
+"Registre manualmente no financeiro."
+msgstr ""
+
+#: app.py:1921
+#, fuzzy
+msgid "Não foi possível concluir o atendimento."
+msgstr "✅ Confirmar Reserva"
+
+#: app.py:2041
+msgid "Preencha todos os campos obrigatórios do agendamento."
+msgstr ""
+
+#: app.py:2047
+msgid "Profissional inválido."
+msgstr ""
+
+#: app.py:2065
+#, fuzzy
+msgid "Estabelecimento inválido."
+msgstr "Ícono del establecimiento"
+
+#: app.py:2071
+msgid "Profissional inválido para este estabelecimento."
+msgstr ""
+
+#: app.py:2133
+#, python-format
+msgid "Não foi possível salvar o agendamento. Detalhe: %(erro)s"
+msgstr ""
+
+#: app.py:2165
+#, python-format
+msgid "Agendamento confirmado! %(nome)s — %(data)s às %(hora)s (%(servico)s)."
+msgstr ""
+
+#: app.py:2206
+msgid "Seu horário foi marcado com sucesso!"
+msgstr ""
+
+#: app.py:2242
+msgid "Você só pode editar seus próprios agendamentos."
+msgstr ""
+
+#: app.py:2273
+#, fuzzy
+msgid "Você só pode excluir seus próprios agendamentos."
+msgstr "¿Desea eliminar esta cita?"
+
+#: app.py:2315
+msgid "Nenhum estabelecimento cadastrado ainda."
+msgstr ""
+
+#: app.py:2894
+msgid "Profissional inválido para este negócio."
+msgstr ""
+
+#: app.py:2939
+msgid ""
+"Não foi possível carregar o financeiro. Confira o terminal (Erro no "
+"Financeiro) e as migrações do banco."
+msgstr ""
+
+#: app.py:2964
+msgid "Percentuais de comissão inválidos."
+msgstr ""
+
+#: app.py:2969
+msgid "Comissões atualizadas com sucesso."
+msgstr ""
+
+#: app.py:2972
+msgid "Não foi possível salvar as comissões."
+msgstr ""
+
+#: app.py:2995
+msgid "Categoria inválida."
+msgstr ""
+
+#: app.py:3004
+msgid "Valor inválido."
+msgstr ""
+
+#: app.py:3026
+msgid "Não foi possível salvar o lançamento."
+msgstr ""
+
+#: templates/_admin_nav_assinatura.html:4
+msgid "Plano e assinatura"
+msgstr "Plan y suscripción"
+
+#: templates/_banner_plano.html:7
+#, python-format
+msgid ""
+"Seu teste grátis termina em %(dias)s dia(s)! Assine para não perder a "
+"agenda e o financeiro."
+msgstr ""
+
+#: templates/_banner_plano.html:9
+#, python-format
+msgid "Restam %(dias)s dia(s) do seu teste grátis."
+msgstr "Quedan %(dias)s día(s) de prueba gratis."
+
+#: templates/_banner_plano.html:13
+msgid "Seu teste encerrou. Assine o plano mensal para continuar usando o painel."
+msgstr "Su prueba terminó. Suscríbase al plan mensual para seguir usando el panel."
+
+#: templates/_banner_plano.html:16 templates/admin_assinatura.html:49
+#: templates/bloqueio_assinatura.html:26
+#, python-format
+msgid "Assinar por R$ %(valor).2f/mês"
+msgstr "Suscribirse por R$ %(valor).2f/mes"
 
 #: templates/_lang_selector.html:4
 msgid "Idioma"
@@ -38,16 +281,69 @@ msgstr ""
 msgid "Español"
 msgstr ""
 
-#: templates/admin_agenda.html:6
+#: templates/_links_publicos.html:3
+#, fuzzy
+msgid "Divulgue seu negócio"
+msgstr "Promocione su negocio"
+
+#: templates/_links_publicos.html:5
+msgid ""
+"Compartilhe estes links no Instagram, WhatsApp e Google — cada "
+"agendamento é receita para você."
+msgstr ""
+
+#: templates/_links_publicos.html:8
+msgid "Página inicial (portfólio)"
+msgstr "Página inicial (portafolio)"
+
+#: templates/_links_publicos.html:11 templates/_links_publicos.html:20
+#: templates/agenda.html:235
+#, fuzzy
+msgid "Copiar"
+msgstr "Copiar"
+
+#: templates/_links_publicos.html:17
+#, fuzzy
+msgid "Agendar online"
+msgstr "Reservar online"
+
+#: templates/acesso_negado.html:6 templates/acesso_negado.html:13
+msgid "Acesso negado"
+msgstr ""
+
+#: templates/acesso_negado.html:15
+msgid "Você não tem permissão para acessar esta página."
+msgstr ""
+
+#: templates/acesso_negado.html:26
+#, fuzzy
+msgid "Voltar para minha agenda"
+msgstr "Volver al Calendario"
+
+#: templates/acesso_negado.html:29
+msgid "Página pública do negócio"
+msgstr ""
+
+#: templates/acesso_negado.html:31
+#, fuzzy
+msgid "Página inicial"
+msgstr "Volver a la página inicial"
+
+#: templates/acesso_negado.html:33 templates/bloqueio_assinatura.html:29
+msgid "Sair da conta"
+msgstr ""
+
+#: templates/admin_agenda.html:6 templates/admin_agenda.html:260
 msgid "Painel Admin"
 msgstr ""
 
-#: templates/admin_agenda.html:258
-msgid "Admin"
-msgstr ""
+#: templates/admin_agenda.html:260
+#, fuzzy
+msgid "Minha agenda"
+msgstr "Mi Agenda"
 
-#: templates/admin_agenda.html:268
-#: templates/admin_cadastrar_profissional.html:167
+#: templates/admin_agenda.html:270
+#: templates/admin_cadastrar_profissional.html:169
 msgid "Cadastrar profissional"
 msgstr ""
 
@@ -56,342 +352,557 @@ msgstr ""
 msgid "Configurações"
 msgstr "Confirmar"
 
-#: templates/admin_agenda.html:277
+#: templates/admin_agenda.html:276
 msgid "Gerenciar Galeria"
 msgstr ""
 
-#: templates/admin_agenda.html:281 templates/admin_financeiro.html:151
-#: templates/agenda.html:205
+#: templates/admin_agenda.html:279 templates/agenda.html:205
 msgid "Exportar Excel"
 msgstr "Exportar Excel"
 
-#: templates/admin_agenda.html:285
+#: templates/admin_agenda.html:282
 msgid "PDF Hoje"
 msgstr "PDF Hoy"
 
-#: templates/admin_agenda.html:289
+#: templates/admin_agenda.html:285 templates/admin_financeiro.html:6
 msgid "Financeiro"
 msgstr "Financiero"
 
-#: templates/admin_agenda.html:293 templates/agenda.html:211
+#: templates/admin_agenda.html:288 templates/admin_metricas.html:6
+#: templates/admin_metricas.html:17
+msgid "Métricas"
+msgstr "Métricas"
+
+#: templates/admin_agenda.html:294 templates/agenda.html:211
 msgid "Sair"
 msgstr "Salir"
 
-#: templates/admin_agenda.html:317 templates/agenda.html:229
+#: templates/admin_agenda.html:318 templates/agenda.html:229
 #, fuzzy
 msgid "Seu Link de Agendamento"
 msgstr "¿Desea eliminar esta cita?"
 
-#: templates/admin_agenda.html:318
+#: templates/admin_agenda.html:319
 msgid "Compartilhe no WhatsApp ou Instagram — o cliente agenda sem baixar app."
 msgstr ""
 
-#: templates/admin_agenda.html:320
+#: templates/admin_agenda.html:321
 msgid "Profissional do link"
 msgstr ""
 
-#: templates/admin_agenda.html:334
+#: templates/admin_agenda.html:335
 msgid "Copiar Link"
 msgstr ""
 
-#: templates/admin_agenda.html:337 templates/agenda.html:238
+#: templates/admin_agenda.html:338 templates/agenda.html:238
 msgid "Link copiado!"
 msgstr ""
 
-#: templates/admin_agenda.html:341
+#: templates/admin_agenda.html:342
 #, fuzzy
 msgid "Filtrar por Profissional:"
 msgstr "Filtrar por Barbero:"
 
-#: templates/admin_agenda.html:343
+#: templates/admin_agenda.html:344 templates/admin_financeiro.html:61
 msgid "Todos"
 msgstr "Todos"
 
-#: templates/admin_agenda.html:385
+#: templates/admin_agenda.html:386
 msgid "Profissional:"
 msgstr ""
 
-#: templates/admin_agenda.html:390 templates/admin_agenda.html:470
+#: templates/admin_agenda.html:391 templates/admin_agenda.html:474
 #, fuzzy
 msgid "Concluir atendimento"
 msgstr "✅ Confirmar Reserva"
 
-#: templates/admin_agenda.html:391
+#: templates/admin_agenda.html:392
 msgid "Concluir"
 msgstr ""
 
-#: templates/admin_agenda.html:393 templates/agenda.html:280
+#: templates/admin_agenda.html:394 templates/agenda.html:280
 #, fuzzy
 msgid "Editar"
 msgstr "Ingresar"
 
-#: templates/admin_agenda.html:396 templates/agenda.html:285
+#: templates/admin_agenda.html:397 templates/agenda.html:285
 msgid "Excluir"
 msgstr ""
 
-#: templates/admin_agenda.html:396 templates/agenda.html:286
+#: templates/admin_agenda.html:397 templates/agenda.html:286
 msgid "Deseja excluir este agendamento?"
 msgstr "¿Desea eliminar esta cita?"
 
-#: templates/admin_agenda.html:402 templates/agenda.html:292
+#: templates/admin_agenda.html:403 templates/agenda.html:292
 msgid "Enviar lembrete"
 msgstr ""
 
-#: templates/admin_agenda.html:415 templates/agenda.html:302
+#: templates/admin_agenda.html:416 templates/agenda.html:302
 msgid "Disponível - Agendar"
 msgstr "Disponible - Reservar"
 
-#: templates/admin_agenda.html:432 templates/agenda.html:317
+#: templates/admin_agenda.html:433 templates/agenda.html:317
 msgid "Novo Agendamento"
 msgstr "Nueva Cita"
 
-#: templates/admin_agenda.html:442 templates/agenda.html:327
-#: templates/home.html:123
+#: templates/admin_agenda.html:446 templates/agenda.html:327
+#: templates/home.html:134
 msgid "Cliente"
 msgstr "Cliente"
 
-#: templates/admin_agenda.html:447 templates/admin_agenda.html:495
-#: templates/agenda.html:332 templates/marcar_agendamento.html:70
+#: templates/admin_agenda.html:451 templates/admin_agenda.html:499
+#: templates/admin_financeiro.html:208 templates/admin_financeiro.html:303
+#: templates/agenda.html:332 templates/marcar_agendamento.html:72
 msgid "Serviço"
 msgstr "Servicio"
 
-#: templates/admin_agenda.html:452 templates/agenda.html:337
-#: templates/home.html:337 templates/marcar_agendamento.html:38
+#: templates/admin_agenda.html:456 templates/agenda.html:337
+#: templates/home.html:348 templates/marcar_agendamento.html:40
 msgid "WhatsApp"
 msgstr "WhatsApp"
 
-#: templates/admin_agenda.html:458 templates/agenda.html:343
+#: templates/admin_agenda.html:462 templates/agenda.html:343
 msgid "Confirmar"
 msgstr "Confirmar"
 
-#: templates/admin_agenda.html:486
+#: templates/admin_agenda.html:490
 msgid "Valor recebido (R$)"
 msgstr ""
 
-#: templates/admin_agenda.html:489
+#: templates/admin_agenda.html:493
 msgid "Use 0 para retornos, cortesias ou pacotes já pagos."
 msgstr ""
 
-#: templates/admin_agenda.html:493
+#: templates/admin_agenda.html:497
 msgid "O que foi feito"
 msgstr ""
 
-#: templates/admin_agenda.html:496
+#: templates/admin_agenda.html:500
 msgid "Venda de Produto"
 msgstr ""
 
-#: templates/admin_agenda.html:497
+#: templates/admin_agenda.html:501
 msgid "Outro (descrever)"
 msgstr ""
 
-#: templates/admin_agenda.html:502
+#: templates/admin_agenda.html:506
 msgid "Detalhe"
 msgstr ""
 
-#: templates/admin_agenda.html:504 templates/admin_agenda.html:554
+#: templates/admin_agenda.html:508 templates/admin_agenda.html:558
 msgid "Ex: Corte de cabelo"
 msgstr ""
 
-#: templates/admin_agenda.html:505
+#: templates/admin_agenda.html:509
 msgid "Será registrado no financeiro junto com o tipo acima."
 msgstr ""
 
-#: templates/admin_agenda.html:509
+#: templates/admin_agenda.html:513
 msgid "Cancelar"
 msgstr ""
 
-#: templates/admin_agenda.html:511
+#: templates/admin_agenda.html:515
 msgid "Concluir e lançar receita"
 msgstr ""
 
-#: templates/admin_agenda.html:556
+#: templates/admin_agenda.html:560
 msgid "Ex: Pomada, shampoo"
 msgstr ""
 
-#: templates/admin_agenda.html:558
+#: templates/admin_agenda.html:562
 msgid "Descreva o que foi feito"
 msgstr ""
+
+#: templates/admin_assinatura.html:6
+#, fuzzy
+msgid "Minha assinatura"
+msgstr "Mi suscripción"
+
+#: templates/admin_assinatura.html:15
+#, fuzzy
+msgid "Plano AgendaSimples"
+msgstr "Plan AgendaSimples"
+
+#: templates/admin_assinatura.html:22
+msgid "Status"
+msgstr "Estado"
+
+#: templates/admin_assinatura.html:29
+msgid "Dias restantes do teste"
+msgstr "Días restantes de prueba"
+
+#: templates/admin_assinatura.html:33
+msgid "Fim do trial"
+msgstr "Fin de la prueba"
+
+#: templates/admin_assinatura.html:34
+#, fuzzy
+msgid "Próxima renovação"
+msgstr "Próxima renovación"
+
+#: templates/admin_assinatura.html:36
+#, fuzzy
+msgid "Acesso ao painel"
+msgstr "Acceso al panel"
+
+#: templates/admin_assinatura.html:37
+#, fuzzy
+msgid "Ativo"
+msgstr "Activo"
+
+#: templates/admin_assinatura.html:37
+msgid "Bloqueado"
+msgstr "Bloqueado"
+
+#: templates/admin_assinatura.html:43
+msgid "Nenhuma assinatura encontrada. Inicie o checkout para ativar o plano."
+msgstr "No se encontró suscripción. Inicie el checkout para activar el plan."
+
+#: templates/admin_assinatura.html:51
+#: templates/admin_cadastrar_profissional.html:104
+#: templates/admin_financeiro.html:30 templates/admin_metricas.html:21
+#, fuzzy
+msgid "Voltar à agenda"
+msgstr "Volver a la agenda"
+
+#: templates/admin_assinatura.html:55
+msgid "Pagamento seguro via Stripe. Cancele quando quiser, sem fidelidade."
+msgstr "Pago seguro con Stripe. Cancele cuando quiera, sin permanencia."
 
 #: templates/admin_cadastrar_profissional.html:6
 msgid "Cadastrar Profissional"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:102
-#, fuzzy
-msgid "Voltar à agenda"
-msgstr "Volver al Calendario"
-
-#: templates/admin_cadastrar_profissional.html:108
+#: templates/admin_cadastrar_profissional.html:110
 msgid "Novo profissional"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:109
+#: templates/admin_cadastrar_profissional.html:111
 msgid "Cadastre funcionários com acesso à agenda"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:126
-#: templates/marcar_agendamento.html:34
+#: templates/admin_cadastrar_profissional.html:128
+#: templates/marcar_agendamento.html:36
 #, fuzzy
 msgid "Nome completo"
 msgstr "Nombre completo"
 
-#: templates/admin_cadastrar_profissional.html:128
+#: templates/admin_cadastrar_profissional.html:130
+#: templates/home_vendas.html:179 templates/registrar.html:45
 msgid "Ex.: Maria Silva"
 msgstr "Ej.: María Silva"
 
-#: templates/admin_cadastrar_profissional.html:132 templates/login.html:37
+#: templates/admin_cadastrar_profissional.html:134
+#: templates/home_vendas.html:182 templates/login.html:37
+#: templates/registrar.html:48
 #, fuzzy
 msgid "E-mail"
 msgstr "Correo electrónico"
 
-#: templates/admin_cadastrar_profissional.html:139
+#: templates/admin_cadastrar_profissional.html:141
 msgid "Celular"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:143
+#: templates/admin_cadastrar_profissional.html:145
 msgid ""
 "Número com WhatsApp — usado na recuperação de senha e contato com o "
 "cliente."
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:147
+#: templates/admin_cadastrar_profissional.html:149
 msgid "Especialidade / cargo"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:150
+#: templates/admin_cadastrar_profissional.html:152
 msgid "Ex.: Barba e cabelo, Unhas em gel"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:154
+#: templates/admin_cadastrar_profissional.html:156
 msgid "Senha inicial"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:156
+#: templates/admin_cadastrar_profissional.html:158
+#: templates/home_vendas.html:190 templates/registrar.html:56
 msgid "Mínimo 6 caracteres"
 msgstr "Mínimo 6 caracteres"
 
-#: templates/admin_cadastrar_profissional.html:160
+#: templates/admin_cadastrar_profissional.html:162
 msgid "Foto de perfil"
 msgstr ""
 
-#: templates/admin_cadastrar_profissional.html:163
+#: templates/admin_cadastrar_profissional.html:165
 msgid "JPG, PNG, WEBP ou GIF. Opcional."
 msgstr ""
 
-#: templates/admin_configuracoes.html:78
+#: templates/admin_configuracoes.html:82
 msgid "Ações destrutivas"
 msgstr "Acciones destructivas"
 
-#: templates/admin_configuracoes.html:86
+#: templates/admin_configuracoes.html:90
 msgid "Excluir Fichário"
 msgstr "Eliminar portafolio"
 
-#: templates/admin_configuracoes.html:95
+#: templates/admin_configuracoes.html:99
 msgid "Excluir Foto"
 msgstr "Eliminar foto"
 
-#: templates/admin_configuracoes.html:100
+#: templates/admin_configuracoes.html:104
 msgid "Use com cuidado: a exclusão é permanente."
 msgstr "Úselo con cuidado: la eliminación es permanente."
 
-#: templates/admin_configuracoes.html:173
+#: templates/admin_configuracoes.html:177
 msgid "Tem certeza que deseja excluir o fichário?"
 msgstr "¿Está seguro de que desea eliminar el portafolio?"
 
-#: templates/admin_configuracoes.html:174
+#: templates/admin_configuracoes.html:178
 msgid "Tem certeza que deseja excluir a foto?"
 msgstr "¿Está seguro de que desea eliminar la foto?"
 
-#: templates/admin_financeiro.html:9
-msgid "Financeiro - Christian Shall"
-msgstr "Financiero - Christian Shall"
-
-#: templates/admin_financeiro.html:117
-msgid "RESUMO FINANCEIRO"
+#: templates/admin_financeiro.html:23
+#, fuzzy
+msgid "Gestão financeira"
 msgstr "RESUMEN FINANCIERO"
 
-#: templates/admin_financeiro.html:125
-msgid "Voltar Agenda"
-msgstr "Volver al Calendario"
+#: templates/admin_financeiro.html:24
+msgid "Comissões e fluxo de caixa"
+msgstr ""
 
-#: templates/admin_financeiro.html:137
-msgid "SALDO EM CAIXA"
-msgstr "SALDO EN CAJA"
+#: templates/admin_financeiro.html:51
+msgid "Data início"
+msgstr ""
 
-#: templates/admin_financeiro.html:145
+#: templates/admin_financeiro.html:55
 #, fuzzy
-msgid "Exportar PDF"
-msgstr "Exportar Excel"
+msgid "Data fim"
+msgstr "Fecha"
 
-#: templates/admin_financeiro.html:165
-msgid "NOVO LANÇAMENTO"
-msgstr "NUEVO REGISTRO"
-
-#: templates/admin_financeiro.html:171 templates/admin_financeiro.html:173
-#: templates/admin_financeiro.html:347
-msgid "Descrição"
-msgstr "Descripción"
-
-#: templates/admin_financeiro.html:179 templates/admin_financeiro.html:353
-msgid "Valor"
-msgstr "Valor"
-
-#: templates/admin_financeiro.html:187 templates/admin_financeiro.html:253
-#: templates/admin_financeiro.html:349 templates/home.html:134
+#: templates/admin_financeiro.html:59 templates/admin_financeiro.html:214
+#: templates/admin_financeiro.html:243 templates/admin_financeiro.html:283
+#: templates/home.html:145
 msgid "Profissional"
 msgstr ""
 
-#: templates/admin_financeiro.html:191
-msgid "Geral / Estabelecimento"
+#: templates/admin_financeiro.html:68
+msgid "Aplicar filtros"
 msgstr ""
 
-#: templates/admin_financeiro.html:205 templates/admin_financeiro.html:351
-msgid "Tipo"
-msgstr "Tipo"
+#: templates/admin_financeiro.html:83
+#, fuzzy
+msgid "Comissão serviço"
+msgstr "Servicio"
 
-#: templates/admin_financeiro.html:209
-msgid "Receita"
+#: templates/admin_financeiro.html:88
+msgid "Comissão produto"
+msgstr ""
+
+#: templates/admin_financeiro.html:93
+#, fuzzy
+msgid "Salvar comissões"
+msgstr "Confirmar Contraseña:"
+
+#: templates/admin_financeiro.html:104
+#, fuzzy
+msgid "Total receitas"
 msgstr "Ingreso"
 
-#: templates/admin_financeiro.html:211
+#: templates/admin_financeiro.html:115
+#, fuzzy
+msgid "Total despesas"
+msgstr "Gasto"
+
+#: templates/admin_financeiro.html:126
+msgid "Comissões a pagar"
+msgstr ""
+
+#: templates/admin_financeiro.html:137
+msgid "Lucro líquido"
+msgstr ""
+
+#: templates/admin_financeiro.html:150
+msgid "Faturamento diário"
+msgstr ""
+
+#: templates/admin_financeiro.html:159
+#, fuzzy
+msgid "Fechamento de caixa"
+msgstr "SALDO EN CAJA"
+
+#: templates/admin_financeiro.html:161
+msgid "Profissional selecionado no filtro"
+msgstr ""
+
+#: templates/admin_financeiro.html:163
+msgid "Totais de receitas no período (todos)"
+msgstr ""
+
+#: templates/admin_financeiro.html:166
+msgid "Total bruto"
+msgstr ""
+
+#: templates/admin_financeiro.html:169 templates/admin_financeiro.html:244
+#, fuzzy
+msgid "Serviços"
+msgstr "Servicio"
+
+#: templates/admin_financeiro.html:170 templates/admin_financeiro.html:245
+#, fuzzy
+msgid "Produtos"
+msgstr "Otro"
+
+#: templates/admin_financeiro.html:175
+msgid "Comissão serviços"
+msgstr ""
+
+#: templates/admin_financeiro.html:179
+msgid "Comissão produtos"
+msgstr ""
+
+#: templates/admin_financeiro.html:184
+#, fuzzy
+msgid "Valor líquido a pagar ao profissional"
+msgstr "Acceso del profesional"
+
+#: templates/admin_financeiro.html:186
+#, fuzzy
+msgid "Retenção estabelecimento"
+msgstr "Ícono del establecimiento"
+
+#: templates/admin_financeiro.html:194
+#, fuzzy
+msgid "Novo lançamento"
+msgstr "NUEVO REGISTRO"
+
+#: templates/admin_financeiro.html:198 templates/admin_financeiro.html:282
+msgid "Descrição"
+msgstr "Descripción"
+
+#: templates/admin_financeiro.html:202
+#, fuzzy
+msgid "Valor (R$)"
+msgstr "Valor"
+
+#: templates/admin_financeiro.html:206 templates/admin_financeiro.html:284
+msgid "Categoria"
+msgstr ""
+
+#: templates/admin_financeiro.html:209 templates/admin_financeiro.html:305
+#, fuzzy
+msgid "Produto"
+msgstr "Otro"
+
+#: templates/admin_financeiro.html:210 templates/admin_financeiro.html:307
 msgid "Despesa"
 msgstr "Gasto"
 
-#: templates/admin_financeiro.html:219
-msgid "OK"
+#: templates/admin_financeiro.html:216
+msgid "Geral / Estabelecimento"
 msgstr ""
 
-#: templates/admin_financeiro.html:241
-msgid "Faturamento por Profissional"
+#: templates/admin_financeiro.html:223 templates/admin_financeiro.html:285
+msgid "Tags"
 msgstr ""
 
-#: templates/admin_financeiro.html:245
-msgid "Total de receitas vinculadas a cada profissional (base para comissões)."
+#: templates/admin_financeiro.html:228
+#, fuzzy
+msgid "Lançar"
+msgstr "Reservar"
+
+#: templates/admin_financeiro.html:238
+#, fuzzy
+msgid "Comissões por profissional"
+msgstr "Acceso del profesional"
+
+#: templates/admin_financeiro.html:246
+#, fuzzy
+msgid "Bruto"
+msgstr "Otro"
+
+#: templates/admin_financeiro.html:247
+msgid "Comissão"
 msgstr ""
 
-#: templates/admin_financeiro.html:255
-msgid "Total"
+#: templates/admin_financeiro.html:266
+msgid "Nenhuma receita no período."
 msgstr ""
 
-#: templates/admin_financeiro.html:277
-msgid "Nenhuma receita por profissional ainda."
-msgstr ""
-
-#: templates/admin_financeiro.html:291
-msgid "Soma das receitas por profissional"
-msgstr ""
-
-#: templates/admin_financeiro.html:319
+#: templates/admin_financeiro.html:276
 msgid "Transações"
 msgstr ""
 
-#: templates/admin_financeiro.html:345
+#: templates/admin_financeiro.html:281
 msgid "Data"
 msgstr "Fecha"
 
-#: templates/admin_financeiro.html:393
-msgid "Nenhuma transação registrada."
+#: templates/admin_financeiro.html:286
+msgid "Valor"
+msgstr "Valor"
+
+#: templates/admin_financeiro.html:323
+msgid "Nenhuma transação no período."
 msgstr ""
+
+#: templates/admin_metricas.html:25
+msgid "Seu negócio"
+msgstr "Su negocio"
+
+#: templates/admin_metricas.html:29
+#, fuzzy
+msgid "Agendamentos hoje"
+msgstr "Citas hoy"
+
+#: templates/admin_metricas.html:33
+msgid "Agendamentos (30 dias)"
+msgstr "Citas (30 días)"
+
+#: templates/admin_metricas.html:37
+msgid "Atendimentos concluídos (30 dias)"
+msgstr "Atenciones completadas (30 días)"
+
+#: templates/admin_metricas.html:41
+#, fuzzy
+msgid "Clientes únicos"
+msgstr "Clientes únicos"
+
+#: templates/admin_metricas.html:46
+#, fuzzy
+msgid "Plataforma AgendaSimples"
+msgstr "Plataforma AgendaSimples"
+
+#: templates/admin_metricas.html:47
+msgid "Visível apenas para o administrador da plataforma."
+msgstr "Visible solo para el administrador de la plataforma."
+
+#: templates/admin_metricas.html:51
+msgid "Cadastros (7 dias)"
+msgstr "Registros (7 días)"
+
+#: templates/admin_metricas.html:55
+msgid "Cadastros (30 dias)"
+msgstr "Registros (30 días)"
+
+#: templates/admin_metricas.html:59
+msgid "Contas totais"
+msgstr "Cuentas totales"
+
+#: templates/admin_metricas.html:63
+msgid "Em teste grátis"
+msgstr "En prueba gratis"
+
+#: templates/admin_metricas.html:67
+msgid "Planos pagos ativos"
+msgstr "Planes de pago activos"
+
+#: templates/admin_metricas.html:71
+msgid "Checkouts Stripe (total)"
+msgstr "Checkouts Stripe (total)"
+
+#: templates/admin_metricas.html:75
+msgid "Checkouts (30 dias)"
+msgstr "Checkouts (30 días)"
+
+#: templates/admin_metricas.html:79
+msgid "Taxa de conversão trial → pago"
+msgstr "Tasa de conversión prueba → pago"
 
 #: templates/agenda.html:6
 msgid "Minha Agenda"
@@ -406,10 +917,24 @@ msgstr "Exportar Excel"
 msgid "Envie aos clientes — abrem direto esta página para marcar com você."
 msgstr ""
 
-#: templates/agenda.html:235
-#, fuzzy
-msgid "Copiar"
-msgstr "Confirmar"
+#: templates/bloqueio_assinatura.html:6
+msgid "Assinatura necessária"
+msgstr ""
+
+#: templates/bloqueio_assinatura.html:13
+msgid "Período de teste encerrado"
+msgstr ""
+
+#: templates/bloqueio_assinatura.html:15
+#, python-format
+msgid "Para continuar usando o painel, assine o plano mensal de R$ %(valor).2f."
+msgstr ""
+
+#: templates/bloqueio_assinatura.html:24
+msgid ""
+"Seus dados e configurações estão guardados. Após o pagamento, o acesso é "
+"liberado na hora."
+msgstr ""
 
 #: templates/cadastro.html:6
 msgid "Cadastro - Barber Agenda"
@@ -424,7 +949,7 @@ msgstr "Registro de Barbero"
 msgid "Nome:"
 msgstr "Nombre:"
 
-#: templates/cadastro.html:112 templates/marcar_agendamento.html:36
+#: templates/cadastro.html:112 templates/marcar_agendamento.html:38
 msgid "Digite seu nome completo"
 msgstr "Escriba su nombre completo"
 
@@ -517,134 +1042,388 @@ msgstr "← Volver a la página de inicio"
 msgid "Agende seu horário"
 msgstr "Reserve su horario"
 
-#: templates/home.html:51 templates/home.html:93
+#: templates/home.html:62 templates/home.html:104
 #, python-format
 msgid "Logotipo de %(nome)s"
 msgstr "Logotipo de %(nome)s"
 
-#: templates/home.html:59
+#: templates/home.html:70
 msgid "Agendamento online profissional"
 msgstr "Reserva online profesional"
 
-#: templates/home.html:73
+#: templates/home.html:84
 msgid "Bem-vindo"
 msgstr "Bienvenido"
 
-#: templates/home.html:75
+#: templates/home.html:86
 msgid "Agende com"
 msgstr "Reserve con"
 
-#: templates/home.html:77
+#: templates/home.html:88
 msgid "Qualidade, praticidade e o portfólio do seu profissional em um só lugar."
 msgstr "Calidad, practicidad y el portafolio de su profesional en un solo lugar."
 
-#: templates/home.html:81 templates/marcar_agendamento.html:6
+#: templates/home.html:92 templates/marcar_agendamento.html:6
 #: templates/marcar_agendamento.html:20
 msgid "Marcar Horário"
 msgstr "Reservar Cita"
 
-#: templates/home.html:97
+#: templates/home.html:108
 msgid "Ícone do estabelecimento"
 msgstr "Ícono del establecimiento"
 
-#: templates/home.html:115
+#: templates/home.html:126
 msgid "Como deseja continuar?"
 msgstr "¿Cómo desea continuar?"
 
-#: templates/home.html:125
+#: templates/home.html:136
 #, fuzzy
 msgid "Reserve seu horário em poucos cliques"
 msgstr "Reserve su horario en pocos clics"
 
-#: templates/home.html:126
+#: templates/home.html:137
 #, fuzzy
 msgid "Agendar"
 msgstr "Reservar"
 
-#: templates/home.html:136
+#: templates/home.html:147
 msgid "Acesso ao painel da equipe"
 msgstr "Acceso al panel del equipo"
 
-#: templates/home.html:138 templates/login.html:45
+#: templates/home.html:149 templates/home_vendas.html:31
+#: templates/login.html:45 templates/registrar.html:69
 msgid "Entrar"
 msgstr "Entrar"
 
-#: templates/home.html:152
+#: templates/home.html:163
 msgid "Nossos catálogos"
 msgstr "Nuestros catálogos"
 
-#: templates/home.html:154
+#: templates/home.html:165
 msgid "Toque em um card para ver o portfólio de fotos"
 msgstr "Toque una tarjeta para ver el portafolio de fotos"
 
-#: templates/home.html:168
+#: templates/home.html:179
 #, python-format
 msgid "Abrir portfólio: %(titulo)s"
 msgstr "Abrir portafolio: %(titulo)s"
 
-#: templates/home.html:186
+#: templates/home.html:197
 #, python-format
 msgid "%(num)d foto"
 msgid_plural "%(num)d fotos"
 msgstr[0] ""
 msgstr[1] ""
 
-#: templates/home.html:196
+#: templates/home.html:207
 msgid "Ver portfólio"
 msgstr "Ver portafolio"
 
-#: templates/home.html:226
+#: templates/home.html:237
 msgid "Galeria de fotos"
 msgstr "Galería de fotos"
 
-#: templates/home.html:232
+#: templates/home.html:243
 msgid "Fechar"
 msgstr "Cerrar"
 
-#: templates/home.html:252
+#: templates/home.html:263
 #, python-format
 msgid "Foto %(num)d de %(total)d — %(titulo)s"
 msgstr "Foto %(num)d de %(total)d — %(titulo)s"
 
-#: templates/home.html:264
+#: templates/home.html:275
 msgid "Foto anterior"
 msgstr "Foto anterior"
 
-#: templates/home.html:274
+#: templates/home.html:285
 msgid "Próxima foto"
 msgstr "Foto siguiente"
 
-#: templates/home.html:284
+#: templates/home.html:295
 msgid "Nenhuma foto neste catálogo ainda."
 msgstr "Aún no hay fotos en este catálogo."
 
-#: templates/home.html:304
+#: templates/home.html:315
 #, fuzzy
 msgid "Redes sociais"
 msgstr "Redes sociales"
 
-#: templates/home.html:305
+#: templates/home.html:316
 #, fuzzy
 msgid "Siga-nos e fique por dentro das novidades"
 msgstr "Síganos y manténgase al día"
 
-#: templates/home.html:313
+#: templates/home.html:324
 msgid "Instagram"
 msgstr "Instagram"
 
-#: templates/home.html:325
+#: templates/home.html:336
 msgid "Facebook"
 msgstr "Facebook"
 
-#: templates/home.html:355
+#: templates/home.html:366
 #, python-format
 msgid "© %(nome)s · %(marca)s"
 msgstr "© %(nome)s · %(marca)s"
 
-#: templates/home.html:355 templates/login.html:6
+#: templates/home.html:366 templates/home_vendas.html:10
+#: templates/home_vendas.html:17 templates/home_vendas.html:212
+#: templates/landing_saas.html:6 templates/landing_saas.html:15
+#: templates/login.html:6 templates/registrar.html:6
 #, fuzzy
 msgid "AgendaSimples"
 msgstr "AgendaSimples"
+
+#: templates/home_vendas.html:6 templates/home_vendas.html:11
+msgid ""
+"Agenda online, controle financeiro e menos faltas para barbearias, salões"
+" e clínicas."
+msgstr ""
+
+#: templates/home_vendas.html:10 templates/home_vendas.html:17
+msgid "Agenda online que vende mais"
+msgstr "Agenda online que vende más"
+
+#: templates/home_vendas.html:27
+msgid "Navegação principal"
+msgstr ""
+
+#: templates/home_vendas.html:32
+msgid "Começar grátis"
+msgstr ""
+
+#: templates/home_vendas.html:43
+msgid "Fazer login agora"
+msgstr ""
+
+#: templates/home_vendas.html:51
+#, fuzzy
+msgid "Plataforma #1 para agendamentos"
+msgstr "Plataforma #1 para reservas"
+
+#: templates/home_vendas.html:52
+msgid "Sua agenda online. Mais clientes. Menos faltas."
+msgstr "Su agenda online. Más clientes. Menos ausencias."
+
+#: templates/home_vendas.html:54
+msgid ""
+"Automatize reservas, controle o caixa e ofereça uma página profissional "
+"para seus clientes — tudo em um só lugar."
+msgstr ""
+
+#: templates/home_vendas.html:59
+#, python-format
+msgid "Reduza faltas em até 50%%"
+msgstr ""
+
+#: templates/home_vendas.html:63
+msgid "Aumente seu faturamento"
+msgstr ""
+
+#: templates/home_vendas.html:67
+#, fuzzy
+msgid "Configure em minutos"
+msgstr "Confirmar"
+
+#: templates/home_vendas.html:72 templates/home_vendas.html:138
+#: templates/landing_saas.html:21
+msgid "Começar teste grátis"
+msgstr ""
+
+#: templates/home_vendas.html:77
+msgid "Painel do seu negócio"
+msgstr ""
+
+#: templates/home_vendas.html:78
+msgid "Agenda do dia preenchida"
+msgstr ""
+
+#: templates/home_vendas.html:79
+msgid "Fluxo de caixa em tempo real"
+msgstr ""
+
+#: templates/home_vendas.html:80
+msgid "Link exclusivo para clientes"
+msgstr ""
+
+#: templates/home_vendas.html:81
+msgid "Equipe e serviços organizados"
+msgstr ""
+
+#: templates/home_vendas.html:89
+msgid "Tudo que seu negócio precisa"
+msgstr ""
+
+#: templates/home_vendas.html:91
+msgid ""
+"Ferramentas pensadas para barbearias, salões e clínicas que querem "
+"crescer com organização."
+msgstr ""
+
+#: templates/home_vendas.html:96
+#, fuzzy
+msgid "Agenda Online"
+msgstr "AgendaSimples"
+
+#: templates/home_vendas.html:97
+msgid ""
+"Clientes marcam horário 24h pelo link da sua página, sem troca de "
+"mensagens."
+msgstr ""
+
+#: templates/home_vendas.html:101
+#, fuzzy
+msgid "Controle Financeiro"
+msgstr "RESUMEN FINANCIERO"
+
+#: templates/home_vendas.html:102
+msgid "Receitas, despesas e faturamento por profissional em um painel claro."
+msgstr ""
+
+#: templates/home_vendas.html:106
+#, fuzzy
+msgid "Fluxo de Caixa"
+msgstr "SALDO EN CAJA"
+
+#: templates/home_vendas.html:107
+msgid "Saiba quanto entrou e saiu — tome decisões com números reais."
+msgstr ""
+
+#: templates/home_vendas.html:111
+msgid "Barbearias & Salões"
+msgstr ""
+
+#: templates/home_vendas.html:112
+msgid "Perfeito para barbearias, salões de beleza, estética e negócios similares."
+msgstr ""
+
+#: templates/home_vendas.html:119
+msgid "Preço simples, sem surpresas"
+msgstr ""
+
+#: templates/home_vendas.html:120
+msgid "Comece hoje. Cancele quando quiser."
+msgstr ""
+
+#: templates/home_vendas.html:123
+#, fuzzy
+msgid "Plano Profissional"
+msgstr "Acceso del profesional"
+
+#: templates/home_vendas.html:125
+#, python-format
+msgid "%(days)s dias grátis"
+msgstr ""
+
+#: templates/home_vendas.html:128
+msgid "mês"
+msgstr ""
+
+#: templates/home_vendas.html:130
+msgid "Depois do trial. Sem fidelidade. Sem taxa escondida."
+msgstr ""
+
+#: templates/home_vendas.html:132
+msgid "Agenda e link público ilimitados"
+msgstr ""
+
+#: templates/home_vendas.html:133
+msgid "Financeiro e fluxo de caixa"
+msgstr ""
+
+#: templates/home_vendas.html:134
+#, fuzzy
+msgid "Múltiplos profissionais"
+msgstr "Filtrar por Barbero:"
+
+#: templates/home_vendas.html:135
+msgid "Página personalizada do seu negócio"
+msgstr ""
+
+#: templates/home_vendas.html:146
+msgid "Crie sua conta agora"
+msgstr ""
+
+#: templates/home_vendas.html:148
+#, python-format
+msgid ""
+"%(days)s dias grátis — depois apenas R$ %(preco).2f/mês. Sem cartão para "
+"começar."
+msgstr ""
+
+#: templates/home_vendas.html:161 templates/registrar.html:36
+msgid "Nome do negócio"
+msgstr "Nombre del negocio"
+
+#: templates/home_vendas.html:164
+msgid "Ex.: Studio Bella, Barbearia Horizonte"
+msgstr ""
+
+#: templates/home_vendas.html:167
+msgid "Ramo de atividade"
+msgstr ""
+
+#: templates/home_vendas.html:169
+msgid "Selecione..."
+msgstr ""
+
+#: templates/home_vendas.html:176
+msgid "Seu nome (responsável)"
+msgstr ""
+
+#: templates/home_vendas.html:185 templates/registrar.html:51
+msgid "seu@email.com"
+msgstr "su@email.com"
+
+#: templates/home_vendas.html:188 templates/login.html:41
+#: templates/registrar.html:54
+#, fuzzy
+msgid "Senha"
+msgstr "Contraseña"
+
+#: templates/home_vendas.html:193 templates/registrar.html:59
+#, fuzzy
+msgid "Confirmar senha"
+msgstr "Confirmar contraseña"
+
+#: templates/home_vendas.html:195 templates/registrar.html:61
+#, fuzzy
+msgid "Repita a senha"
+msgstr "Repita la contraseña"
+
+#: templates/home_vendas.html:200
+msgid "Criar minha conta grátis"
+msgstr ""
+
+#: templates/home_vendas.html:205 templates/landing_saas.html:24
+#: templates/registrar.html:68
+#, fuzzy
+msgid "Já tem conta?"
+msgstr "¿Ya tiene cuenta?"
+
+#: templates/home_vendas.html:206 templates/landing_saas.html:25
+msgid "Entrar no painel"
+msgstr ""
+
+#: templates/home_vendas.html:212
+msgid "Agenda online para o seu negócio crescer."
+msgstr ""
+
+#: templates/landing_saas.html:6
+#, fuzzy
+msgid "Agenda online para o seu negócio"
+msgstr "Reserva online profesional"
+
+#: templates/landing_saas.html:16
+msgid "Plataforma SaaS para salões, clínicas e barbearias"
+msgstr ""
+
+#: templates/landing_saas.html:19
+msgid ""
+"Crie sua conta, personalize sua página pública e receba agendamentos dos "
+"clientes."
+msgstr ""
 
 #: templates/login.html:6
 msgid "Login"
@@ -659,76 +1438,55 @@ msgstr "Acceso del profesional"
 msgid "Digite seu e-mail"
 msgstr "Escriba su correo"
 
-#: templates/login.html:41
-#, fuzzy
-msgid "Senha"
-msgstr "Contraseña"
-
 #: templates/login.html:49
 msgid "Esqueci minha senha"
 msgstr "Olvidé mi contraseña"
 
-#: templates/marcar_agendamento.html:40
+#: templates/login.html:51
+msgid "Criar conta grátis"
+msgstr "Crear cuenta gratis"
+
+#: templates/marcar_agendamento.html:42
 msgid "Ex.: +55 19 99999-9999"
 msgstr "Ej.: +55 19 99999-9999"
 
-#: templates/marcar_agendamento.html:42
+#: templates/marcar_agendamento.html:44
 #, fuzzy
 msgid "Selecione o profissional"
 msgstr "Seleccione el profesional"
 
-#: templates/marcar_agendamento.html:44
+#: templates/marcar_agendamento.html:46
 #, fuzzy
 msgid "Escolha um profissional"
 msgstr "Elija un profesional"
 
-#: templates/marcar_agendamento.html:55
+#: templates/marcar_agendamento.html:57
 msgid "Profissional sugerido pelo seu link de agendamento."
 msgstr "Profesional sugerido por su enlace de reserva."
 
-#: templates/marcar_agendamento.html:59
+#: templates/marcar_agendamento.html:61
 #, fuzzy
 msgid "Data desejada"
 msgstr "Fecha deseada"
 
-#: templates/marcar_agendamento.html:62
+#: templates/marcar_agendamento.html:64
 msgid "Escolha o horário"
 msgstr "Elija el horario"
 
-#: templates/marcar_agendamento.html:64
+#: templates/marcar_agendamento.html:66
 msgid "Selecione um horário"
 msgstr "Seleccione un horario"
 
-#: templates/marcar_agendamento.html:72
+#: templates/marcar_agendamento.html:74
 msgid "Selecione o serviço"
 msgstr "Seleccione el servicio"
 
-#: templates/marcar_agendamento.html:73
-msgid "Corte"
-msgstr "Corte"
-
-#: templates/marcar_agendamento.html:74
-msgid "Corte e Barba"
-msgstr "Corte y barba"
-
-#: templates/marcar_agendamento.html:75
-msgid "Corte + Sobrancelha"
-msgstr "Corte + cejas"
-
-#: templates/marcar_agendamento.html:76
-msgid "Barba"
-msgstr "Barba"
-
-#: templates/marcar_agendamento.html:77
-msgid "Outro"
-msgstr "Otro"
-
-#: templates/marcar_agendamento.html:80
+#: templates/marcar_agendamento.html:85
 #, fuzzy
 msgid "Confirmar agendamento"
 msgstr "Confirmar reserva"
 
-#: templates/marcar_agendamento.html:83
+#: templates/marcar_agendamento.html:102
 #, fuzzy
 msgid "Voltar para a página inicial"
 msgstr "Volver a la página inicial"
@@ -770,6 +1528,33 @@ msgstr "Confirmar Contraseña:"
 #, fuzzy
 msgid "Salvar nova senha"
 msgstr "Confirmar Contraseña:"
+
+#: templates/registrar.html:6
+msgid "Criar conta"
+msgstr "Crear cuenta"
+
+#: templates/registrar.html:20
+msgid "Comece grátis"
+msgstr "Empiece gratis"
+
+#: templates/registrar.html:22
+#, python-format
+msgid "%(days)s dias de teste — sem cartão de crédito"
+msgstr "%(days)s días de prueba — sin tarjeta"
+
+#: templates/registrar.html:39
+msgid "Ex.: Studio Bella, Clínica Horizonte"
+msgstr "Ej.: Studio Bella, Clínica Horizonte"
+
+#: templates/registrar.html:42
+#, fuzzy
+msgid "Seu nome (profissional)"
+msgstr "Su nombre (profesional)"
+
+#: templates/registrar.html:64
+#, fuzzy
+msgid "Criar minha conta"
+msgstr "Crear mi cuenta"
 
 #~ msgid "Barbeiro cadastrado com sucesso!"
 #~ msgstr "¡Barbero registrado con éxito!"
@@ -952,4 +1737,46 @@ msgstr "Confirmar Contraseña:"
 
 #~ msgid "Login - Barber Agenda"
 #~ msgstr "Iniciar Sesión - Barber Agenda"
+
+#~ msgid "Admin"
+#~ msgstr ""
+
+#~ msgid "Financeiro - Christian Shall"
+#~ msgstr "Financiero - Christian Shall"
+
+#~ msgid "Voltar Agenda"
+#~ msgstr "Volver al Calendario"
+
+#~ msgid "Exportar PDF"
+#~ msgstr "Exportar Excel"
+
+#~ msgid "OK"
+#~ msgstr ""
+
+#~ msgid "Faturamento por Profissional"
+#~ msgstr ""
+
+#~ msgid "Total de receitas vinculadas a cada profissional (base para comissões)."
+#~ msgstr ""
+
+#~ msgid "Total"
+#~ msgstr ""
+
+#~ msgid "Nenhuma receita por profissional ainda."
+#~ msgstr ""
+
+#~ msgid "Soma das receitas por profissional"
+#~ msgstr ""
+
+#~ msgid "Nenhuma transação registrada."
+#~ msgstr ""
+
+#~ msgid "Corte"
+#~ msgstr "Corte"
+
+#~ msgid "Corte e Barba"
+#~ msgstr "Corte y barba"
+
+#~ msgid "Corte + Sobrancelha"
+#~ msgstr "Corte + cejas"
 

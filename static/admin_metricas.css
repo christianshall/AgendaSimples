@@ -1,0 +1,42 @@
+.page-metricas {
+    background: #f4f6f9;
+    min-height: 100vh;
+    font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.metricas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.metrica-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border-left: 4px solid #d4af37;
+}
+
+.metrica-card--saas {
+    border-left-color: #0d6efd;
+}
+
+.metrica-card h3 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    color: #1a1a1a;
+}
+
+.metrica-card p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.metricas-section-title {
+    font-weight: 700;
+    margin: 1.5rem 0 0.75rem;
+    color: #333;
+}
