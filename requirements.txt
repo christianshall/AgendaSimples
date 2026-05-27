@@ -1,19 +1,31 @@
+﻿# Flask e servidor
 Flask==3.1.2
 Flask-Babel==4.0.0
 gunicorn==25.1.0
-python-dotenv==1.2.2
-pytz==2025.2
-requests==2.32.5
-schedule==1.2.2
-stripe==15.1.0
 werkzeug==3.1.4
+
+# Ambiente e conexão de banco (local + Turso/libsql)
+python-dotenv==1.2.2
+libsql==0.1.10
+libsql-client==0.3.1
+requests==2.32.5
+
+# Pagamentos
+stripe==15.1.0
+
+# Datas e i18n
 python-dateutil==2.9.0.post0
-pytweening==1.2.0
-pywhatkit==5.4
-reportlab==4.4.6
-six==1.17.0
-soupsieve==2.8
-typing_extensions==4.15.0
+pytz==2025.2
 tzdata==2025.2
+
+# Relatórios e exportação
+reportlab==4.4.6
+openpyxl==3.1.5
+
+# Utilitários (legado / opcionais no app)
+schedule==1.2.2
+six==1.17.0
+typing_extensions==4.15.0
 urllib3==2.6.1
-wikipedia==1.4.0
+
+# sqlite3 faz parte da biblioteca padrão do Python (não instalar via pip)

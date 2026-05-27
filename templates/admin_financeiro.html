@@ -5,18 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ _('Financeiro') }} — {{ session.get('nome_barbearia', 'AgendaSimples') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lang-switcher.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='admin_financeiro.css') }}">
 </head>
 <body class="page-financeiro p-4 p-md-5">
 
-<div class="container-fluid" style="max-width: 1280px;">
+{% set qs_export = 'data_ini=' ~ data_ini ~ '&data_fim=' ~ data_fim ~ ('&profissional_id=' ~ filtro_profissional_id|string if filtro_profissional_id else '') %}
+{% set redirect_query = qs_export %}
+
+<div class="container-fluid" style="max-width: 1400px;">
 
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4 fin-header">
         <div>
-            <h2 class="mb-1">{{ _('Resumo financeiro') }}</h2>
-            <p class="text-muted mb-2 small">{{ session.get('nome_barbearia', '') }}</p>
+            <h1>{{ _('Gestão financeira') }}</h1>
+            <p class="text-muted mb-2 small">{{ session.get('nome_barbearia', '') }} · {{ _('Comissões e fluxo de caixa') }}</p>
             <div class="lang-picker-financeiro lang-selector-admin">
                 {% include '_lang_selector.html' %}
             </div>
@@ -37,149 +40,247 @@
         {% endfor %}
     </div>
     {% endif %}
+    {% endwith %}
 
-    <div class="fin-filter-card mb-4">
-        <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-5">
-                <label class="fin-label">{{ _('Filtrar por profissional') }}</label>
-                <select name="profissional_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">{{ _('Todos os profissionais') }}</option>
+    <!-- Filtros e comissões -->
+    <div class="fin-card mb-4">
+        <form method="get" class="row g-3 align-items-end" id="formFiltros">
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Data início') }}</label>
+                <input type="date" name="data_ini" class="form-control" value="{{ data_ini }}">
+            </div>
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Data fim') }}</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <div class="col-md-3">
+                <label class="fin-label">{{ _('Profissional') }}</label>
+                <select name="profissional_id" class="form-select">
+                    <option value="">{{ _('Todos') }}</option>
                     {% for p in profissionais %}
                     <option value="{{ p[0] }}" {% if filtro_profissional_id == p[0] %}selected{% endif %}>{{ p[1] }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-auto">
-                {% if filtro_profissional_id %}
-                <a href="{{ url_for('admin_financeiro') }}" class="btn btn-fin-outline">{{ _('Limpar filtro') }}</a>
-                {% endif %}
+                <button type="submit" class="btn btn-fin-primary">{{ _('Aplicar filtros') }}</button>
+            </div>
+            <div class="col-md-auto">
+                <a href="{{ url_for('financeiro_exportar_excel') }}?{{ qs_export }}" class="btn btn-fin-outline btn-sm">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
+                <a href="{{ url_for('financeiro_exportar_pdf') }}?{{ qs_export }}" class="btn btn-fin-outline btn-sm">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </form>
+        <hr class="my-3">
+        <form method="post" action="{{ url_for('admin_financeiro_salvar_comissoes') }}" class="row g-2 align-items-end">
+            <input type="hidden" name="redirect_query" value="{{ redirect_query }}">
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Comissão serviço') }} (%)</label>
+                <input type="number" name="pct_servico" class="form-control" min="0" max="100" step="0.5"
+                       value="{{ comissoes.servico }}">
+            </div>
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Comissão produto') }} (%)</label>
+                <input type="number" name="pct_produto" class="form-control" min="0" max="100" step="0.5"
+                       value="{{ comissoes.produto }}">
+            </div>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-fin-outline">{{ _('Salvar comissões') }}</button>
             </div>
         </form>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-lg-4">
-            <div class="card-stat h-100">
-                <span class="fin-label">{{ _('Saldo em caixa') }}</span>
-                <h2 class="fin-saldo mb-3">R$ {{ "%.2f"|format(saldo) }}</h2>
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="{{ url_for('financeiro_exportar_pdf', profissional_id=filtro_profissional_id) if filtro_profissional_id else url_for('financeiro_exportar_pdf') }}" class="btn btn-fin-outline btn-sm flex-fill">
-                        <i class="fas fa-file-pdf"></i> PDF
-                    </a>
-                    <a href="{{ url_for('financeiro_exportar_excel', profissional_id=filtro_profissional_id) if filtro_profissional_id else url_for('financeiro_exportar_excel') }}" class="btn btn-fin-outline btn-sm flex-fill">
-                        <i class="fas fa-file-excel"></i> Excel
-                    </a>
+    <!-- KPIs -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-card kpi-receitas">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">{{ _('Total receitas') }}</div>
+                        <div class="kpi-value text-receita">R$ {{ "%.2f"|format(kpis.total_receitas) }}</div>
+                    </div>
+                    <div class="kpi-icon"><i class="fas fa-arrow-trend-up"></i></div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-8">
-            <div class="card-stat h-100">
-                <span class="fin-label">{{ _('Novo lançamento') }}</span>
-                <form action="{{ url_for('lancar_transacao') }}" method="POST" class="row g-2 align-items-end mt-1">
-                    <div class="col-md-3">
-                        <label class="form-label small mb-0">{{ _('Descrição') }}</label>
-                        <input type="text" name="descricao" class="form-control" required>
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-card kpi-despesas">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">{{ _('Total despesas') }}</div>
+                        <div class="kpi-value text-despesa">R$ {{ "%.2f"|format(kpis.total_despesas) }}</div>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-0">{{ _('Valor') }}</label>
-                        <input type="text" name="valor" class="form-control" placeholder="0,00" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-0">{{ _('Categoria') }}</label>
-                        <select name="categoria" class="form-select" required>
-                            <option value="Serviço">{{ _('Serviço') }}</option>
-                            <option value="Produto">{{ _('Produto') }}</option>
-                            <option value="Despesa">{{ _('Despesa') }}</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-0">{{ _('Profissional') }}</label>
-                        <select name="profissional_id" class="form-select">
-                            <option value="">{{ _('Geral / Estabelecimento') }}</option>
-                            {% for p in profissionais %}
-                            <option value="{{ p[0] }}">{{ p[1] }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-fin-primary w-100">{{ _('Lançar') }}</button>
-                    </div>
-                </form>
+                    <div class="kpi-icon"><i class="fas fa-arrow-trend-down"></i></div>
+                </div>
             </div>
         </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="faturamento-card">
-                <h6 class="mb-2" style="color: var(--fin-blue-dark); font-weight: 700;">
-                    <i class="fas fa-users me-2"></i>{{ _('Faturamento por profissional') }}
-                </h6>
-                <p class="small text-muted mb-3">{{ _('Serviços e produtos separados — base para comissões e fechamento de caixa.') }}</p>
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>{{ _('Profissional') }}</th>
-                                <th class="text-end col-servicos">{{ _('Serviços') }}</th>
-                                <th class="text-end col-produtos">{{ _('Produtos') }}</th>
-                                <th class="text-end">{{ _('Total') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in faturamento_detalhado %}
-                            <tr>
-                                <td>
-                                    {% if profissionais_por_nome.get(row.nome) %}
-                                    <a href="{{ url_for('admin_financeiro', profissional_id=profissionais_por_nome[row.nome]) }}" class="text-decoration-none fw-semibold" style="color: var(--fin-blue-accent);">
-                                        {{ row.nome }}
-                                    </a>
-                                    {% else %}
-                                    {{ row.nome }}
-                                    {% endif %}
-                                </td>
-                                <td class="text-end col-servicos">R$ {{ "%.2f"|format(row.total_servicos) }}</td>
-                                <td class="text-end col-produtos">R$ {{ "%.2f"|format(row.total_produtos) }}</td>
-                                <td class="text-end fin-saldo">R$ {{ "%.2f"|format(row.total) }}</td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-3">{{ _('Nenhuma receita por profissional ainda.') }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        {% if faturamento_detalhado %}
-                        <tfoot>
-                            <tr class="faturamento-total">
-                                <td>{{ _('Total da equipe') }}</td>
-                                <td class="text-end col-servicos">R$ {{ "%.2f"|format(total_servicos_equipe) }}</td>
-                                <td class="text-end col-produtos">R$ {{ "%.2f"|format(total_produtos_equipe) }}</td>
-                                <td class="text-end">R$ {{ "%.2f"|format(total_faturamento_equipe) }}</td>
-                            </tr>
-                        </tfoot>
-                        {% endif %}
-                    </table>
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-card kpi-comissoes">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">{{ _('Comissões a pagar') }}</div>
+                        <div class="kpi-value" style="color: var(--fin-warning);">R$ {{ "%.2f"|format(kpis.comissoes_a_pagar) }}</div>
+                    </div>
+                    <div class="kpi-icon"><i class="fas fa-hand-holding-dollar"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-card kpi-lucro">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">{{ _('Lucro líquido') }}</div>
+                        <div class="kpi-value">R$ {{ "%.2f"|format(kpis.lucro_liquido) }}</div>
+                    </div>
+                    <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card-stat">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h6 class="mb-0" style="color: var(--fin-blue-dark); font-weight: 700;">{{ _('Transações') }}</h6>
-            {% if filtro_profissional_id %}
-            <span class="prof-chip">{{ _('Filtro ativo por profissional') }}</span>
-            {% endif %}
+    <div class="row g-4 mb-4">
+        <!-- Gráfico -->
+        <div class="col-lg-7">
+            <div class="fin-card h-100">
+                <div class="section-title"><i class="fas fa-chart-area me-2"></i>{{ _('Faturamento diário') }}</div>
+                <div class="chart-wrap">
+                    <canvas id="chartFaturamento"></canvas>
+                </div>
+            </div>
         </div>
+        <!-- Fechamento de caixa -->
+        <div class="col-lg-5">
+            <div class="fin-card h-100">
+                <div class="section-title"><i class="fas fa-cash-register me-2"></i>{{ _('Fechamento de caixa') }}</div>
+                {% if filtro_profissional_id %}
+                <p class="small text-muted mb-2">{{ _('Profissional selecionado no filtro') }}</p>
+                {% else %}
+                <p class="small text-muted mb-2">{{ _('Totais de receitas no período (todos)') }}</p>
+                {% endif %}
+                <div class="fechamento-box mb-3">
+                    <div class="fin-label">{{ _('Total bruto') }}</div>
+                    <div class="valor-destaque">R$ {{ "%.2f"|format(fechamento.total_bruto) }}</div>
+                    <div class="row mt-2 small">
+                        <div class="col-6">{{ _('Serviços') }}: R$ {{ "%.2f"|format(fechamento.bruto_servicos) }}</div>
+                        <div class="col-6">{{ _('Produtos') }}: R$ {{ "%.2f"|format(fechamento.bruto_produtos) }}</div>
+                    </div>
+                </div>
+                <div class="row g-2 small mb-2">
+                    <div class="col-6">
+                        <span class="text-muted">{{ _('Comissão serviços') }} ({{ fechamento.pct_servico }} %)</span><br>
+                        <strong>R$ {{ "%.2f"|format(fechamento.comissao_servicos) }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted">{{ _('Comissão produtos') }} ({{ fechamento.pct_produto }} %)</span><br>
+                        <strong>R$ {{ "%.2f"|format(fechamento.comissao_produtos) }}</strong>
+                    </div>
+                </div>
+                <div class="fechamento-box" style="background: linear-gradient(135deg, #e8f5e9, #f8fbff);">
+                    <div class="fin-label">{{ _('Valor líquido a pagar ao profissional') }}</div>
+                    <div class="valor-destaque" style="color: var(--fin-success);">R$ {{ "%.2f"|format(fechamento.liquido_a_pagar) }}</div>
+                    <div class="small text-muted mt-1">{{ _('Retenção estabelecimento') }}: R$ {{ "%.2f"|format(fechamento.retencao_estabelecimento) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lançamento inteligente -->
+    <div class="fin-card mb-4">
+        <div class="section-title"><i class="fas fa-bolt me-2"></i>{{ _('Novo lançamento') }}</div>
+        <form action="{{ url_for('lancar_transacao') }}" method="POST" id="formLancamento" class="row g-3">
+            <input type="hidden" name="redirect_query" value="{{ redirect_query }}">
+            <div class="col-md-3">
+                <label class="fin-label">{{ _('Descrição') }}</label>
+                <input type="text" name="descricao" id="lancDescricao" class="form-control" required>
+            </div>
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Valor (R$)') }}</label>
+                <input type="text" name="valor" id="lancValor" class="form-control" placeholder="0,00" required>
+            </div>
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Categoria') }}</label>
+                <select name="categoria" id="lancCategoria" class="form-select" required>
+                    <option value="Serviço">{{ _('Serviço') }}</option>
+                    <option value="Produto">{{ _('Produto') }}</option>
+                    <option value="Despesa">{{ _('Despesa') }}</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Profissional') }}</label>
+                <select name="profissional_id" id="lancProfissional" class="form-select">
+                    <option value="">{{ _('Geral / Estabelecimento') }}</option>
+                    {% for p in profissionais %}
+                    <option value="{{ p[0] }}">{{ p[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="fin-label">{{ _('Tags') }}</label>
+                <input type="text" name="tags" id="lancTags" class="form-control"
+                       placeholder="#corte, #barba">
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-fin-primary w-100">{{ _('Lançar') }}</button>
+            </div>
+            <div class="col-12">
+                <div id="splitPreview" class="split-preview d-none"></div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Equipe / comissões -->
+    <div class="fin-card mb-4">
+        <div class="section-title"><i class="fas fa-users me-2"></i>{{ _('Comissões por profissional') }}</div>
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ _('Profissional') }}</th>
+                        <th class="text-end">{{ _('Serviços') }}</th>
+                        <th class="text-end">{{ _('Produtos') }}</th>
+                        <th class="text-end">{{ _('Bruto') }}</th>
+                        <th class="text-end">{{ _('Comissão') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in faturamento_detalhado %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('admin_financeiro', data_ini=data_ini, data_fim=data_fim, profissional_id=row['id']) }}"
+                               class="text-decoration-none fw-semibold" style="color: var(--fin-primary);">
+                                {{ row['nome'] }}
+                            </a>
+                        </td>
+                        <td class="text-end">R$ {{ "%.2f"|format(row['total_servicos']) }}</td>
+                        <td class="text-end">R$ {{ "%.2f"|format(row['total_produtos']) }}</td>
+                        <td class="text-end fw-semibold">R$ {{ "%.2f"|format(row['total']) }}</td>
+                        <td class="text-end text-receita">R$ {{ "%.2f"|format(row['comissao_total']) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">{{ _('Nenhuma receita no período.') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Transações -->
+    <div class="fin-card">
+        <div class="section-title"><i class="fas fa-list me-2"></i>{{ _('Transações') }}</div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
                 <thead>
                     <tr>
                         <th>{{ _('Data') }}</th>
                         <th>{{ _('Descrição') }}</th>
                         <th>{{ _('Profissional') }}</th>
                         <th>{{ _('Categoria') }}</th>
-                        <th>{{ _('Movimento') }}</th>
+                        <th>{{ _('Tags') }}</th>
                         <th class="text-end">{{ _('Valor') }}</th>
                     </tr>
                 </thead>
@@ -204,14 +305,20 @@
                             <span class="tag-cat tag-cat-despesa">{{ _('Despesa') }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ _(t.tipo_transacao) }}</td>
+                        <td>
+                            {% for tag in t.tags_lista %}
+                            <span class="tag-chip">{{ tag }}</span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
                         <td class="text-end {{ 'text-receita' if t.tipo_transacao == 'Receita' else 'text-despesa' }}">
                             R$ {{ "%.2f"|format(t.valor) }}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">{{ _('Nenhuma transação registrada.') }}</td>
+                        <td colspan="6" class="text-center text-muted py-4">{{ _('Nenhuma transação no período.') }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -220,5 +327,16 @@
     </div>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    window.FIN_COMISSOES = {{ comissoes_json | tojson }};
+    window.FIN_GRAFICO = {
+        labels: {{ grafico_labels | tojson }},
+        valores: {{ grafico_valores | tojson }}
+    };
+</script>
+<script src="{{ url_for('static', filename='admin_financeiro.js') }}"></script>
 </body>
 </html>

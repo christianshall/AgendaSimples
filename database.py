@@ -1,4 +1,4 @@
-"""SQLite local ou Turso via HTTP (serverless) — conexão, schema e inicialização."""
+"""SQLite local ou Turso/libSQL — conexão, schema e inicialização."""
 import json
 import os
 import sqlite3
@@ -8,21 +8,58 @@ from datetime import datetime, timedelta
 import requests
 from werkzeug.security import generate_password_hash
 
-# Vercel: /tmp; local: agenda.db na raiz do projeto
-_DEFAULT_PATH = (
-    os.path.join(os.environ.get("TMPDIR", "/tmp"), "agenda.db")
-    if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")
-    else os.path.join(os.path.dirname(os.path.abspath(__file__)), "agenda.db")
-)
-DATABASE_PATH = os.environ.get("SQLITE_DATABASE_PATH", _DEFAULT_PATH)
+try:
+    import libsql  # type: ignore
+except Exception:
+    libsql = None
+
+# SQLite local apenas em desenvolvimento.
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_LOCAL_SQLITE_DEFAULT = os.path.join(_BASE_DIR, "database.db")
+_LEGACY_SQLITE_PATH = os.path.join(_BASE_DIR, "agenda.db")
+DATABASE_PATH = os.environ.get("SQLITE_DATABASE_PATH", _LOCAL_SQLITE_DEFAULT)
 
 DbError = sqlite3.Error
 
 
+def is_producao_remota():
+    """True quando o deploy deve usar banco remoto (Vercel / TURSO_DATABASE_URL)."""
+    if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
+        return True
+    if (os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL") or "").strip():
+        return True
+    if os.environ.get("FORCE_REMOTE_DATABASE", "").lower() in ("1", "true", "yes"):
+        return True
+    return False
+
+
 def _turso_credentials():
-    database_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
-    auth_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
+    """
+    URL e token do Turso/LibSQL.
+    Prioriza TURSO_DATABASE_URL e TURSO_AUTH_TOKEN.
+    Aceita aliases legados para retrocompatibilidade.
+    Token: TURSO_AUTH_TOKEN, DATABASE_AUTH_TOKEN ou LIBSQL_AUTH_TOKEN.
+    """
+    # Prioridade: TURSO_DATABASE_URL.
+    database_url = (
+        os.environ.get("TURSO_DATABASE_URL")
+        or os.environ.get("DATABASE_URL")
+        or os.environ.get("LIBSQL_URL")
+        or ""
+    ).strip()
+    auth_token = (
+        os.environ.get("TURSO_AUTH_TOKEN")
+        or os.environ.get("DATABASE_AUTH_TOKEN")
+        or os.environ.get("LIBSQL_AUTH_TOKEN")
+        or ""
+    ).strip()
     return database_url, auth_token
+
+
+def usar_banco_remoto():
+    """Indica se get_connection() usará Turso HTTP (não arquivo .db local)."""
+    url, token = _turso_credentials()
+    return bool(url and token)
 
 
 def _turso_pipeline_url(database_url):
@@ -500,11 +537,33 @@ def _connect_turso_http(database_url, auth_token):
         ) from exc
 
 
+def _connect_turso_libsql(database_url, auth_token):
+    if libsql is None:
+        raise sqlite3.OperationalError(
+            "Biblioteca libsql indisponível no ambiente."
+        )
+    try:
+        conn = libsql.connect(database=database_url, auth_token=auth_token)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as exc:
+        raise sqlite3.OperationalError(
+            f"Não foi possível conectar ao Turso via libsql: {exc}"
+        ) from exc
+
+
 def _connect_sqlite():
-    db_dir = os.path.dirname(os.path.abspath(DATABASE_PATH))
+    database_path = DATABASE_PATH
+    if (
+        database_path == _LOCAL_SQLITE_DEFAULT
+        and not os.path.exists(database_path)
+        and os.path.exists(_LEGACY_SQLITE_PATH)
+    ):
+        database_path = _LEGACY_SQLITE_PATH
+    db_dir = os.path.dirname(os.path.abspath(database_path))
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
-    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
+    conn = sqlite3.connect(database_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -512,12 +571,26 @@ def _connect_sqlite():
 
 def get_connection():
     """
-    Turso (nuvem): TURSO_DATABASE_URL + TURSO_AUTH_TOKEN via SQL over HTTP (requests).
-    Local: arquivo agenda.db com sqlite3 nativo quando as variáveis não existem.
+    Produção (Vercel): TURSO_DATABASE_URL + TURSO_AUTH_TOKEN.
+    Desenvolvimento: fallback local em database.db.
     """
     database_url, auth_token = _turso_credentials()
     if database_url and auth_token:
-        return _connect_turso_http(database_url, auth_token)
+        try:
+            conn = _connect_turso_libsql(database_url, auth_token)
+            print("Conectado ao Turso em Produção")
+            return conn
+        except Exception as exc:
+            print(f"Falha libsql, tentando fallback HTTP do Turso: {exc}")
+            conn = _connect_turso_http(database_url, auth_token)
+            print("Conectado ao Turso em Produção")
+            return conn
+    if is_producao_remota():
+        raise sqlite3.OperationalError(
+            "Banco remoto obrigatório em produção. Configure TURSO_DATABASE_URL "
+            "(libsql://...) e TURSO_AUTH_TOKEN na Vercel."
+        )
+    print("Usando Banco Local em Desenvolvimento")
     return _connect_sqlite()
 
 
@@ -957,16 +1030,274 @@ def vincular_usuario_barbearia(cursor, user_id):
     return None
 
 
+def criar_tabelas_core(cursor):
+    """CREATE TABLE IF NOT EXISTS — compatível com Turso (um statement por vez)."""
+    ddls = (
+        """
+        CREATE TABLE IF NOT EXISTS barbearias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            slug TEXT UNIQUE,
+            email TEXT,
+            senha TEXT,
+            plano_ativo INTEGER DEFAULT 1,
+            titulo_catalogo1 TEXT,
+            titulo_catalogo2 TEXT,
+            titulo_catalogo3 TEXT,
+            titulo_catalogo4 TEXT,
+            logotipo_url TEXT,
+            texto_marcar_direito TEXT,
+            foto_fundo_direito_url TEXT,
+            capa_catalogo1 TEXT,
+            capa_catalogo2 TEXT,
+            capa_catalogo3 TEXT,
+            capa_catalogo4 TEXT,
+            link_instagram TEXT,
+            link_facebook TEXT,
+            link_whatsapp TEXT,
+            data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
+            ramo_atividade TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER,
+            nome TEXT NOT NULL,
+            email TEXT UNIQUE,
+            telefone TEXT,
+            senha TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'profissional',
+            especialidade TEXT,
+            foto_perfil TEXT,
+            data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
+            status_trial TEXT DEFAULT 'trialing'
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS tb_configuracoes (
+            chave TEXT PRIMARY KEY,
+            valor TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS financeiro (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER,
+            descricao TEXT,
+            valor REAL NOT NULL DEFAULT 0,
+            tipo_transacao TEXT NOT NULL,
+            categoria TEXT,
+            servico TEXT,
+            produto TEXT,
+            tags TEXT,
+            barbeiro TEXT,
+            profissional_id INTEGER,
+            agendamento_id INTEGER,
+            data TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS Clientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER,
+            Nome TEXT NOT NULL,
+            Dia TEXT NOT NULL,
+            Hora TEXT NOT NULL,
+            Servico TEXT,
+            valor REAL,
+            Whatsapp TEXT,
+            barbeiro_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'Agendado'
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS servicos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0,
+            preco REAL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS horarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            hora TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS tb_galeria (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            categoria TEXT NOT NULL,
+            caminho_foto TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS assinaturas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL UNIQUE,
+            stripe_customer_id TEXT,
+            stripe_subscription_id TEXT,
+            plano_status TEXT NOT NULL DEFAULT 'trialing',
+            data_fim_trial TEXT,
+            data_fim_plano TEXT,
+            criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+    )
+    for ddl in ddls:
+        try:
+            cursor.execute(ddl)
+        except Exception as exc:
+            print(f"criar_tabelas_core: {exc}")
+
+
+def garantir_comissoes_defaults(cursor, barbearia_id=None):
+    """
+    Garante chaves de comissão em tb_configuracoes (60% serviço, 10% produto).
+    Se a tabela estiver vazia ou faltar chave para o tenant, insere padrões.
+    """
+    criar_tabelas_core(cursor)
+    defaults_globais = (
+        ("fin_pct_servico_padrao", "60"),
+        ("fin_pct_produto_padrao", "10"),
+    )
+    for chave, valor in defaults_globais:
+        try:
+            cursor.execute(
+                "SELECT 1 FROM tb_configuracoes WHERE chave = ? LIMIT 1", (chave,)
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO tb_configuracoes (chave, valor) VALUES (?, ?)",
+                    (chave, valor),
+                )
+        except Exception as exc:
+            print(f"garantir_comissoes_defaults global ({chave}): {exc}")
+
+    barbearia_ids = []
+    if barbearia_id is not None:
+        barbearia_ids = [int(barbearia_id)]
+    else:
+        try:
+            cursor.execute("SELECT id FROM barbearias ORDER BY id")
+            barbearia_ids = [
+                int(_valor_linha(r, 0, "id"))
+                for r in (cursor.fetchall() or [])
+                if _valor_linha(r, 0, "id") is not None
+            ]
+        except Exception as exc:
+            print(f"garantir_comissoes_defaults listar barbearias: {exc}")
+
+    for bid in barbearia_ids:
+        for sufixo, valor_pad in (("servico", "60"), ("produto", "10")):
+            chave = f"fin_pct_{sufixo}_{bid}"
+            try:
+                cursor.execute(
+                    "SELECT 1 FROM tb_configuracoes WHERE chave = ? LIMIT 1",
+                    (chave,),
+                )
+                if not cursor.fetchone():
+                    cursor.execute(
+                        "INSERT INTO tb_configuracoes (chave, valor) VALUES (?, ?)",
+                        (chave, valor_pad),
+                    )
+            except Exception as exc:
+                print(f"garantir_comissoes_defaults ({chave}): {exc}")
+
+
+def garantir_banco_pronto(conn=None):
+    """Schema completo + migrações + defaults de comissão (Turso ou SQLite)."""
+    fecha = conn is None
+    if fecha:
+        conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        criar_tabelas_core(cursor)
+        ensure_schema_migrations(cursor)
+        garantir_comissoes_defaults(cursor)
+        safe_commit(conn)
+        return cursor
+    finally:
+        if fecha:
+            safe_close(conn)
+
+
+def ensure_database_schema(conn=None):
+    """
+    Garante schema mínimo para produção/desenvolvimento na inicialização.
+    Verifica tabelas críticas e aplica migrações automáticas (ex.: financeiro.tags).
+    """
+    fecha = conn is None
+    if fecha:
+        conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        criar_tabelas_core(cursor)
+        ensure_schema_migrations(cursor)
+
+        tabelas_criticas = ("financeiro", "Clientes", "tb_configuracoes")
+        for tabela in tabelas_criticas:
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+                (tabela,),
+            )
+            if not cursor.fetchone():
+                raise sqlite3.OperationalError(
+                    f"Tabela obrigatória ausente após migração automática: {tabela}"
+                )
+
+        colunas_criticas = (
+            ("financeiro", "tags", "TEXT"),
+            ("financeiro", "categoria", "TEXT"),
+            ("Clientes", "barbearia_id", "INTEGER"),
+        )
+        for tabela, coluna, tipo_sql in colunas_criticas:
+            if not _coluna_existe(cursor, tabela, coluna):
+                cursor.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo_sql}")
+
+        garantir_comissoes_defaults(cursor)
+        safe_commit(conn)
+        return cursor
+    finally:
+        if fecha:
+            safe_close(conn)
+
+
+def ensure_schema_migrations_conn(conn):
+    """Executa migrações e confirma no banco (obrigatório no Turso após ALTER)."""
+    cursor = conn.cursor()
+    criar_tabelas_core(cursor)
+    ensure_schema_migrations(cursor)
+    safe_commit(conn)
+    return cursor
+
+
 def ensure_schema_migrations(cursor):
     """Adiciona colunas e tabelas novas em bancos já existentes (SQLite / Turso)."""
+    # Clientes = tabela de agendamentos (não existe tabela "agenda" separada).
+    # financeiro.categoria distingue Serviço | Produto | Despesa; colunas servico/produto
+    # guardam o nome digitado quando existirem no banco legado.
     alteracoes = [
         ("usuarios", "data_cadastro", "TEXT"),
         ("usuarios", "status_trial", "TEXT"),
         ("usuarios", "barbearia_id", "INTEGER"),
         ("Clientes", "barbearia_id", "INTEGER"),
+        ("Clientes", "valor", "REAL"),
         ("financeiro", "barbearia_id", "INTEGER"),
         ("financeiro", "agendamento_id", "INTEGER"),
         ("financeiro", "categoria", "TEXT"),
+        ("financeiro", "valor", "REAL"),
+        ("financeiro", "servico", "TEXT"),
+        ("financeiro", "produto", "TEXT"),
+        ("financeiro", "tags", "TEXT"),
         ("servicos", "preco", "REAL"),
         ("barbearias", "ramo_atividade", "TEXT"),
     ]
@@ -1098,6 +1429,7 @@ def init_database():
             Dia TEXT NOT NULL,
             Hora TEXT NOT NULL,
             Servico TEXT,
+            valor REAL,
             Whatsapp TEXT,
             barbeiro_id INTEGER,
             status TEXT NOT NULL DEFAULT 'Agendado',
@@ -1125,6 +1457,9 @@ def init_database():
             valor REAL NOT NULL,
             tipo_transacao TEXT NOT NULL,
             categoria TEXT,
+            servico TEXT,
+            produto TEXT,
+            tags TEXT,
             barbeiro TEXT,
             profissional_id INTEGER,
             agendamento_id INTEGER,
@@ -1153,7 +1488,9 @@ def init_database():
         """
         )
 
+        criar_tabelas_core(cursor)
         ensure_schema_migrations(cursor)
+        garantir_comissoes_defaults(cursor)
 
         cursor.execute("SELECT COUNT(*) FROM barbearias")
         count_row = cursor.fetchone()
@@ -1209,8 +1546,9 @@ def init_database():
                 (barbearia_id, fim_trial, agora, agora),
             )
 
-        conn.commit()
-        conn.close()
+        garantir_comissoes_defaults(cursor)
+        safe_commit(conn)
+        safe_close(conn)
         print("init_database: OK")
 
     except Exception as exc:
