@@ -13,13 +13,6 @@
       "dest": "app.py"
     }
   ],
-  "functions": {
-    "app.py": {
-      "maxDuration": 60,
-      "memory": 1024,
-      "excludeFiles": "{agenda.db,**/*.db,.env,.venv/**,venv/**}"
-    }
-  },
   "env": {
     "PYTHON_VERSION": "3.12"
   },
