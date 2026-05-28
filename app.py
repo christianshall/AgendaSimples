@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import db_adapter
 import auth_service as auth
 import agenda_service as agenda
+import catalogo_service as catalogo
 from database import (
     DbError,
     SERVICOS_PADRAO,
@@ -498,37 +499,15 @@ def _listar_servicos(cursor, barbearia_id):
 
 
 def _listar_servicos_detalhados(cursor, barbearia_id):
-    """Serviços com preço para agendamento e financeiro."""
-    tem_preco = _coluna_existe(cursor, "servicos", "preco")
-    if tem_preco:
-        cursor.execute(
-            """
-            SELECT nome, IFNULL(preco, 0) FROM servicos
-            WHERE barbearia_id = ? AND IFNULL(ativo, 1) = 1
-            ORDER BY ordem, nome
-            """,
-            (barbearia_id,),
-        )
-        rows = cursor.fetchall()
-        if rows:
-            return [{"nome": r[0], "preco": float(r[1] or 0)} for r in rows]
-    else:
-        cursor.execute(
-            """
-            SELECT nome FROM servicos
-            WHERE barbearia_id = ? AND IFNULL(ativo, 1) = 1
-            ORDER BY ordem, nome
-            """,
-            (barbearia_id,),
-        )
-        rows = cursor.fetchall()
-        if rows:
-            return [
-                {"nome": r[0], "preco": _preco_padrao_servico(r[0])} for r in rows
-            ]
-    return [
-        {"nome": n, "preco": _preco_padrao_servico(n)} for n in SERVICOS_PADRAO
-    ]
+    """Serviços ativos com preço (agenda / marcar)."""
+    conn = getattr(cursor, "connection", None) or getattr(cursor, "_conn", None)
+    return catalogo.listar_servicos_agenda(barbearia_id, conn=conn)
+
+
+def _listar_produtos_detalhados(cursor, barbearia_id):
+    """Produtos ativos com preço (agenda / financeiro)."""
+    conn = getattr(cursor, "connection", None) or getattr(cursor, "_conn", None)
+    return catalogo.listar_produtos_agenda(barbearia_id, conn=conn)
 
 
 def _preco_padrao_servico(nome_servico):
@@ -577,10 +556,60 @@ def _descricao_financeiro_agendamento(servico, nome_cliente):
     return f"Agendamento: {servico} | Cliente: {nome}"
 
 
+def _registrar_valores_agendamento_financeiro(
+    cursor,
+    nome_cliente,
+    servico,
+    barbeiro_id,
+    barbearia_id,
+    agendamento_id,
+    valor_servico,
+    valor_produto,
+    produto_nome=None,
+):
+    """Lança até duas receitas (serviço + produto) vinculadas ao agendamento."""
+    valor_servico = max(0.0, float(valor_servico or 0))
+    valor_produto = max(0.0, float(valor_produto or 0))
+    servico = (servico or "Atendimento").strip()
+    nome_cliente = (nome_cliente or "Cliente").strip()
+    base_desc = _descricao_financeiro_agendamento(servico, nome_cliente)
+
+    if valor_servico > 0:
+        _registrar_receita_agendamento(
+            cursor,
+            base_desc,
+            valor_servico,
+            barbeiro_id,
+            barbearia_id,
+            agendamento_id=agendamento_id,
+            substituir_existente=True,
+            categoria="Serviço",
+            nome_item=servico,
+        )
+    if valor_produto > 0:
+        item_prod = (produto_nome or "").strip() or "Produto"
+        _registrar_receita_agendamento(
+            cursor,
+            f"{base_desc} | Produto: {item_prod}",
+            valor_produto,
+            barbeiro_id,
+            barbearia_id,
+            agendamento_id=agendamento_id,
+            substituir_existente=True,
+            categoria="Produto",
+            nome_item=item_prod,
+        )
+
+
 def _categoria_financeira_do_formulario(form=None):
     """Serviço ou Produto conforme o POST (padrão: Serviço)."""
-    raw = ((form.get("categoria") if form is not None else None) or "").strip()
-    return "Produto" if raw == "Produto" else "Serviço"
+    if form is None:
+        return "Serviço"
+    raw = (form.get("categoria") or form.get("tipo_item") or "").strip()
+    tipo = (form.get("descricao_tipo") or "").strip()
+    if raw == "Produto" or tipo in ("Venda de Produto", "Produto"):
+        return "Produto"
+    return "Serviço"
 
 
 def _id_agendamento_slot(cursor, dia, hora, barbeiro_id, barbearia_id):
@@ -1626,15 +1655,26 @@ def admin_agenda():
                 if d_str in agenda_data and h_str in agenda_data[d_str]:
                     if agenda_data[d_str][h_str] is None:
                         agenda_data[d_str][h_str] = []
+                    v_total = float(r.get("valor") or 0)
+                    v_srv = float(r.get("valor_servico") if r.get("valor_servico") is not None else v_total)
+                    v_prod = float(r.get("valor_produto") or 0)
+                    if r.get("valor_servico") is None and r.get("valor_produto") is None:
+                        v_srv, v_prod = v_total, 0.0
                     agenda_data[d_str][h_str].append({
                         "nome": r.get("Nome"),
                         "servico": r.get("Servico"),
+                        "produto_nome": (r.get("produto_nome") or "").strip(),
                         "whatsapp": r.get("Whatsapp") or "",
                         "barbeiro_nome": r.get("barbeiro_nome"),
                         "barbeiro_id": r.get("barbeiro_id"),
+                        "valor": v_total,
+                        "valor_servico": v_srv,
+                        "valor_produto": v_prod,
                     })
 
             barbeiros = fin.listar_profissionais(barbearia_id, conn=conn)
+            servicos_detalhados = _listar_servicos_detalhados(cursor, barbearia_id)
+            produtos_detalhados = _listar_produtos_detalhados(cursor, barbearia_id)
             barbearia = auth.buscar_barbearia_por_id(barbearia_id, conn=conn)
             barbearia_slug = (
                 barbearia["slug"] if barbearia else session.get("barbearia_slug", "")
@@ -1655,6 +1695,8 @@ def admin_agenda():
         barbearia_slug=barbearia_slug,
         eh_admin=eh_admin,
         filtrar_meus=filtrar_meus,
+        servicos_detalhados=servicos_detalhados,
+        produtos_detalhados=produtos_detalhados,
     )
 
 
@@ -1813,6 +1855,10 @@ def admin_agenda_concluir():
     hora = request.form.get("hora")
     barbeiro_id = request.form.get("barbeiro_id")
     valor_raw = (request.form.get("valor") or "0").strip().replace(",", ".")
+    valor_srv_raw = request.form.get("valor_servico")
+    valor_prod_raw = request.form.get("valor_produto")
+    produto_nome_fin = (request.form.get("produto_nome") or "").strip()
+    modo_split = request.form.get("modo_valores_split") == "1"
     tipo_feito = request.form.get("descricao_tipo", "Serviço")
     detalhe = request.form.get("descricao_detalhe", "")
     servico_agendado = request.form.get("servico_agendado", "")
@@ -1823,7 +1869,18 @@ def admin_agenda_concluir():
         return redirect(url_for("admin_agenda"))
 
     try:
-        valor = float(valor_raw) if valor_raw else 0.0
+        if modo_split:
+            valor_servico = float(
+                _parse_valor_monetario(valor_srv_raw) or 0
+            )
+            valor_produto = float(
+                _parse_valor_monetario(valor_prod_raw) or 0
+            )
+            valor = valor_servico + valor_produto
+        else:
+            valor_servico = 0.0
+            valor_produto = 0.0
+            valor = float(valor_raw) if valor_raw else 0.0
     except ValueError:
         flash("Valor inválido. Use apenas números (ex: 50 ou 50.00).", "danger")
         return redirect(url_for("admin_agenda"))
@@ -1861,15 +1918,44 @@ def admin_agenda_concluir():
             agenda.marcar_agendamento_concluido(
                 data, hora, int(barbeiro_id), barbearia_id, conn=conn
             )
+            agenda.atualizar_valor_agendamento(
+                data,
+                hora,
+                int(barbeiro_id),
+                barbearia_id,
+                valor,
+                valor_servico=valor_servico if modo_split else None,
+                valor_produto=valor_produto if modo_split else None,
+                produto_nome=produto_nome_fin if modo_split else None,
+                conn=conn,
+            )
             agendamento_id = agenda.id_agendamento_slot(
                 data, hora, int(barbeiro_id), barbearia_id, conn=conn
             )
-            descricao_fin = _montar_descricao_atendimento(
-                tipo_feito, detalhe, servico_agendado, nome_cliente
-            )
-            cat_fin = _categoria_de_tipo_atendimento(tipo_feito)
             try:
-                if valor > 0:
+                if modo_split and (valor_servico > 0 or valor_produto > 0):
+                    _registrar_valores_agendamento_financeiro(
+                        cursor,
+                        nome_cliente,
+                        servico_agendado,
+                        int(barbeiro_id),
+                        barbearia_id,
+                        agendamento_id,
+                        valor_servico,
+                        valor_produto,
+                        produto_nome=produto_nome_fin,
+                    )
+                    flash(
+                        f"Atendimento concluído. Serviço R$ {valor_servico:.2f} "
+                        f"+ Produto R$ {valor_produto:.2f} no financeiro.",
+                        "success",
+                    )
+                elif valor > 0:
+                    descricao_fin = _montar_descricao_atendimento(
+                        tipo_feito, detalhe, servico_agendado, nome_cliente
+                    )
+                    cat_fin = _categoria_de_tipo_atendimento(tipo_feito)
+                    nome_item_fin = (detalhe or servico_agendado or "").strip()
                     _registrar_receita_agendamento(
                         cursor,
                         descricao_fin,
@@ -1879,23 +1965,13 @@ def admin_agenda_concluir():
                         agendamento_id=agendamento_id,
                         substituir_existente=True,
                         categoria=cat_fin,
+                        nome_item=nome_item_fin,
                     )
                     flash(
                         f"Atendimento concluído. Receita de R$ {valor:.2f} registrada no financeiro.",
                         "success",
                     )
                 else:
-                    if agendamento_id:
-                        _registrar_receita_agendamento(
-                            cursor,
-                            descricao_fin,
-                            0.0,
-                            int(barbeiro_id),
-                            barbearia_id,
-                            agendamento_id=agendamento_id,
-                            substituir_existente=True,
-                            categoria=cat_fin,
-                        )
                     flash(
                         "Atendimento concluído sem lançamento financeiro (valor R$ 0,00).",
                         "success",
@@ -2017,6 +2093,13 @@ def _buscar_agendamento_por_id(cursor, agendamento_id):
 
 @app.route("/agendar", methods=["POST"])
 def agendar():
+    equipe = _usuario_equipe_logado()
+
+    def _voltar_apos_erro_agendar():
+        if equipe:
+            return redirect(url_for("admin_agenda"))
+        return redirect(url_for("home"))
+
     nome = (request.form.get("nome") or "").strip()
     data = (request.form.get("data") or "").strip()
     hora = (request.form.get("hora") or "").strip()
@@ -2039,22 +2122,20 @@ def agendar():
     }
     if not all(campos_obrigatorios.values()):
         flash(_("Preencha todos os campos obrigatórios do agendamento."), "error")
-        return redirect(url_for("home"))
+        return _voltar_apos_erro_agendar()
 
     try:
         barbeiro_id = int(barbeiro_id_raw)
     except (TypeError, ValueError):
         flash(_("Profissional inválido."), "error")
-        return redirect(url_for("home"))
+        return _voltar_apos_erro_agendar()
 
     novo_id = None
     ident_home = slug_volta or None
-    equipe = False
     try:
         with db_adapter.connection_scope() as conn:
             db_adapter.ensure_app_schema(conn)
             cursor = db_adapter.cursor(conn)
-            equipe = _usuario_equipe_logado()
 
             if not barbearia_id and slug_volta:
                 barbearia = auth.buscar_barbearia_por_slug(slug_volta, conn=conn)
@@ -2063,7 +2144,7 @@ def agendar():
 
             if not barbearia_id:
                 flash(_("Estabelecimento inválido."), "error")
-                return redirect(url_for("home"))
+                return _voltar_apos_erro_agendar()
 
             if not agenda.profissional_pertence_barbearia(
                 barbeiro_id, barbearia_id, conn=conn
@@ -2084,15 +2165,19 @@ def agendar():
                     return redirect(url_for("admin_agenda"))
                 return _redirect_home_barbearia(cursor, barbearia_id, slug_volta)
 
-            valor_form = _parse_valor_monetario(request.form.get("valor"))
-            valor_clientes = float(valor_form) if valor_form is not None else 0.0
-            valor_financeiro = (
-                float(valor_form)
-                if valor_form is not None
-                else agenda.obter_preco_servico(barbearia_id, servico, conn=conn)
+            valor_servico = float(
+                _parse_valor_monetario(request.form.get("valor_servico")) or 0
             )
-            categoria_fin = _categoria_financeira_do_formulario(request.form)
-            descricao_fin = _descricao_financeiro_agendamento(servico, nome)
+            valor_produto = float(
+                _parse_valor_monetario(request.form.get("valor_produto")) or 0
+            )
+            if valor_servico <= 0 and valor_produto <= 0:
+                valor_servico = float(
+                    catalogo.obter_preco_servico(barbearia_id, servico, conn=conn)
+                    or 0
+                )
+            produto_nome = (request.form.get("produto_nome") or "").strip()
+            valor_clientes = valor_servico + valor_produto
 
             novo_id = agenda.inserir_agendamento(
                 nome,
@@ -2103,6 +2188,9 @@ def agendar():
                 barbeiro_id,
                 barbearia_id,
                 valor=valor_clientes,
+                valor_servico=valor_servico,
+                valor_produto=valor_produto,
+                produto_nome=produto_nome,
                 conn=conn,
             )
             ident_home = _identificador_publico_barbearia(
@@ -2111,16 +2199,16 @@ def agendar():
 
             if novo_id:
                 try:
-                    _registrar_receita_agendamento(
+                    _registrar_valores_agendamento_financeiro(
                         cursor,
-                        descricao_fin,
-                        valor_financeiro,
+                        nome,
+                        servico,
                         barbeiro_id,
                         barbearia_id,
-                        agendamento_id=novo_id,
-                        substituir_existente=True,
-                        categoria=categoria_fin,
-                        nome_item=servico,
+                        novo_id,
+                        valor_servico,
+                        valor_produto,
+                        produto_nome=produto_nome,
                     )
                 except Exception:
                     app.logger.exception(
@@ -2152,13 +2240,17 @@ def agendar():
         return redirect(url_for("home"))
 
     if equipe:
-        return redirect(
-            url_for(
-                "sucesso_agendamento",
-                agendamento_id=novo_id,
-                slug=ident_home,
-            )
+        flash(
+            _(
+                "Agendamento confirmado! %(nome)s — %(data)s às %(hora)s (%(servico)s).",
+                nome=nome,
+                data=data,
+                hora=hora,
+                servico=servico,
+            ),
+            "success",
         )
+        return redirect(url_for("admin_agenda"))
 
     flash(
         _(
@@ -2625,14 +2717,16 @@ def _registrar_receita_agendamento(
         and agendamento_id
         and _financeiro_tem_coluna(cursor, "agendamento_id")
     ):
-        cursor.execute(
-            """
+        sql_exist = """
             SELECT id FROM financeiro
             WHERE agendamento_id = ? AND barbearia_id = ?
-            LIMIT 1
-            """,
-            (int(agendamento_id), int(barbearia_id)),
-        )
+        """
+        params_exist = [int(agendamento_id), int(barbearia_id)]
+        if _financeiro_tem_coluna(cursor, "categoria"):
+            sql_exist += " AND categoria = ?"
+            params_exist.append(categoria)
+        sql_exist += " LIMIT 1"
+        cursor.execute(sql_exist, tuple(params_exist))
         existente = cursor.fetchone()
         if existente:
             fin_id = _valor_linha(existente, 0, "id")
@@ -3293,6 +3387,101 @@ def eliminar_foto(foto_id):
     safe_close(conn)
     return redirect(url_for("admin_galeria"))
 
+# -------------------------- CATÁLOGO (SERVIÇOS / PRODUTOS) --------------------------
+@app.route("/admin/configuracoes/catalogo/servico", methods=["POST"])
+@requer_plano
+def admin_catalogo_servico_salvar():
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
+    barbearia_id = _barbearia_id_sessao()
+    nome = (request.form.get("nome") or "").strip()
+    preco = _parse_valor_monetario(request.form.get("preco"))
+    item_id = request.form.get("id", type=int)
+    ativo = 0 if request.form.get("ativo") == "0" else 1
+    if not nome:
+        flash(_("Informe o nome do serviço."), "warning")
+        return redirect(url_for("admin_configuracoes") + "#catalogo-servicos")
+    try:
+        with db_adapter.connection_scope() as conn:
+            db_adapter.ensure_app_schema(conn)
+            catalogo.salvar_servico(
+                barbearia_id,
+                nome,
+                float(preco or 0),
+                item_id=item_id,
+                ativo=ativo,
+                conn=conn,
+            )
+        flash(_("Serviço salvo com sucesso."), "success")
+    except Exception as exc:
+        app.logger.exception("salvar serviço: %s", exc)
+        flash(_("Não foi possível salvar o serviço."), "danger")
+    return redirect(url_for("admin_configuracoes") + "#catalogo-servicos")
+
+
+@app.route("/admin/configuracoes/catalogo/servico/<int:item_id>/excluir", methods=["POST"])
+@requer_plano
+def admin_catalogo_servico_excluir(item_id):
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
+    try:
+        with db_adapter.connection_scope() as conn:
+            catalogo.excluir_servico(item_id, _barbearia_id_sessao(), conn=conn)
+        flash(_("Serviço desativado."), "success")
+    except Exception:
+        flash(_("Não foi possível remover o serviço."), "danger")
+    return redirect(url_for("admin_configuracoes") + "#catalogo-servicos")
+
+
+@app.route("/admin/configuracoes/catalogo/produto", methods=["POST"])
+@requer_plano
+def admin_catalogo_produto_salvar():
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
+    barbearia_id = _barbearia_id_sessao()
+    nome = (request.form.get("nome") or "").strip()
+    preco = _parse_valor_monetario(request.form.get("preco"))
+    item_id = request.form.get("id", type=int)
+    ativo = 0 if request.form.get("ativo") == "0" else 1
+    if not nome:
+        flash(_("Informe o nome do produto."), "warning")
+        return redirect(url_for("admin_configuracoes") + "#catalogo-produtos")
+    try:
+        with db_adapter.connection_scope() as conn:
+            db_adapter.ensure_app_schema(conn)
+            catalogo.salvar_produto(
+                barbearia_id,
+                nome,
+                float(preco or 0),
+                item_id=item_id,
+                ativo=ativo,
+                conn=conn,
+            )
+        flash(_("Produto salvo com sucesso."), "success")
+    except Exception as exc:
+        app.logger.exception("salvar produto: %s", exc)
+        flash(_("Não foi possível salvar o produto."), "danger")
+    return redirect(url_for("admin_configuracoes") + "#catalogo-produtos")
+
+
+@app.route("/admin/configuracoes/catalogo/produto/<int:item_id>/excluir", methods=["POST"])
+@requer_plano
+def admin_catalogo_produto_excluir(item_id):
+    bloqueio = _exigir_admin()
+    if bloqueio:
+        return bloqueio
+    try:
+        with db_adapter.connection_scope() as conn:
+            catalogo.excluir_produto(item_id, _barbearia_id_sessao(), conn=conn)
+        flash(_("Produto desativado."), "success")
+    except Exception:
+        flash(_("Não foi possível remover o produto."), "danger")
+    return redirect(url_for("admin_configuracoes") + "#catalogo-produtos")
+
+
 # -------------------------- CONFIGURAÇÕES DO ADMIN (COM FOTO DE CAPA) --------------------------
 @app.route("/admin/configuracoes", methods=["GET", "POST"])
 @requer_plano
@@ -3452,10 +3641,17 @@ def admin_configuracoes():
     ident_publico = session.get("barbearia_slug") or str(barbearia_id_alvo)
     url_home_publica, url_agendar_publica = _urls_publicas_estabelecimento(ident_publico)
 
+    ensure_schema_migrations(cursor)
+    safe_commit(conn)
+    catalogo_admin = catalogo.listar_servicos(barbearia_id_alvo, conn=conn)
+    produtos_admin = catalogo.listar_produtos(barbearia_id_alvo, conn=conn)
+
     conn.close()
     return render_template(
         "admin_configuracoes.html",
         nome_atual=configs["nome_negocio"],
+        catalogo_servicos=catalogo_admin,
+        catalogo_produtos=produtos_admin,
         foto_capa=foto_capa,
         logotipo_url=configs["logotipo_url"],
         titulo_catalogo1=configs["titulo_catalogo1"],

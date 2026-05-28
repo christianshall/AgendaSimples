@@ -46,9 +46,22 @@ def listar_registros_agenda(
     conn=None,
 ) -> list[dict[str, Any]]:
     status_expr = ifnull_status()
+    valor_sel = (
+        "c.valor"
+        if db.coluna_existe("Clientes", "valor", conn=conn)
+        else "0 AS valor"
+    )
+    extra = []
+    if db.coluna_existe("Clientes", "valor_servico", conn=conn):
+        extra.append("c.valor_servico AS valor_servico")
+    if db.coluna_existe("Clientes", "valor_produto", conn=conn):
+        extra.append("c.valor_produto AS valor_produto")
+    if db.coluna_existe("Clientes", "produto_nome", conn=conn):
+        extra.append("c.produto_nome AS produto_nome")
+    extras_sql = (", " + ", ".join(extra)) if extra else ""
     sql = f"""
         SELECT c.Nome, c.Dia, c.Hora, c.Servico, c.Whatsapp, u.nome AS barbeiro_nome,
-               c.barbeiro_id, {status_expr} AS status
+               c.barbeiro_id, {status_expr} AS status, {valor_sel} AS valor{extras_sql}
         FROM Clientes c
         INNER JOIN usuarios u ON c.barbeiro_id = u.id
         WHERE c.barbearia_id = ?
@@ -62,19 +75,64 @@ def listar_registros_agenda(
     rows = db.execute_query(sql, tuple(params), conn=conn)
     result = []
     for r in rows or []:
-        result.append(
-            {
-                "Nome": db.row_get(r, "Nome", index=0),
-                "Dia": db.row_get(r, "Dia", index=1),
-                "Hora": db.row_get(r, "Hora", index=2),
-                "Servico": db.row_get(r, "Servico", index=3),
-                "Whatsapp": db.row_get(r, "Whatsapp", index=4),
-                "barbeiro_nome": db.row_get(r, "barbeiro_nome", index=5),
-                "barbeiro_id": db.row_get(r, "barbeiro_id", index=6),
-                "status": db.row_get(r, "status", index=7),
-            }
+        item = {
+            "Nome": db.row_get(r, "Nome", index=0),
+            "Dia": db.row_get(r, "Dia", index=1),
+            "Hora": db.row_get(r, "Hora", index=2),
+            "Servico": db.row_get(r, "Servico", index=3),
+            "Whatsapp": db.row_get(r, "Whatsapp", index=4),
+            "barbeiro_nome": db.row_get(r, "barbeiro_nome", index=5),
+            "barbeiro_id": db.row_get(r, "barbeiro_id", index=6),
+            "status": db.row_get(r, "status", index=7),
+            "valor": float(db.row_get(r, "valor", index=8) or 0),
+        }
+        item["valor_servico"] = float(
+            db.row_get(r, "valor_servico", default=item["valor"]) or item["valor"]
         )
+        item["valor_produto"] = float(db.row_get(r, "valor_produto", default=0) or 0)
+        item["produto_nome"] = (
+            db.row_get(r, "produto_nome", default="") or ""
+        ).strip()
+        if item["valor_servico"] == item["valor"] and item["valor_produto"] == 0:
+            pass
+        result.append(item)
     return result
+
+
+def atualizar_valor_agendamento(
+    dia: str,
+    hora: str,
+    barbeiro_id: int,
+    barbearia_id: int,
+    valor: float,
+    *,
+    valor_servico: Optional[float] = None,
+    valor_produto: Optional[float] = None,
+    produto_nome: Optional[str] = None,
+    conn=None,
+) -> None:
+    if not db.coluna_existe("Clientes", "valor", conn=conn):
+        return
+    sets = ["valor = ?"]
+    params: list[Any] = [float(valor or 0)]
+    if valor_servico is not None and db.coluna_existe("Clientes", "valor_servico", conn=conn):
+        sets.append("valor_servico = ?")
+        params.append(float(valor_servico))
+    if valor_produto is not None and db.coluna_existe("Clientes", "valor_produto", conn=conn):
+        sets.append("valor_produto = ?")
+        params.append(float(valor_produto))
+    if produto_nome is not None and db.coluna_existe("Clientes", "produto_nome", conn=conn):
+        sets.append("produto_nome = ?")
+        params.append((produto_nome or "").strip() or None)
+    params.extend([dia, hora, barbeiro_id, barbearia_id])
+    db.execute_write(
+        f"""
+        UPDATE Clientes SET {", ".join(sets)}
+        WHERE Dia = ? AND Hora = ? AND barbeiro_id = ? AND barbearia_id = ?
+        """,
+        tuple(params),
+        conn=conn,
+    )
 
 
 def profissional_pertence_barbearia(
@@ -163,28 +221,52 @@ def inserir_agendamento(
     barbearia_id: int,
     valor: float = 0.0,
     *,
+    valor_servico: Optional[float] = None,
+    valor_produto: Optional[float] = None,
+    produto_nome: Optional[str] = None,
     conn,
 ) -> Optional[int]:
     valor_gravado = float(valor if valor is not None else 0)
+    v_srv = float(valor_servico if valor_servico is not None else valor_gravado)
+    v_prod = float(valor_produto or 0)
+    prod_nome = (produto_nome or "").strip()
     cur = db.cursor(conn)
+    cols = [
+        "Nome",
+        "Dia",
+        "Hora",
+        "Servico",
+        "Whatsapp",
+        "barbeiro_id",
+        "barbearia_id",
+        "status",
+        "valor",
+    ]
+    vals = [
+        nome,
+        dia,
+        hora,
+        servico,
+        whatsapp,
+        barbeiro_id,
+        barbearia_id,
+        "Agendado",
+        valor_gravado,
+    ]
+    if db.coluna_existe("Clientes", "valor_servico", conn=conn):
+        cols.append("valor_servico")
+        vals.append(v_srv)
+    if db.coluna_existe("Clientes", "valor_produto", conn=conn):
+        cols.append("valor_produto")
+        vals.append(v_prod)
+    if db.coluna_existe("Clientes", "produto_nome", conn=conn):
+        cols.append("produto_nome")
+        vals.append(prod_nome or None)
+    placeholders = ", ".join("?" for _ in vals)
+    colunas_sql = ", ".join(cols)
     cur.execute(
-        """
-        INSERT INTO Clientes (
-            Nome, Dia, Hora, Servico, Whatsapp,
-            barbeiro_id, barbearia_id, status, valor
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'Agendado', ?)
-        """,
-        (
-            nome,
-            dia,
-            hora,
-            servico,
-            whatsapp,
-            barbeiro_id,
-            barbearia_id,
-            valor_gravado,
-        ),
+        f"INSERT INTO Clientes ({colunas_sql}) VALUES ({placeholders})",
+        tuple(vals),
     )
     lid = cur.lastrowid
     if lid not in (None, 0):

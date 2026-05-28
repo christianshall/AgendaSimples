@@ -246,6 +246,91 @@
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        .agenda-valores-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .chip-valor {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .chip-valor.servico {
+            background: rgba(37, 99, 235, 0.14);
+            color: #1d4ed8;
+        }
+        .chip-valor.produto {
+            background: rgba(16, 185, 129, 0.16);
+            color: #047857;
+        }
+        .chip-valor.total {
+            background: rgba(27, 54, 93, 0.1);
+            color: var(--admin-blue-dark);
+        }
+
+        #agendarModal .modal-content {
+            border: none;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+        }
+        #agendarModal .modal-header {
+            background: linear-gradient(135deg, #1b365d 0%, #2563eb 100%);
+            border: none;
+        }
+        .agenda-modal-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .agenda-modal-block h6 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        .agenda-modal-block.produto {
+            border-style: dashed;
+            border-color: #86efac;
+            background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);
+        }
+        .agenda-total-preview {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #1b365d, #2563eb);
+            color: #fff;
+            font-weight: 600;
+            margin-top: 4px;
+            transition: transform 0.2s ease;
+        }
+        .agenda-total-preview.pulse {
+            transform: scale(1.02);
+        }
+        .agenda-total-preview .total-num {
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+        .btn-toggle-produto {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+        }
+        #blocoProduto.collapsed {
+            display: none;
+        }
     </style>
 </head>
 
@@ -378,6 +463,24 @@
                                 <div class="appointment-card" data-barbeiro="{{ ag.barbeiro_id }}">
                                     <strong>{{ ag.nome }}</strong><br>
                                     {{ _(ag.servico) }}<br>
+                                    {% if ag.produto_nome %}
+                                    <small class="text-muted"><i class="fas fa-box-open me-1"></i>{{ ag.produto_nome }}</small><br>
+                                    {% endif %}
+                                    {% if ag.valor_servico or ag.valor_produto or ag.valor %}
+                                    <div class="agenda-valores-chips">
+                                        {% if ag.valor_servico and ag.valor_servico > 0 %}
+                                        <span class="chip-valor servico"><i class="fas fa-cut"></i> R$ {{ "%.2f"|format(ag.valor_servico) }}</span>
+                                        {% endif %}
+                                        {% if ag.valor_produto and ag.valor_produto > 0 %}
+                                        <span class="chip-valor produto"><i class="fas fa-box"></i> R$ {{ "%.2f"|format(ag.valor_produto) }}</span>
+                                        {% endif %}
+                                        {% if ag.valor and ag.valor > 0 and not ag.valor_servico %}
+                                        <span class="chip-valor total"><i class="fas fa-tag"></i> R$ {{ "%.2f"|format(ag.valor) }}</span>
+                                        {% elif ag.valor and ag.valor > 0 and (ag.valor_servico or ag.valor_produto) %}
+                                        <span class="chip-valor total">= R$ {{ "%.2f"|format(ag.valor) }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
                                     {% if ag.whatsapp %}
                                     <span class="cliente-whatsapp">
                                         <i class="fab fa-whatsapp"></i> {{ ag.whatsapp }}
@@ -387,7 +490,7 @@
 
                                     <div class="appointment-actions">
                                         <button type="button" class="btn btn-success btn-sm btn-action"
-                                            onclick="openConcluirModal('{{ data_iso }}','{{ hora }}',{{ ag.barbeiro_id }}, {{ ag.nome|tojson }}, {{ ag.servico|tojson }})"
+                                            onclick="openConcluirModal('{{ data_iso }}','{{ hora }}',{{ ag.barbeiro_id }}, {{ ag.nome|tojson }}, {{ ag.servico|tojson }}, {{ ag.valor_servico|default(0) }}, {{ ag.valor_produto|default(0) }}, {{ ag.produto_nome|tojson }})"
                                             title="{{ _('Concluir atendimento') }}">
                                             <i class="fas fa-check-circle"></i> {{ _('Concluir') }}
                                         </button>
@@ -426,40 +529,97 @@
 </div>
 
 <div class="modal fade" id="agendarModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <form action="{{ url_for('agendar') }}" method="POST">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">{{ _('Novo Agendamento') }}</h5>
+            <form action="{{ url_for('agendar') }}" method="POST" id="formAgendarModal">
+                <div class="modal-header text-white">
+                    <h5 class="modal-title"><i class="fas fa-calendar-plus me-2"></i>{{ _('Novo Agendamento') }}</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
 
-                <div class="modal-body">
+                <div class="modal-body pb-2">
                     <input type="hidden" name="barbearia_id" value="{{ session.get('barbearia_id', '') }}">
                     <input type="hidden" name="barbearia_slug" value="{{ barbearia_slug }}">
                     <input type="hidden" name="data" id="modalData">
                     <input type="hidden" name="hora" id="modalHora">
                     <input type="hidden" name="barbeiro_id" id="modalBarbeiro">
-                    <input type="hidden" name="valor" id="modalValorServico" value="0">
 
                     <div class="mb-3">
-                        <label class="form-label">{{ _('Cliente') }}</label>
-                        <input type="text" name="nome" class="form-control" required>
+                        <label class="form-label fw-semibold">{{ _('Cliente') }}</label>
+                        <input type="text" name="nome" class="form-control form-control-lg" required
+                               placeholder="{{ _('Nome do cliente') }}" autocomplete="name">
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">{{ _('Serviço') }}</label>
-                        <input type="text" name="servico" class="form-control" required>
+                    <div class="agenda-modal-block">
+                        <h6><i class="fas fa-cut me-1 text-primary"></i> {{ _('Serviço') }}</h6>
+                        <div class="row g-2">
+                            <div class="col-md-7">
+                                <label class="form-label small text-muted">{{ _('O que será feito') }}</label>
+                                <input type="text" name="servico" id="modalServicoNome" class="form-control" required
+                                       list="listaServicosAgenda" placeholder="{{ _('Ex: Corte de cabelo') }}"
+                                       oninput="syncValorServicoDoCatalogo(); atualizarTotalModalAgendar()">
+                                <datalist id="listaServicosAgenda">
+                                    {% for s in servicos_detalhados|default([]) %}
+                                    <option value="{{ s.nome }}">{{ s.nome }} — R$ {{ "%.2f"|format(s.preco) }}</option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small text-muted">{{ _('Valor serviço (R$)') }}</label>
+                                <input type="number" name="valor_servico" id="modalValorServico" class="form-control"
+                                       min="0" step="0.01" value="0" placeholder="0,00"
+                                       oninput="atualizarTotalModalAgendar()">
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted">{{ _('Venda de produto na mesma visita?') }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-success btn-toggle-produto" id="btnToggleProduto"
+                                onclick="toggleBlocoProduto()">
+                            <i class="fas fa-plus-circle me-1"></i>{{ _('Adicionar produto') }}
+                        </button>
+                    </div>
+
+                    <div class="agenda-modal-block produto collapsed" id="blocoProduto">
+                        <h6><i class="fas fa-box-open me-1 text-success"></i> {{ _('Produto') }} <span class="badge" style="background:#d1fae5;color:#065f46;">{{ _('opcional') }}</span></h6>
+                        <div class="row g-2">
+                            <div class="col-md-7">
+                                <label class="form-label small text-muted">{{ _('Nome do produto') }}</label>
+                                <input type="text" name="produto_nome" id="modalProdutoNome" class="form-control"
+                                       list="listaProdutosAgenda" placeholder="{{ _('Ex: Pomada, Shampoo…') }}"
+                                       oninput="syncValorProdutoDoCatalogo(); atualizarTotalModalAgendar()">
+                                <datalist id="listaProdutosAgenda">
+                                    {% for p in produtos_detalhados|default([]) %}
+                                    <option value="{{ p.nome }}">{{ p.nome }} — R$ {{ "%.2f"|format(p.preco) }}</option>
+                                    {% endfor %}
+                                </datalist>
+                                <div class="form-text">{{ _('Escolha da lista ou digite — o preço pode preencher sozinho.') }}</div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small text-muted">{{ _('Valor produto (R$)') }}</label>
+                                <input type="number" name="valor_produto" id="modalValorProduto" class="form-control"
+                                       min="0" step="0.01" value="0" placeholder="0,00"
+                                       oninput="atualizarTotalModalAgendar()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="agenda-total-preview" id="modalTotalPreview">
+                        <span><i class="fas fa-receipt me-2"></i>{{ _('Total previsto') }}</span>
+                        <span class="total-num">R$ <span id="modalTotalValor">0,00</span></span>
+                    </div>
+
+                    <div class="mb-0 mt-3">
                         <label class="form-label">{{ _('WhatsApp') }}</label>
-                        <input type="text" name="whatsapp" class="form-control">
+                        <input type="text" name="whatsapp" class="form-control" placeholder="+55…">
                     </div>
                 </div>
 
-                <div class="modal-footer">
-                    <button class="btn btn-dark w-100" type="submit">{{ _('Confirmar') }}</button>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                        <i class="fas fa-check me-2"></i>{{ _('Confirmar agendamento') }}
+                    </button>
                 </div>
             </form>
         </div>
@@ -486,27 +646,57 @@
                         <span class="text-muted" id="concluirResumoServico"></span>
                     </p>
 
-                    <div class="mb-3">
-                        <label class="form-label">{{ _('Valor recebido (R$)') }}</label>
-                        <input type="number" name="valor" id="concluirValor" class="form-control"
-                               min="0" step="0.01" placeholder="0,00" value="0" required>
-                        <div class="form-text">{{ _('Use 0 para retornos, cortesias ou pacotes já pagos.') }}</div>
+                    <div id="concluirPainelSplit">
+                        <input type="hidden" name="modo_valores_split" value="1">
+                        <div class="agenda-modal-block mb-2">
+                            <h6 class="mb-2"><i class="fas fa-cut text-primary"></i> {{ _('Recebido — serviço') }}</h6>
+                            <input type="number" name="valor_servico" id="concluirValorServico" class="form-control"
+                                   min="0" step="0.01" value="0" oninput="atualizarTotalConcluir()">
+                        </div>
+                        <div class="agenda-modal-block produto mb-2">
+                            <h6 class="mb-2"><i class="fas fa-box-open text-success"></i> {{ _('Recebido — produto') }}</h6>
+                            <input type="text" name="produto_nome" id="concluirProdutoNome" class="form-control mb-2"
+                                   list="listaProdutosConcluir" placeholder="{{ _('Nome do produto') }}"
+                                   oninput="syncValorProdutoConcluir()">
+                            <datalist id="listaProdutosConcluir">
+                                {% for p in produtos_detalhados|default([]) %}
+                                <option value="{{ p.nome }}"></option>
+                                {% endfor %}
+                            </datalist>
+                            <input type="number" name="valor_produto" id="concluirValorProduto" class="form-control"
+                                   min="0" step="0.01" value="0" oninput="atualizarTotalConcluir()">
+                        </div>
+                        <div class="agenda-total-preview mb-3">
+                            <span>{{ _('Total recebido') }}</span>
+                            <span class="total-num">R$ <span id="concluirTotalValor">0,00</span></span>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">{{ _('O que foi feito') }}</label>
-                        <select name="descricao_tipo" id="concluirTipo" class="form-select" onchange="atualizarPlaceholderDetalhe()">
-                            <option value="Serviço">{{ _('Serviço') }}</option>
-                            <option value="Venda de Produto">{{ _('Venda de Produto') }}</option>
-                            <option value="Outro">{{ _('Outro (descrever)') }}</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">{{ _('Detalhe') }}</label>
-                        <input type="text" name="descricao_detalhe" id="concluirDetalhe" class="form-control"
-                               placeholder="{{ _('Ex: Corte de cabelo') }}">
-                        <div class="form-text">{{ _('Será registrado no financeiro junto com o tipo acima.') }}</div>
+                    <div id="concluirPainelSimples" class="d-none">
+                        <div class="mb-3">
+                            <label class="form-label">{{ _('Catálogo rápido') }}</label>
+                            <select class="form-select" id="concluirCatalogo" onchange="aplicarCatalogoConcluir()">
+                                <option value="">{{ _('— Usar valor manual abaixo —') }}</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ _('Valor recebido (R$)') }}</label>
+                            <input type="number" name="valor" id="concluirValor" class="form-control"
+                                   min="0" step="0.01" placeholder="0,00" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ _('O que foi feito') }}</label>
+                            <select name="descricao_tipo" id="concluirTipo" class="form-select" onchange="atualizarPlaceholderDetalhe()">
+                                <option value="Serviço">{{ _('Serviço') }}</option>
+                                <option value="Venda de Produto">{{ _('Venda de Produto') }}</option>
+                                <option value="Outro">{{ _('Outro (descrever)') }}</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ _('Detalhe') }}</label>
+                            <input type="text" name="descricao_detalhe" id="concluirDetalhe" class="form-control"
+                                   placeholder="{{ _('Ex: Corte de cabelo') }}">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -523,6 +713,139 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    var catalogoServicos = {{ servicos_detalhados|default([])|tojson }};
+    var catalogoProdutos = {{ produtos_detalhados|default([])|tojson }};
+
+    function formatarMoedaBr(n) {
+        return (parseFloat(n) || 0).toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function parseMoedaInput(id) {
+        return parseFloat(document.getElementById(id).value) || 0;
+    }
+
+    function atualizarTotalModalAgendar() {
+        var total = parseMoedaInput('modalValorServico') + parseMoedaInput('modalValorProduto');
+        var el = document.getElementById('modalTotalValor');
+        var box = document.getElementById('modalTotalPreview');
+        if (el) el.textContent = formatarMoedaBr(total);
+        if (box) {
+            box.classList.add('pulse');
+            setTimeout(function() { box.classList.remove('pulse'); }, 220);
+        }
+    }
+
+    function toggleBlocoProduto(forceOpen) {
+        var bloco = document.getElementById('blocoProduto');
+        var btn = document.getElementById('btnToggleProduto');
+        if (!bloco) return;
+        var abrir = forceOpen === true || bloco.classList.contains('collapsed');
+        if (abrir) {
+            bloco.classList.remove('collapsed');
+            if (btn) btn.innerHTML = '<i class="fas fa-minus-circle me-1"></i>{{ _("Ocultar produto")|tojson }}';
+            setTimeout(function() {
+                var inp = document.getElementById('modalProdutoNome');
+                if (inp) inp.focus();
+            }, 200);
+        } else {
+            bloco.classList.add('collapsed');
+            if (btn) btn.innerHTML = '<i class="fas fa-plus-circle me-1"></i>{{ _("Adicionar produto")|tojson }}';
+        }
+    }
+
+    function syncValorServicoDoCatalogo() {
+        var nome = (document.getElementById('modalServicoNome').value || '').trim().toLowerCase();
+        if (!nome) return;
+        var item = (catalogoServicos || []).find(function(s) {
+            return (s.nome || '').trim().toLowerCase() === nome;
+        });
+        if (item && item.preco > 0) {
+            document.getElementById('modalValorServico').value = Number(item.preco).toFixed(2);
+            atualizarTotalModalAgendar();
+        }
+    }
+
+    function syncValorProdutoDoCatalogo() {
+        var nome = (document.getElementById('modalProdutoNome').value || '').trim().toLowerCase();
+        if (!nome) return;
+        var item = (catalogoProdutos || []).find(function(p) {
+            return (p.nome || '').trim().toLowerCase() === nome;
+        });
+        if (item) {
+            toggleBlocoProduto(true);
+            if (item.preco > 0) {
+                document.getElementById('modalValorProduto').value = Number(item.preco).toFixed(2);
+                atualizarTotalModalAgendar();
+            }
+        }
+    }
+
+    function syncValorProdutoConcluir() {
+        var nome = (document.getElementById('concluirProdutoNome').value || '').trim().toLowerCase();
+        if (!nome) return;
+        var item = (catalogoProdutos || []).find(function(p) {
+            return (p.nome || '').trim().toLowerCase() === nome;
+        });
+        if (item && item.preco > 0) {
+            document.getElementById('concluirValorProduto').value = Number(item.preco).toFixed(2);
+            atualizarTotalConcluir();
+        }
+    }
+
+    function atualizarTotalConcluir() {
+        var total = parseMoedaInput('concluirValorServico') + parseMoedaInput('concluirValorProduto');
+        var el = document.getElementById('concluirTotalValor');
+        if (el) el.textContent = formatarMoedaBr(total);
+    }
+
+    function montarCatalogoConcluir() {
+        var sel = document.getElementById('concluirCatalogo');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">{{ _("— Usar valor manual abaixo —")|tojson }}</option>';
+        function addGroup(label, itens, cat) {
+            if (!itens || !itens.length) return;
+            var grp = document.createElement('optgroup');
+            grp.label = label;
+            itens.forEach(function(item) {
+                var opt = document.createElement('option');
+                opt.value = JSON.stringify({ nome: item.nome, preco: item.preco, cat: cat });
+                opt.textContent = item.nome + (item.preco > 0 ? ' — R$ ' + Number(item.preco).toFixed(2) : '');
+                grp.appendChild(opt);
+            });
+            sel.appendChild(grp);
+        }
+        addGroup('{{ _("Serviços")|tojson }}', catalogoServicos, 'Serviço');
+        addGroup('{{ _("Produtos")|tojson }}', catalogoProdutos, 'Produto');
+    }
+
+    function aplicarCatalogoConcluir() {
+        var sel = document.getElementById('concluirCatalogo');
+        if (!sel || !sel.value) return;
+        try {
+            var item = JSON.parse(sel.value);
+            document.getElementById('concluirValor').value = (parseFloat(item.preco) || 0).toFixed(2);
+            document.getElementById('concluirDetalhe').value = item.nome || '';
+            var tipoSel = document.getElementById('concluirTipo');
+            tipoSel.value = item.cat === 'Produto' ? 'Venda de Produto' : 'Serviço';
+            atualizarPlaceholderDetalhe();
+        } catch (e) { /* ignore */ }
+    }
+
+    function inferirDoCatalogo(nomeItem) {
+        var n = (nomeItem || '').trim().toLowerCase();
+        if (!n) return null;
+        var todos = []
+            .concat((catalogoServicos || []).map(function(i) { return { nome: i.nome, preco: i.preco, cat: 'Serviço' }; }))
+            .concat((catalogoProdutos || []).map(function(i) { return { nome: i.nome, preco: i.preco, cat: 'Produto' }; }));
+        for (var i = 0; i < todos.length; i++) {
+            if ((todos[i].nome || '').trim().toLowerCase() === n) return todos[i];
+        }
+        return null;
+    }
+
     function showDay(dateIso, el){
         document.querySelectorAll('.date-card').forEach(e=>e.classList.remove('active'))
         document.querySelectorAll('.tab-content-day').forEach(e=>e.classList.remove('active'))
@@ -535,6 +858,15 @@
         document.getElementById('modalData').value=data
         document.getElementById('modalHora').value=hora
         document.getElementById('modalBarbeiro').value=barbeiro_id
+        document.getElementById('modalServicoNome').value=''
+        document.getElementById('modalValorServico').value='0'
+        document.getElementById('modalValorProduto').value='0'
+        document.getElementById('modalProdutoNome').value=''
+        var bloco = document.getElementById('blocoProduto');
+        if (bloco) bloco.classList.add('collapsed');
+        var btn = document.getElementById('btnToggleProduto');
+        if (btn) btn.innerHTML = '<i class="fas fa-plus-circle me-1"></i>{{ _("Adicionar produto")|tojson }}';
+        atualizarTotalModalAgendar()
 
         new bootstrap.Modal(document.getElementById('agendarModal')).show()
     }
@@ -597,19 +929,63 @@
     document.addEventListener('DOMContentLoaded', function() {
         var tooltipList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipList.map(function(el) { return new bootstrap.Tooltip(el); });
+        montarCatalogoConcluir();
+        var formAg = document.getElementById('formAgendarModal');
+        if (formAg) {
+            formAg.addEventListener('submit', function(ev) {
+                var vProd = parseMoedaInput('modalValorProduto');
+                var nomeProd = (document.getElementById('modalProdutoNome').value || '').trim();
+                if (vProd > 0 && !nomeProd) {
+                    ev.preventDefault();
+                    toggleBlocoProduto(true);
+                    alert({{ _("Informe o nome do produto vendido.")|tojson }});
+                    document.getElementById('modalProdutoNome').focus();
+                }
+            });
+        }
     });
 
-    function openConcluirModal(data, hora, barbeiroId, nomeCliente, servicoAgendado){
+    function openConcluirModal(data, hora, barbeiroId, nomeCliente, servicoAgendado, valorServico, valorProduto, produtoNome){
         document.getElementById('concluirData').value=data
         document.getElementById('concluirHora').value=hora
         document.getElementById('concluirBarbeiroId').value=barbeiroId
         document.getElementById('concluirServicoAgendado').value=servicoAgendado||''
         document.getElementById('concluirNomeCliente').value=nomeCliente||''
         document.getElementById('concluirResumoCliente').textContent=nomeCliente||''
-        document.getElementById('concluirResumoServico').textContent=servicoAgendado||''
-        document.getElementById('concluirDetalhe').value=servicoAgendado||''
-        document.getElementById('concluirValor').value='0'
-        atualizarPlaceholderDetalhe()
+        var resumo = servicoAgendado || '';
+        if (produtoNome) resumo += ' · ' + produtoNome;
+        document.getElementById('concluirResumoServico').textContent=resumo
+
+        var vSrv = parseFloat(valorServico) || 0;
+        var vProd = parseFloat(valorProduto) || 0;
+        var usarSplit = vProd > 0 || (produtoNome && produtoNome.length > 0);
+
+        document.getElementById('concluirPainelSplit').classList.toggle('d-none', !usarSplit);
+        document.getElementById('concluirPainelSimples').classList.toggle('d-none', usarSplit);
+
+        if (usarSplit) {
+            document.getElementById('concluirValorServico').value = vSrv > 0 ? vSrv.toFixed(2) : '0';
+            document.getElementById('concluirValorProduto').value = vProd > 0 ? vProd.toFixed(2) : '0';
+            document.getElementById('concluirProdutoNome').value = produtoNome || '';
+            atualizarTotalConcluir();
+        } else {
+            document.getElementById('concluirDetalhe').value = servicoAgendado||''
+            var cat = document.getElementById('concluirCatalogo');
+            if (cat) cat.value = '';
+            var total = vSrv + vProd;
+            if (total > 0) {
+                document.getElementById('concluirValor').value = total.toFixed(2);
+            } else {
+                var match = inferirDoCatalogo(servicoAgendado);
+                document.getElementById('concluirValor').value = match && match.preco > 0
+                    ? Number(match.preco).toFixed(2) : '0';
+                if (match) {
+                    document.getElementById('concluirTipo').value =
+                        match.cat === 'Produto' ? 'Venda de Produto' : 'Serviço';
+                }
+            }
+            atualizarPlaceholderDetalhe();
+        }
         new bootstrap.Modal(document.getElementById('concluirModal')).show()
     }
 </script>

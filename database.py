@@ -713,11 +713,63 @@ SERVICOS_PADRAO = (
     "Outro",
 )
 
+# Sugestões para venda na agenda (nome, preço sugerido R$)
+PRODUTOS_PADRAO = (
+    ("Pomada", 35.0),
+    ("Shampoo", 28.0),
+    ("Óleo para barba", 45.0),
+    ("Cera modeladora", 32.0),
+    ("Outro", 0.0),
+)
+
 HORARIOS_PADRAO = (
     "08:00", "09:00", "10:00", "11:00",
     "12:00", "13:00", "14:00", "15:00",
     "16:00", "17:00", "18:00", "19:00", "20:00",
 )
+
+
+def _backfill_produtos_por_barbearia(cursor):
+    """Cria produtos padrão para barbearias que ainda não têm catálogo."""
+    if not _coluna_existe(cursor, "produtos", "barbearia_id"):
+        return
+    try:
+        cursor.execute("SELECT id FROM barbearias ORDER BY id")
+        ids = [
+            int(_valor_linha(r, 0, "id"))
+            for r in (cursor.fetchall() or [])
+            if _valor_linha(r, 0, "id") is not None
+        ]
+    except Exception as exc:
+        print(f"_backfill_produtos_por_barbearia (listar): {exc}")
+        return
+    for barbearia_id in ids:
+        try:
+            cursor.execute(
+                "SELECT COUNT(*) FROM produtos WHERE barbearia_id = ?",
+                (barbearia_id,),
+            )
+            if (cursor.fetchone() or [0])[0] != 0:
+                continue
+            for ordem, (nome, preco) in enumerate(PRODUTOS_PADRAO):
+                if _coluna_existe(cursor, "produtos", "preco"):
+                    cursor.execute(
+                        """
+                        INSERT INTO produtos (barbearia_id, nome, ativo, ordem, preco)
+                        VALUES (?, ?, 1, ?, ?)
+                        """,
+                        (barbearia_id, nome, ordem, float(preco)),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO produtos (barbearia_id, nome, ativo, ordem)
+                        VALUES (?, ?, 1, ?)
+                        """,
+                        (barbearia_id, nome, ordem),
+                    )
+        except Exception as exc:
+            print(f"_backfill_produtos_por_barbearia ({barbearia_id}): {exc}")
 
 
 def seed_servicos_horarios_padrao(cursor, barbearia_id):
@@ -726,15 +778,55 @@ def seed_servicos_horarios_padrao(cursor, barbearia_id):
         "SELECT COUNT(*) FROM servicos WHERE barbearia_id = ?",
         (barbearia_id,),
     )
+    preco_servico_padrao = {
+        "Corte": 45.0,
+        "Corte e Barba": 65.0,
+        "Corte + Sobrancelha": 55.0,
+        "Barba": 35.0,
+    }
     if (cursor.fetchone() or [0])[0] == 0:
         for ordem, nome in enumerate(SERVICOS_PADRAO):
-            cursor.execute(
-                """
-                INSERT INTO servicos (barbearia_id, nome, ativo, ordem)
-                VALUES (?, ?, 1, ?)
-                """,
-                (barbearia_id, nome, ordem),
-            )
+            preco = float(preco_servico_padrao.get(nome, 0.0))
+            if _coluna_existe(cursor, "servicos", "preco"):
+                cursor.execute(
+                    """
+                    INSERT INTO servicos (barbearia_id, nome, ativo, ordem, preco)
+                    VALUES (?, ?, 1, ?, ?)
+                    """,
+                    (barbearia_id, nome, ordem, preco),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO servicos (barbearia_id, nome, ativo, ordem)
+                    VALUES (?, ?, 1, ?)
+                    """,
+                    (barbearia_id, nome, ordem),
+                )
+
+    if _coluna_existe(cursor, "produtos", "barbearia_id"):
+        cursor.execute(
+            "SELECT COUNT(*) FROM produtos WHERE barbearia_id = ?",
+            (barbearia_id,),
+        )
+        if (cursor.fetchone() or [0])[0] == 0:
+            for ordem, (nome, preco) in enumerate(PRODUTOS_PADRAO):
+                if _coluna_existe(cursor, "produtos", "preco"):
+                    cursor.execute(
+                        """
+                        INSERT INTO produtos (barbearia_id, nome, ativo, ordem, preco)
+                        VALUES (?, ?, 1, ?, ?)
+                        """,
+                        (barbearia_id, nome, ordem, float(preco)),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO produtos (barbearia_id, nome, ativo, ordem)
+                        VALUES (?, ?, 1, ?)
+                        """,
+                        (barbearia_id, nome, ordem),
+                    )
 
     cursor.execute(
         "SELECT COUNT(*) FROM horarios WHERE barbearia_id = ?",
@@ -1134,6 +1226,16 @@ def criar_tabelas_core(cursor):
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0,
+            preco REAL
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS horarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barbearia_id INTEGER NOT NULL,
@@ -1388,6 +1490,10 @@ def ensure_schema_migrations(cursor):
         ("usuarios", "barbearia_id", "INTEGER"),
         ("Clientes", "barbearia_id", "INTEGER"),
         ("Clientes", "valor", "REAL"),
+        ("Clientes", "valor_servico", "REAL"),
+        ("Clientes", "valor_produto", "REAL"),
+        ("Clientes", "produto_nome", "TEXT"),
+        ("Clientes", "status", "TEXT"),
         ("financeiro", "descricao", "TEXT"),
         ("financeiro", "tipo_transacao", "TEXT"),
         ("financeiro", "barbeiro", "TEXT"),
@@ -1401,6 +1507,7 @@ def ensure_schema_migrations(cursor):
         ("financeiro", "produto", "TEXT"),
         ("financeiro", "tags", "TEXT"),
         ("servicos", "preco", "REAL"),
+        ("produtos", "preco", "REAL"),
         ("barbearias", "ramo_atividade", "TEXT"),
         ("assinaturas", "email_trial_lembrete_em", "TEXT"),
     ]
@@ -1416,6 +1523,14 @@ def ensure_schema_migrations(cursor):
                         safe_commit(conn_mig)
         except Exception as exc:
             print(f"ensure_schema_migrations ({tabela}.{coluna}): {exc}")
+
+    try:
+        if _coluna_existe(cursor, "Clientes", "status"):
+            cursor.execute(
+                "UPDATE Clientes SET status = 'Agendado' WHERE status IS NULL"
+            )
+    except Exception as exc:
+        print(f"ensure_schema_migrations Clientes.status backfill: {exc}")
 
     for ddl_tabela in (
         """
@@ -1438,6 +1553,17 @@ def ensure_schema_migrations(cursor):
             FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barbearia_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            ativo INTEGER DEFAULT 1,
+            ordem INTEGER DEFAULT 0,
+            preco REAL,
+            FOREIGN KEY (barbearia_id) REFERENCES barbearias(id)
+        )
+        """,
     ):
         try:
             cursor.execute(ddl_tabela)
@@ -1445,12 +1571,14 @@ def ensure_schema_migrations(cursor):
             print(f"ensure_schema_migrations (CREATE TABLE): {exc}")
 
     backfill_barbearia_id(cursor)
+    _backfill_produtos_por_barbearia(cursor)
 
     indices_tenant = (
         ("IX_usuarios_barbearia", "usuarios", "barbearia_id"),
         ("IX_Clientes_barbearia", "Clientes", "barbearia_id"),
         ("IX_financeiro_barbearia", "financeiro", "barbearia_id"),
         ("IX_servicos_barbearia", "servicos", "barbearia_id"),
+        ("IX_produtos_barbearia", "produtos", "barbearia_id"),
         ("IX_horarios_barbearia", "horarios", "barbearia_id"),
     )
     for nome_idx, tabela_idx, coluna_idx in indices_tenant:

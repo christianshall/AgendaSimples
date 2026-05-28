@@ -13,9 +13,144 @@
 
 {% include '_banner_plano.html' %}
 
-<div class="config-card">
+<div class="config-card config-card-wide">
     <h3 class="mb-1 text-center"><i class="fas fa-cog me-2"></i>Configurações</h3>
-    <p class="text-center text-muted small mb-4">Personalize a Home pública e o painel</p>
+    <p class="text-center text-muted small mb-4">Personalize a Home pública, catálogo e painel</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show py-2" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <p class="section-title" id="catalogo-servicos"><i class="fas fa-cut me-1"></i> Serviços (agenda e financeiro)</p>
+    <p class="small text-muted">Preços usados ao agendar e nos lançamentos de <strong>Serviço</strong> no financeiro.</p>
+
+    <div class="catalogo-table-wrap mb-3">
+        <table class="table table-sm catalogo-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>{{ _('Nome') }}</th>
+                    <th class="text-end">{{ _('Preço (R$)') }}</th>
+                    <th>{{ _('Status') }}</th>
+                    <th class="text-end">{{ _('Ações') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in catalogo_servicos|default([]) %}
+                <tr class="{% if not s.ativo %}table-secondary{% endif %}">
+                    <td>{{ s.nome }}</td>
+                    <td class="text-end">{{ "%.2f"|format(s.preco) }}</td>
+                    <td>{% if s.ativo %}{{ _('Ativo') }}{% else %}{{ _('Inativo') }}{% endif %}</td>
+                    <td class="text-end text-nowrap">
+                        {% if s.id %}
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="editarServico({{ s.id }}, {{ s.nome|tojson }}, {{ s.preco }}, {{ s.ativo }})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <form method="post" action="{{ url_for('admin_catalogo_servico_excluir', item_id=s.id) }}" class="d-inline"
+                              onsubmit="return confirm({{ _('Desativar este serviço?')|tojson }});">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">{{ _('Padrão') }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-muted text-center py-3">{{ _('Nenhum serviço cadastrado.') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_catalogo_servico_salvar') }}" class="catalogo-form mb-4" id="formServico">
+        <input type="hidden" name="id" id="servicoId" value="">
+        <input type="hidden" name="ativo" id="servicoAtivo" value="1">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">{{ _('Nome do serviço') }}</label>
+                <input type="text" name="nome" id="servicoNome" class="form-control" required maxlength="120"
+                       placeholder="{{ _('Ex: Corte') }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">{{ _('Preço (R$)') }}</label>
+                <input type="number" name="preco" id="servicoPreco" class="form-control" min="0" step="0.01" value="0">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-save flex-grow-1"><i class="fas fa-plus me-1"></i><span id="servicoBtnLabel">{{ _('Adicionar') }}</span></button>
+                <button type="button" class="btn btn-outline-secondary" onclick="limparFormServico()">{{ _('Limpar') }}</button>
+            </div>
+        </div>
+    </form>
+
+    <p class="section-title" id="catalogo-produtos"><i class="fas fa-box-open me-1"></i> Produtos (agenda e financeiro)</p>
+    <p class="small text-muted">Aparecem na agenda ao escolher tipo <strong>Produto</strong> e no financeiro como receita de produto.</p>
+
+    <div class="catalogo-table-wrap mb-3">
+        <table class="table table-sm catalogo-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>{{ _('Nome') }}</th>
+                    <th class="text-end">{{ _('Preço (R$)') }}</th>
+                    <th>{{ _('Status') }}</th>
+                    <th class="text-end">{{ _('Ações') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in catalogo_produtos|default([]) %}
+                <tr class="{% if not p.ativo %}table-secondary{% endif %}">
+                    <td>{{ p.nome }}</td>
+                    <td class="text-end">{{ "%.2f"|format(p.preco) }}</td>
+                    <td>{% if p.ativo %}{{ _('Ativo') }}{% else %}{{ _('Inativo') }}{% endif %}</td>
+                    <td class="text-end text-nowrap">
+                        {% if p.id %}
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="editarProduto({{ p.id }}, {{ p.nome|tojson }}, {{ p.preco }}, {{ p.ativo }})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <form method="post" action="{{ url_for('admin_catalogo_produto_excluir', item_id=p.id) }}" class="d-inline"
+                              onsubmit="return confirm({{ _('Desativar este produto?')|tojson }});">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">{{ _('Padrão') }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-muted text-center py-3">{{ _('Nenhum produto cadastrado.') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_catalogo_produto_salvar') }}" class="catalogo-form mb-4" id="formProduto">
+        <input type="hidden" name="id" id="produtoId" value="">
+        <input type="hidden" name="ativo" id="produtoAtivo" value="1">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">{{ _('Nome do produto') }}</label>
+                <input type="text" name="nome" id="produtoNome" class="form-control" required maxlength="120"
+                       placeholder="{{ _('Ex: Pomada') }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">{{ _('Preço (R$)') }}</label>
+                <input type="number" name="preco" id="produtoPreco" class="form-control" min="0" step="0.01" value="0">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-save flex-grow-1"><i class="fas fa-plus me-1"></i><span id="produtoBtnLabel">{{ _('Adicionar') }}</span></button>
+                <button type="button" class="btn btn-outline-secondary" onclick="limparFormProduto()">{{ _('Limpar') }}</button>
+            </div>
+        </div>
+    </form>
 
     <form action="{{ url_for('admin_configuracoes') }}" method="POST" enctype="multipart/form-data">
 
@@ -173,7 +308,39 @@
     </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    function editarServico(id, nome, preco, ativo) {
+        document.getElementById('servicoId').value = id;
+        document.getElementById('servicoNome').value = nome;
+        document.getElementById('servicoPreco').value = Number(preco || 0).toFixed(2);
+        document.getElementById('servicoAtivo').value = ativo ? '1' : '0';
+        document.getElementById('servicoBtnLabel').textContent = {{ _('Salvar alterações')|tojson }};
+        document.getElementById('formServico').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function limparFormServico() {
+        document.getElementById('servicoId').value = '';
+        document.getElementById('servicoNome').value = '';
+        document.getElementById('servicoPreco').value = '0';
+        document.getElementById('servicoAtivo').value = '1';
+        document.getElementById('servicoBtnLabel').textContent = {{ _('Adicionar')|tojson }};
+    }
+    function editarProduto(id, nome, preco, ativo) {
+        document.getElementById('produtoId').value = id;
+        document.getElementById('produtoNome').value = nome;
+        document.getElementById('produtoPreco').value = Number(preco || 0).toFixed(2);
+        document.getElementById('produtoAtivo').value = ativo ? '1' : '0';
+        document.getElementById('produtoBtnLabel').textContent = {{ _('Salvar alterações')|tojson }};
+        document.getElementById('formProduto').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function limparFormProduto() {
+        document.getElementById('produtoId').value = '';
+        document.getElementById('produtoNome').value = '';
+        document.getElementById('produtoPreco').value = '0';
+        document.getElementById('produtoAtivo').value = '1';
+        document.getElementById('produtoBtnLabel').textContent = {{ _('Adicionar')|tojson }};
+    }
+
     const MSG_EXCLUIR_FICHARIO = {{ _('Tem certeza que deseja excluir o fichário?') | tojson }};
     const MSG_EXCLUIR_FOTO = {{ _('Tem certeza que deseja excluir a foto?') | tojson }};
 
